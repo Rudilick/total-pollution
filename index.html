@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>수질오염총량검토서 작성 시스템</title>
+
+  <!-- 외부 라이브러리 -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- 스타일 -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- 원단위 DB 로딩 상태 배너 -->
+  <div id="db-loading-banner" style="
+    display:flex; align-items:center; gap:12px;
+    background:#eff6ff; border:1px solid #93c5fd;
+    border-radius:10px; padding:12px 16px; margin-bottom:12px;
+    font-size:13px; color:#1e40af; font-weight:700;
+  ">
+    <span style="font-size:18px; animation: spin 1s linear infinite; display:inline-block;">⏳</span>
+    <span>원단위 데이터베이스를 GitHub에서 불러오는 중입니다...</span>
+  </div>
+  <style>
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+
+  <div class="container">
+    <h3>검토서 템플릿 생성</h3>
+
+    <div class="tabBar" role="tablist" aria-label="입력 탭">
+      <button class="tabBtn active" data-tab="tab-basic" type="button">사업개요</button>
+      <button class="tabBtn" data-tab="tab-life" type="button">생활계</button>
+      <button class="tabBtn" data-tab="tab-land" type="button">토지계</button>
+    </div>
+
+    <!-- TAB 1: 사업개요 -->
+    <section id="tab-basic" class="tabPanel active" role="tabpanel">
+      <div class="tabGrid">
+        <div class="formCard">
+          <div class="cardTitle">기본정보</div>
+
+          <div class="row">
+            <label class="title">사업명</label>
+            <input id="projectName" value="" placeholder="○○ 근린생활시설 증축공사" />
+            <div class="cardHint">[사업자명] + [동(읍면리)] + [개발사업명]</div>
+          </div>
+
+          <div class="row">
+            <label class="title">사업위치(소재지)</label>
+            <input id="projectLocation" value="" placeholder="경기도 ○○시 ○○읍 ○○리 일원" />
+          </div>
+
+          <div class="row">
+            <label class="title">사업자명(사업시행자)</label>
+            <input id="ownerName" value="" placeholder="(주)○○" />
+          </div>
+
+          <div class="row">
+            <label class="title">사업의 종류</label>
+            <select id="bizTypeSelect"></select>
+          </div>
+        </div>
+
+        <div class="formCard">
+          <div class="cardTitle">기간 / 용도지역 / 면적·도로</div>
+
+          <div class="row-half">
+            <div class="half">
+              <label class="title">작성년도</label>
+              <select id="yearSelect"></select>
+            </div>
+            <div class="half">
+              <label class="title">작성월</label>
+              <select id="monthSelect"></select>
+            </div>
+          </div>
+
+          <div class="row-half">
+            <div class="half">
+              <label class="title">사업기간 시작년도</label>
+              <select id="startYearSelect"></select>
+            </div>
+            <div class="half">
+              <label class="title">준공(예정)년도</label>
+              <select id="completeYearSelect"></select>
+            </div>
+          </div>
+
+          <div class="row-half">
+            <div class="half">
+              <label class="title">용도지역(대분류)</label>
+              <select id="zoneMainSelect"></select>
+            </div>
+            <div class="half">
+              <label class="title">세부용도지역</label>
+              <select id="zoneSubSelect"></select>
+            </div>
+          </div>
+
+          <div class="row">
+            <label class="title">면적/연면적/도로 (숫자 입력)</label>
+            <div class="row-half">
+              <div class="half">
+                <label class="title">전체부지 면적 (m²)</label>
+                <input id="areaTotalSite" type="text" inputmode="decimal" value="" placeholder="예: 3191" />
+              </div>
+              <div class="half">
+                <label class="title">건축부지 면적 (m²)</label>
+                <input id="areaBuildSite" type="text" inputmode="decimal" value="" placeholder="예: 3191" />
+              </div>
+            </div>
+            <div class="row-half">
+              <div class="half">
+                <label class="title">도로부지 면적 (m²)</label>
+                <input id="areaRoadSite" type="text" inputmode="decimal" value="" placeholder="예: 0" />
+              </div>
+              <div class="half">
+                <label class="title">건축연면적 (m²)</label>
+                <input id="areaGrossFloor" type="text" inputmode="decimal" value="" placeholder="예: 1641.69" />
+              </div>
+            </div>
+            <div class="row-half">
+              <div class="half">
+                <label class="title">도로길이 (m)</label>
+                <input id="roadLength" type="text" inputmode="decimal" value="" placeholder="예: 50" />
+              </div>
+              <div class="half">
+                <label class="title">도로 폭 (m)</label>
+                <input id="roadWidth" type="text" inputmode="decimal" value="" placeholder="예: 6" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="formCard">
+          <div class="cardTitle">환경현황</div>
+          <div class="envBox">
+            <div class="envTitle">환경현황 (해당여부)</div>
+            <div class="envGrid">
+              <div class="envLabel">수변구역</div>
+              <div class="envOptions">
+                <label><input type="radio" name="env_river" value="해당">해당</label>
+                <label><input type="radio" name="env_river" value="해당없음" checked>해당없음</label>
+              </div>
+              <div class="envLabel">상수원보호구역</div>
+              <div class="envOptions">
+                <label><input type="radio" name="env_water" value="해당">해당</label>
+                <label><input type="radio" name="env_water" value="해당없음" checked>해당없음</label>
+              </div>
+              <div class="envLabel">특별대책지역</div>
+              <div class="envOptions">
+                <label><input type="radio" name="env_special" value="1권역">1권역</label>
+                <label><input type="radio" name="env_special" value="2권역">2권역</label>
+                <label><input type="radio" name="env_special" value="none" checked>해당없음</label>
+              </div>
+            </div>
+            <div class="envHint">※ 특별대책지역은 1권역/2권역/해당없음 중 1개만 선택한다.</div>
+          </div>
+        </div>
+
+        <div class="formCard">
+          <div class="cardTitle">기타</div>
+          <div class="row">
+            <label class="title">사업의 추진경위</label>
+            <textarea id="bizHistory" placeholder="예: 202X년 ○월 ○○협의 / 인허가 추진 등"></textarea>
+          </div>
+          <div class="row-half">
+            <div class="half">
+              <label class="title">검토서 작성자 이름</label>
+              <input id="writerName" value="" placeholder="예: 홍길동" />
+            </div>
+            <div class="half">
+              <label class="title">검토서 작성자 연락처</label>
+              <input id="writerContact" value="" placeholder="예: 010-0000-0000" />
+            </div>
+          </div>
+          <div class="btnRow">
+            <button type="button" onclick="generateDoc()">Word 다운로드</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 생활계 -->
+    <section id="tab-life" class="tabPanel" role="tabpanel">
+      <div class="tabGrid oneCol">
+        <div class="formCard">
+          <div class="row">
+            <label class="title">원단위(대/중/소/단위) 엑셀 업로드</label>
+            <div class="btnRow">
+              <button type="button" class="btnGhost" onclick="document.getElementById('lifeExcel').click()">엑셀 수동 업로드</button>
+              <button type="button" class="btnGhost" onclick="resetLifeUseDB()">GitHub에서 재로드</button>
+              <small id="lifeExcelStatus">GitHub에서 자동 로드 대기 중...</small>
+            </div>
+            <input id="lifeExcel" type="file" accept=".xlsx,.xls" class="hidden" />
+            <div class="cardHint">
+              GitHub에서 자동 로드됩니다. 수동 업로드 시 해당 세션에서만 적용됩니다.<br/>
+              <b>소분류 공란이면 중분류가 최종</b>이라 소분류 드롭다운이 나오지 않습니다.
+            </div>
+          </div>
+
+          <div class="lifeTwoCol">
+            <!-- 사업전 -->
+            <div class="lifeCol">
+              <div class="lifeColHeader">
+                <div class="lifeColTitle">사업전</div>
+                <label class="noSourceChk" for="beforeNoSource">
+                  <input id="beforeNoSource" type="checkbox" />
+                  사업전 오염원 발생원 없음
+                </label>
+              </div>
+              <div id="beforeInputs">
+                <div class="lifeTop">
+                  <div class="inlineUnitRow">
+                    <div class="label">가정인구</div>
+                    <div class="inputWrap">
+                      <input id="householdCount_before" type="text" inputmode="numeric"
+                        placeholder="세대수 입력(오피스텔 주거형은 호수를 세대수에 산입)" />
+                      <div class="unitText">세대</div>
+                    </div>
+                  </div>
+                  <div class="bizHeaderRow">
+                    <div class="sectionLabel">영업인구</div>
+                    <button type="button" class="btnGhost" onclick="lifeBefore.addBuilding()">+ 동 추가</button>
+                  </div>
+                </div>
+                <div id="livingContainer_before"></div>
+                <div id="beforeProofWrap" class="proofWrap hidden">
+                  <button type="button" class="btnGhost" onclick="document.getElementById('beforeProof').click()">
+                    증빙자료 업로드(JPG/PDF)
+                  </button>
+                  <input id="beforeProof" type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" multiple />
+                  <div id="beforeProofList" class="proofList"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 사업후 -->
+            <div class="lifeCol">
+              <div class="lifeColHeader">
+                <div class="lifeColTitle">사업후</div>
+              </div>
+              <div id="afterInputs">
+                <div class="lifeTop">
+                  <div class="inlineUnitRow">
+                    <div class="label">가정인구</div>
+                    <div class="inputWrap">
+                      <input id="householdCount_after" type="text" inputmode="numeric" placeholder="세대수 입력" />
+                      <div class="unitText">세대</div>
+                    </div>
+                  </div>
+                  <div class="bizHeaderRow">
+                    <div class="sectionLabel">영업인구</div>
+                    <button type="button" class="btnGhost" onclick="lifeAfter.addBuilding()">+ 동 추가</button>
+                  </div>
+                </div>
+                <div id="livingContainer_after"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 토지계 -->
+    <section id="tab-land" class="tabPanel" role="tabpanel">
+      <div class="tabGrid oneCol">
+        <div class="formCard">
+          <div class="landTwoCol">
+            <div class="landCol">
+              <div class="landColHeader">
+                <div class="landColTitle">사업전</div>
+              </div>
+              <div id="landContainer_before"></div>
+            </div>
+            <div class="landCol">
+              <div class="landColHeader">
+                <div class="landColTitle">사업후</div>
+              </div>
+              <div id="landContainer_after"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /.container -->
+
+  <!-- JS 로드 순서 중요: config → utils → db-loader → ui-basic → 모듈들 → word-gen -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/db-loader.js"></script>
+  <script src="js/ui-basic.js"></script>
+  <script src="js/life-module.js"></script>
+  <script src="js/land-module.js"></script>
+  <script src="js/word-gen.js"></script>
+
+</body>
+</html>
