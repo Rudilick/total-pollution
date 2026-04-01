@@ -6,7 +6,7 @@
 const CONFIG = {
   // ★ GitHub Raw URL - 원단위 엑셀 파일 경로
   // 파일 업데이트 시 GitHub에 덮어쓰기하면 자동 반영됩니다.
-  DB_EXCEL_URL: "https://raw.githubusercontent.com/Rudilick/total-pollution/main/data.xlsx",
+  DB_EXCEL_URL: "/data.xlsx",
 
   // Word 출력 파일명
   DOCX_FILENAME: "수질오염총량검토서.docx",
