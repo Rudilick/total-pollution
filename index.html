@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>수질 계산기</title>
+</head>
+<body>
+  <h2>수질 계산기</h2>
+
+  <select id="major" onchange="onMajorChange(this.value)"></select>
+  <select id="mid"></select>
+
+  <input id="val" placeholder="값 입력" />
+  <button onclick="calculate()">계산</button>
+
+  <div id="result"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
