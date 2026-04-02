@@ -68,7 +68,7 @@ function createLifeModule(opts) {
           <option value="고도처리" ${m2==="고도처리"?"selected":""}>고도처리</option>
           <option value="일반처리" ${m2==="일반처리"?"selected":""}>일반처리</option>
         </select>
-        <select class="miniSelect" style="width:100px;flex-shrink:0;"
+        <select class="miniSelect" style="width:130px;flex-shrink:0;"
           onchange="window.__lifeOnMethod3Change('${rootId}','${idPrefix}',this.value)">
           <option value="50톤이상" ${m3==="50톤이상"||!m3?"selected":""}>50톤 이상</option>
           <option value="50톤미만" ${m3==="50톤미만"?"selected":""}>50톤 미만</option>
