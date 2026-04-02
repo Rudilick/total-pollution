@@ -1,0 +1,505 @@
+    :root{
+      --formWidth: 1680px;
+      --gap: 12px;
+      --colGap: 18px;
+
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #121826;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+
+      --shadow: 0 10px 30px rgba(0,0,0,0.06);
+      --radius: 14px;
+      --radiusSm: 10px;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h3{ margin: 0 0 14px 0; font-size: 18px; }
+
+    .container{
+      width: min(var(--formWidth), calc(100vw - 32px));
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Tabs */
+    .tabBar{
+      display:flex;
+      gap:10px;
+      margin: 12px 0 16px;
+      flex-wrap: wrap;
+    }
+    .tabBtn{
+      appearance:none;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.7);
+      padding: 10px 12px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight: 900;
+      color: #1f2937;
+    }
+    .tabBtn.active{
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border-color: transparent;
+    }
+    .tabPanel{ display:none; }
+    .tabPanel.active{ display:block; }
+
+    /* Layout grid per tab */
+    .tabGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px var(--colGap);
+      align-items: start;
+    }
+    .tabGrid.oneCol{
+      grid-template-columns: 1fr;
+    }
+
+    /* Cards */
+    .formCard{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+    .cardTitle{
+      font-weight: 1000;
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      color: #111827;
+      letter-spacing: -0.2px;
+    }
+    .cardHint{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* Form pieces */
+    .row { margin: 10px 0; }
+    .row label.title{
+      display:block;
+      margin-bottom: 6px;
+      font-weight: 900;
+      font-size: 13px;
+      color: #111827;
+    }
+    input, select, textarea{
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: #9ca3af;
+      box-shadow: 0 0 0 4px rgba(156,163,175,0.18);
+    }
+    textarea { height: 92px; resize: vertical; }
+    small { color: var(--muted); }
+
+    .row-half { display: flex; gap: var(--gap); margin: 10px 0; width: 100%; }
+    .row-half .half { flex: 1; }
+
+    /* env box */
+    .envBox{
+      border:1px solid var(--border);
+      padding:12px 14px;
+      border-radius: var(--radiusSm);
+      background:#fafafa;
+      width: 100%;
+    }
+    .envTitle{ font-weight:1000; margin-bottom:10px; }
+    .envGrid{ display:grid; grid-template-columns: 160px 1fr; gap:10px 14px; align-items:center; }
+    .envLabel{ font-weight:900; white-space:nowrap; }
+    .envOptions{ display:flex; flex-wrap:wrap; gap:10px 10px; align-items:center; }
+    .envOptions label{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:7px 10px; border:1px solid var(--border);
+      border-radius:999px; background:#fff; cursor:pointer; user-select:none; line-height: 1;
+      font-weight: 800; color:#111827;
+    }
+    .envOptions input{ width:auto; padding:0; margin:0; }
+    .envHint{ margin-top:8px; color:var(--muted); font-size:12px; }
+
+    /* Buttons */
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 10px;
+    }
+    button{
+      padding: 12px 14px;
+      cursor: pointer;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: #111827;
+      color: #fff;
+      font-weight: 1000;
+      box-shadow: var(--shadow);
+    }
+    button:hover{ filter: brightness(1.02); }
+    .btnGhost{
+      background: #fff;
+      color:#111827;
+      border: 1px solid var(--border);
+      box-shadow: none;
+      font-weight: 900;
+    }
+    .btnDanger{
+      background:#b91c1c;
+    }
+
+    /* 숨김 */
+    .hidden{ display:none !important; }
+
+    /* =========================
+       생활계 UI(사업전/사업후 2단)
+       ========================= */
+    .lifeTwoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .lifeCol{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 18px;
+      min-height: 420px;
+    }
+    .lifeColHeader{
+      position: relative;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      margin-bottom: 14px;
+      padding-top: 4px;
+    }
+    .lifeColTitle{
+      font-size: 54px;
+      font-weight: 1000;
+      color:#111827;
+      letter-spacing: -0.5px;
+      text-align:center;
+      line-height: 1.05;
+    }
+    .noSourceChk{
+      position:absolute;
+      right: 0;
+      top: 0;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 12px;
+      border:1px solid var(--border);
+      border-radius: 999px;
+      background:#fff;
+      font-weight: 900;
+      user-select:none;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .noSourceChk input{ width:auto; margin:0; }
+
+    .lifeDisabled{
+      opacity: 0.35;
+      pointer-events: none;
+      filter: grayscale(0.15);
+    }
+
+    .lifeTop{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .inlineUnitRow{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      width: 100%;
+      max-width: 720px;
+    }
+    .inlineUnitRow .label{
+      font-weight: 1000;
+      color:#111827;
+      min-width: 92px;
+      text-align: left;
+    }
+    .inlineUnitRow .inputWrap{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .inlineUnitRow input{ min-width: 0; }
+    .inlineUnitRow .unitText{
+      font-weight: 1000;
+      color:#111827;
+      padding: 10px 12px;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      background:#fff;
+      white-space:nowrap;
+    }
+
+    .bizHeaderRow{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      width: 100%;
+      max-width: 720px;
+      margin-top: 8px;
+      margin-bottom: 6px;
+    }
+    .bizHeaderRow .sectionLabel{
+      font-weight: 1000;
+      color:#111827;
+      margin: 0;
+    }
+
+    /* 증빙 업로드 */
+    .proofWrap{
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+      width: 100%;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .proofList{
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    /* 동/층/용도Row UI */
+    .buildingList{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top: 8px;
+      width: 100%;
+    }
+    .buildingCard{
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      padding: 12px;
+    }
+    .buildingHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .buildingTitle{ font-weight:1000; }
+
+    .floorBlock{
+      border:1px dashed #ddd;
+      border-radius:12px;
+      padding:10px;
+      background:#fafafa;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .floorHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      flex-wrap: wrap;
+    }
+    .floorTitle{ font-weight:1000; }
+
+    .useRow{
+      display:grid;
+      grid-template-columns: 1.1fr 1.1fr 1.3fr 1fr 90px 230px 70px;
+      gap:8px;
+      align-items:center;
+      background:#fff;
+      border:1px solid #e6e6e6;
+      border-radius:10px;
+      padding:8px;
+      overflow:auto;
+    }
+    .useRow.noMinor{
+      grid-template-columns: 1.2fr 1.4fr 1fr 90px 230px 70px;
+    }
+    .useRow .unitCell{
+      text-align:center;
+      font-weight:1000;
+      color:#111827;
+      padding: 10px 10px;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      background:#fff;
+      white-space:nowrap;
+    }
+
+    .miniBtn{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:#111827;
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow:none;
+    }
+    .miniBtnDanger{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border:1px solid transparent;
+      background:#b91c1c;
+      color:#fff;
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow:none;
+    }
+
+    .miniSelect{
+      padding: 9px 10px;
+      border-radius: 12px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight: 900;
+      color:#111827;
+    }
+
+    .calcHint{
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 2px 2px 0;
+    }
+
+    .nsWrap{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .nsTag{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      font-weight: 900;
+      white-space:nowrap;
+      user-select:none;
+    }
+    .nsTag input{ width:auto; margin:0; }
+
+    /* =========================
+       토지계 UI(사업전/사업후 2단)
+       ========================= */
+    .landTwoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .landCol{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background:#fff;
+      padding: 18px;
+      min-height: 420px;
+    }
+    .landColHeader{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      margin-bottom: 14px;
+      padding-top: 4px;
+    }
+    .landColTitle{
+      font-size: 54px;
+      font-weight: 1000;
+      color:#111827;
+      letter-spacing: -0.5px;
+      text-align:center;
+      line-height: 1.05;
+    }
+    .landList{
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .landRow{
+      display:grid;
+      grid-template-columns: 140px 1fr 84px;
+      gap:10px;
+      align-items:center;
+      padding: 10px 12px;
+      border-top:1px solid #eef2f7;
+    }
+    .landRow:first-child{ border-top:none; }
+    .landLabel{
+      font-weight: 1000;
+      color:#111827;
+      white-space:nowrap;
+    }
+    .landUnit{
+      text-align:center;
+      font-weight: 1000;
+      color:#111827;
+      padding: 10px 10px;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      background:#fff;
+      white-space:nowrap;
+    }
+    .landRow.groupDivider{
+      border-top:1px solid #f6f7fb;
+    }
+
+    @media (max-width: 980px){
+      :root{ --formWidth: 576px; }
+      body{ padding: 12px; }
+      .tabGrid{ grid-template-columns: 1fr; }
+      .envGrid{ grid-template-columns: 1fr; }
+      .useRow{ grid-template-columns: 1fr; }
+      .lifeTwoCol{ grid-template-columns: 1fr; }
+      .lifeColTitle{ font-size: 40px; }
+      .noSourceChk{ position: static; margin-left:auto; }
+      .lifeColHeader{ justify-content:space-between; }
+      .inlineUnitRow, .bizHeaderRow, .proofWrap{ max-width: 100%; }
+
+      .landTwoCol{ grid-template-columns: 1fr; }
+      .landColTitle{ font-size: 40px; }
+      .landList{ max-width: 100%; }
+      .landRow{ grid-template-columns: 120px 1fr 74px; }
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
