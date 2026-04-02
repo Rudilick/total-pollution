@@ -112,9 +112,9 @@ function applyExcelBuffer(buf, sourceLabel) {
     const sidoMap = new Map(); // Map<sido, sigun[]>
     for (let r = 1; r < aoa3.length; r++) {
       const row   = aoa3[r] || [];
-      const sido  = String(row[1]||"").trim();
-      const sigun = String(row[2]||"").trim();
-      const unit  = parseFloat(row[3]) || 0;
+      const sido  = String(row[0]||"").trim();
+      const sigun = String(row[1]||"").trim();
+      const unit  = parseFloat(row[2]) || 0;
       if (!sigun) continue;
       POPULATION_UNIT_DB.push({ sido, sigun, unit });
       if (sido) {
