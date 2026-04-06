@@ -1085,7 +1085,12 @@ function generateDoc(calcResult){
       properties:{page:{margin:{top:MARGIN_TOP,bottom:MARGIN_BOTTOM,left:MARGIN_LEFT,right:MARGIN_RIGHT}}},
       children:bodyChildren
     };
-    var doc=new Document({sections:[coverSection,bodySection]});
+    var doc=new Document({
+      sections:[coverSection,bodySection],
+      settings:{
+        updateFields:true
+      }
+    });
     Packer.toBlob(doc).then(function(blob){
       saveAs(blob,(typeof CONFIG!=="undefined"?CONFIG.DOCX_FILENAME:"수질오염총량검토서.docx"));
     });
