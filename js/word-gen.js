@@ -149,10 +149,12 @@ function makeH(docx){
     });
   }
 
-  function heading1(t){return new Paragraph({spacing:SP_H1,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H1})]});}
-  function heading2(t){return new Paragraph({spacing:SP_H2,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H2})]});}
-  function heading3(t){return new Paragraph({spacing:SP_H3,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H3})]});}
-  function heading4(t){return new Paragraph({spacing:SP_H4,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H4})]});}
+  // heading 함수들은 Word 내장 스타일명("Heading 1"~"Heading 4")을 사용
+  // → TOC 필드가 이 스타일을 읽어 자동으로 페이지 번호를 채움
+  function heading1(t){return new Paragraph({style:"Heading1",spacing:SP_H1,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H1})]});}
+  function heading2(t){return new Paragraph({style:"Heading2",spacing:SP_H2,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H2})]});}
+  function heading3(t){return new Paragraph({style:"Heading3",spacing:SP_H3,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H3})]});}
+  function heading4(t){return new Paragraph({style:"Heading4",spacing:SP_H4,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H4})]});}
   function note(t){return new Paragraph({spacing:{before:40,after:40},children:[new TextRun({text:String(t),font:FONT,size:SZ_SM})]});}
   function blank(){return new Paragraph({spacing:SP_AFT,children:[]});}
 
@@ -270,10 +272,11 @@ function buildCoverSection(docx,data){
   };
 }
 
-// ── 목차 ─────────────────────────────────────────────────────────
+// ── 목차 (Word TOC 필드코드 — Word에서 열면 자동으로 페이지 번호 채워짐) ──
 function buildTocBlock(docx){
   var H=makeH(docx);
   var Paragraph=docx.Paragraph,TextRun=docx.TextRun,BorderStyle=docx.BorderStyle;
+  var XmlComponent=docx.XmlComponent;
   var els=[];
 
   // 목차 타이틀
@@ -289,49 +292,87 @@ function buildTocBlock(docx){
     spacing:{before:0,after:200},children:[]
   }));
 
-  var T=H.tocRow;
-  // 장 1: 총괄
-  els.push(T("제1장  총  괄","1",0));
-  els.push(T("1. 사업의 개요","1",1));
-  els.push(T("2. 할당부하량","1",1));
-  els.push(T("3. 저감계획","2",1));
-  els.push(H.blank());
+  // ── Word TOC 필드코드 삽입 ──────────────────────────────────────
+  // \o "1-4" : Heading1~4 스타일을 목차 항목으로 수집
+  // \h        : 항목을 클릭 가능한 하이퍼링크로 만듦
+  // \z        : 웹 레이아웃 보기에서 페이지 번호 숨김 (인쇄 레이아웃엔 표시)
+  // \u        : 목차 자체는 목차에 포함하지 않음
+  //
+  // Word에서 파일을 열면 "목차를 업데이트하시겠습니까?" 팝업 또는
+  // 목차 영역 우클릭 → [필드 업데이트] 로 실제 페이지 번호가 채워집니다.
+  // ──────────────────────────────────────────────────────────────
+  var tocXml =
+    '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+      '<w:pPr>' +
+        '<w:pStyle w:val="TOC1"/>' +
+        '<w:tabs>' +
+          '<w:tab w:val="right" w:leader="dot" w:pos="8640"/>' +
+        '</w:tabs>' +
+      '</w:pPr>' +
+      '<w:r>' +
+        '<w:fldChar w:fldCharType="begin" w:dirty="true"/>' +
+      '</w:r>' +
+      '<w:r>' +
+        '<w:instrText xml:space="preserve"> TOC \\o "1-4" \\h \\z \\u </w:instrText>' +
+      '</w:r>' +
+      '<w:r>' +
+        '<w:fldChar w:fldCharType="separate"/>' +
+      '</w:r>' +
+      '<w:r>' +
+        '<w:t>[ Word에서 열면 자동으로 목차가 생성됩니다. 목차 영역 우클릭 → 필드 업데이트 ]</w:t>' +
+      '</w:r>' +
+      '<w:r>' +
+        '<w:fldChar w:fldCharType="end"/>' +
+      '</w:r>' +
+    '</w:p>';
 
-  // 장 2: 사업계획서
-  els.push(T("제2장  사업계획서","3",0));
-  els.push(T("1. 계획의 배경 및 목적","3",1));
-  els.push(T("2. 수질오염총량검토 실시근거","4",1));
-  els.push(T("3. 계획의 추진경위 및 계획","5",1));
-  els.push(T("4. 계획의 내용","6",1));
-  els.push(T("(1) 사업명","6",2));
-  els.push(T("(2) 시간적 범위","6",2));
-  els.push(T("(3) 공간적 범위","6",2));
-  els.push(T("(4) 사업 시행자","6",2));
-  els.push(T("(5) 토지이용계획도","7",2));
-  els.push(T("(6) 토지조서","8",2));
-  els.push(T("(7) 토지이용계획","9",2));
-  els.push(T("(8) 건축개요","10",2));
-  els.push(T("(9) 단위유역 현황도 및 사업지 위치","11",2));
-  els.push(H.blank());
+  // docx.js의 XmlComponent를 이용해 raw XML 삽입
+  // (버전에 따라 docx.ExternalHyperlink 대신 아래 방식 사용)
+  try{
+    var rawPara=Object.create(Paragraph.prototype);
+    rawPara.root=[{xmlKeys:{},_attr:{}}];
+    rawPara.prepForXml=function(){return null;};
+    rawPara.rootKey="w:p";
+    // docx.js가 내부적으로 toXml()을 호출할 때 raw string 반환
+    rawPara[Symbol.iterator]=undefined;
 
-  // 장 3: 부하량 산정
-  els.push(T("제3장  부하량 산정","12",0));
-  els.push(T("1. 생활계","12",1));
-  els.push(T("가. 사업시행 전","12",2));
-  els.push(T("나. 사업시행 후","13",2));
-  els.push(T("2. 토지계","16",1));
-  els.push(T("가. 사업시행 전","16",2));
-  els.push(T("나. 사업시행 후","17",2));
-  els.push(T("3. 최종배출부하량","18",1));
-  els.push(H.blank());
-
-  // 장 4: 부록
-  els.push(T("제4장  부  록","19",0));
-  els.push(T("1. 건축물대장","19",1));
-  els.push(T("2. 토지대장","19",1));
-  els.push(T("3. 건축도면","19",1));
-  els.push(T("4. 기술검증서","19",1));
-  els.push(T("5. 인허가 증빙서류 등 기타","19",1));
+    // 가장 안전한 방법: Paragraph의 커스텀 XML 삽입
+    // docx v7+ 에서는 XmlComponent 직접 상속 대신 아래 패턴 사용
+    function RawXmlParagraph(xmlStr){
+      this._xmlStr=xmlStr;
+    }
+    RawXmlParagraph.prototype.prepForXml=function(context){
+      // docx.js packer가 이 메서드를 호출해 직렬화
+      return{rootKey:"__raw__",_attr:{},children:[]};
+    };
+    // docx.js v8+ Packer는 prepForXml 결과를 xml2js로 변환
+    // raw XML은 XmlComponent 방식으로 삽입
+    if(typeof XmlComponent==="function"){
+      var TocField=function(xmlStr){
+        XmlComponent.call(this,"w:p");
+        this._rawXml=xmlStr;
+      };
+      TocField.prototype=Object.create(XmlComponent.prototype);
+      TocField.prototype.prepForXml=function(context){
+        // raw XML string을 직접 반환 — docx packer가 그대로 씁니다
+        return this._rawXml;
+      };
+      els.push(new TocField(tocXml));
+    } else {
+      // XmlComponent 없는 환경: Paragraph + SimpleField 폴백
+      els.push(new Paragraph({
+        spacing:{before:60,after:60},
+        children:[
+          new docx.SimpleField('TOC \\o "1-4" \\h \\z \\u',
+            '[ Word에서 열면 자동으로 목차가 생성됩니다 ]')
+        ]
+      }));
+    }
+  } catch(e){
+    // 최후 폴백: 안내 텍스트만 표시
+    els.push(H.p('[ Word에서 파일을 열고, 이 영역 우클릭 → 필드 업데이트를 클릭하면 목차가 자동 생성됩니다 ]',
+      {size:H.SZ_SM,color:"888888"}));
+  }
 
   return els;
 }
