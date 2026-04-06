@@ -46,3 +46,8 @@
       root.innerHTML = "";
       root.appendChild(list);
     }
+
+// ── window 노출 (calc.js에서 window.landState로 접근) ──────────
+window.landState = landState;
+window.renderLandList = renderLandList;
+window.onLandChange = onLandChange;
