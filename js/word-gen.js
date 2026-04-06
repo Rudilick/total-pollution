@@ -272,11 +272,12 @@ function buildCoverSection(docx,data){
   };
 }
 
-// ── 목차 (Word TOC 필드코드 — Word에서 열면 자동으로 페이지 번호 채워짐) ──
+// ── 목차 (Word TOC 필드코드) ─────────────────────────────────────
+// Word에서 파일을 열면 자동으로 "목차 업데이트" 팝업이 뜨거나,
+// Ctrl+A → F9 키를 누르면 실제 페이지 번호가 채워집니다.
 function buildTocBlock(docx){
   var H=makeH(docx);
   var Paragraph=docx.Paragraph,TextRun=docx.TextRun,BorderStyle=docx.BorderStyle;
-  var XmlComponent=docx.XmlComponent;
   var els=[];
 
   // 목차 타이틀
@@ -292,86 +293,88 @@ function buildTocBlock(docx){
     spacing:{before:0,after:200},children:[]
   }));
 
-  // ── Word TOC 필드코드 삽입 ──────────────────────────────────────
-  // \o "1-4" : Heading1~4 스타일을 목차 항목으로 수집
-  // \h        : 항목을 클릭 가능한 하이퍼링크로 만듦
-  // \z        : 웹 레이아웃 보기에서 페이지 번호 숨김 (인쇄 레이아웃엔 표시)
-  // \u        : 목차 자체는 목차에 포함하지 않음
-  //
-  // Word에서 파일을 열면 "목차를 업데이트하시겠습니까?" 팝업 또는
-  // 목차 영역 우클릭 → [필드 업데이트] 로 실제 페이지 번호가 채워집니다.
-  // ──────────────────────────────────────────────────────────────
-  var tocXml =
-    '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-      '<w:pPr>' +
-        '<w:pStyle w:val="TOC1"/>' +
-        '<w:tabs>' +
-          '<w:tab w:val="right" w:leader="dot" w:pos="8640"/>' +
-        '</w:tabs>' +
-      '</w:pPr>' +
-      '<w:r>' +
-        '<w:fldChar w:fldCharType="begin" w:dirty="true"/>' +
-      '</w:r>' +
-      '<w:r>' +
-        '<w:instrText xml:space="preserve"> TOC \\o "1-4" \\h \\z \\u </w:instrText>' +
-      '</w:r>' +
-      '<w:r>' +
-        '<w:fldChar w:fldCharType="separate"/>' +
-      '</w:r>' +
-      '<w:r>' +
-        '<w:t>[ Word에서 열면 자동으로 목차가 생성됩니다. 목차 영역 우클릭 → 필드 업데이트 ]</w:t>' +
-      '</w:r>' +
-      '<w:r>' +
-        '<w:fldChar w:fldCharType="end"/>' +
-      '</w:r>' +
-    '</w:p>';
-
-  // docx.js의 XmlComponent를 이용해 raw XML 삽입
-  // (버전에 따라 docx.ExternalHyperlink 대신 아래 방식 사용)
-  try{
-    var rawPara=Object.create(Paragraph.prototype);
-    rawPara.root=[{xmlKeys:{},_attr:{}}];
-    rawPara.prepForXml=function(){return null;};
-    rawPara.rootKey="w:p";
-    // docx.js가 내부적으로 toXml()을 호출할 때 raw string 반환
-    rawPara[Symbol.iterator]=undefined;
-
-    // 가장 안전한 방법: Paragraph의 커스텀 XML 삽입
-    // docx v7+ 에서는 XmlComponent 직접 상속 대신 아래 패턴 사용
-    function RawXmlParagraph(xmlStr){
-      this._xmlStr=xmlStr;
-    }
-    RawXmlParagraph.prototype.prepForXml=function(context){
-      // docx.js packer가 이 메서드를 호출해 직렬화
-      return{rootKey:"__raw__",_attr:{},children:[]};
-    };
-    // docx.js v8+ Packer는 prepForXml 결과를 xml2js로 변환
-    // raw XML은 XmlComponent 방식으로 삽입
-    if(typeof XmlComponent==="function"){
-      var TocField=function(xmlStr){
-        XmlComponent.call(this,"w:p");
-        this._rawXml=xmlStr;
-      };
-      TocField.prototype=Object.create(XmlComponent.prototype);
-      TocField.prototype.prepForXml=function(context){
-        // raw XML string을 직접 반환 — docx packer가 그대로 씁니다
-        return this._rawXml;
-      };
-      els.push(new TocField(tocXml));
-    } else {
-      // XmlComponent 없는 환경: Paragraph + SimpleField 폴백
-      els.push(new Paragraph({
-        spacing:{before:60,after:60},
-        children:[
-          new docx.SimpleField('TOC \\o "1-4" \\h \\z \\u',
-            '[ Word에서 열면 자동으로 목차가 생성됩니다 ]')
-        ]
+  // docx.js v7.6+ 공식 TableOfContents API 시도
+  if(typeof docx.TableOfContents==="function"){
+    try{
+      els.push(new docx.TableOfContents("목  차",{
+        headingStyleRange:"1-4",
+        hyperlink:true
       }));
-    }
-  } catch(e){
-    // 최후 폴백: 안내 텍스트만 표시
-    els.push(H.p('[ Word에서 파일을 열고, 이 영역 우클릭 → 필드 업데이트를 클릭하면 목차가 자동 생성됩니다 ]',
-      {size:H.SZ_SM,color:"888888"}));
+      return els;
+    }catch(e){}
+  }
+
+  // FieldInstruction 방식 시도 (docx.js v7 일부 빌드)
+  if(typeof docx.FieldInstruction==="function"){
+    try{
+      els.push(new Paragraph({
+        spacing:{before:0,after:0},
+        children:[new docx.FieldInstruction(' TOC \\o "1-4" \\h \\z \\u ')]
+      }));
+      return els;
+    }catch(e){}
+  }
+
+  // SimpleField 방식 시도 (docx.js v7/v8 공통)
+  if(typeof docx.SimpleField==="function"){
+    try{
+      els.push(new Paragraph({
+        spacing:{before:0,after:0},
+        children:[new docx.SimpleField(' TOC \\o "1-4" \\h \\z \\u ')]
+      }));
+      return els;
+    }catch(e){}
+  }
+
+  // ── 모든 API 실패 시: Paragraph children에 fldChar 런을 직접 조립 ──
+  // docx.js 내부 구조를 이용해 w:fldChar / w:instrText 런을 만듦
+  try{
+    var FONT="맑은 고딕";
+    // begin run
+    var rBegin=new TextRun({text:""});
+    rBegin.prepForXml=function(){
+      return{
+        "w:r":[{
+          "w:rPr":[{"w:rFonts":[{"_attr":{"w:ascii":FONT,"w:hAnsi":FONT}}]}]
+        },{
+          "w:fldChar":[{"_attr":{"w:fldCharType":"begin","w:dirty":"true"}}]
+        }]
+      };
+    };
+    // instrText run
+    var rInstr=new TextRun({text:""});
+    rInstr.prepForXml=function(){
+      return{
+        "w:r":[{
+          "w:instrText":[{"_attr":{"xml:space":"preserve"}},' TOC \\o "1-4" \\h \\z \\u ']
+        }]
+      };
+    };
+    // separate run
+    var rSep=new TextRun({text:""});
+    rSep.prepForXml=function(){
+      return{"w:r":[{"w:fldChar":[{"_attr":{"w:fldCharType":"separate"}}]}]};
+    };
+    // placeholder text run
+    var rTxt=new TextRun({
+      text:"[ 목차 — Word에서 Ctrl+A 후 F9를 누르면 페이지 번호가 채워집니다 ]",
+      font:FONT,size:18,color:"888888",italics:true
+    });
+    // end run
+    var rEnd=new TextRun({text:""});
+    rEnd.prepForXml=function(){
+      return{"w:r":[{"w:fldChar":[{"_attr":{"w:fldCharType":"end"}}]}]};
+    };
+    els.push(new Paragraph({
+      spacing:{before:0,after:0},
+      children:[rBegin,rInstr,rSep,rTxt,rEnd]
+    }));
+  }catch(e){
+    // 완전 최후 폴백
+    els.push(H.p(
+      "※ 목차: Word에서 파일을 연 후 Ctrl+A → F9 키를 누르면 페이지 번호가 자동으로 채워집니다.",
+      {size:H.SZ_SM,color:"C00000",bold:true}
+    ));
   }
 
   return els;
