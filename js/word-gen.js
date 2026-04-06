@@ -552,9 +552,27 @@ function buildChapter1(docx,data){
       new TableRow2({height:{value:ROW},children:[cell2(p2("시설개소수",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("개소"),{wPct:15,borders:cb2({left:non2})})]}),
       new TableRow2({height:{value:ROW},children:[cell2(p2("방류기준",true),{rs:2,wPct:9}),cell2(p2("BOD",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("mg/L"),{wPct:15,borders:cb2({left:non2})})]}),
       new TableRow2({height:{value:ROW},children:[cell2(p2("T-P",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("mg/L"),{wPct:15,borders:cb2({left:non2})})]}),
-      new TableRow2({height:{value:ROW},children:[cell2(p2("비점오염\n저감계획",true),{rs:3,w:1157}),cell2(p2("종류",true),{w:1446}),cell2(p2("적용면적",true),{w:1446}),cell2(p2("처리용량",true),{w:1446}),cell2(p2("삭감량(kg/일)",true),{cs:2,w:2697})]}),
-      new TableRow2({height:{value:ROW},children:[cell2(p2(""),{w:1157}),cell2(p2(""),{w:1446}),cell2(p2(""),{w:1446}),cell2(p2("BOD",true),{w:1348}),cell2(p2("T-P",true),{w:1349})]}),
-      new TableRow2({height:{value:ROW},children:[cell2(p2(""),{w:1157}),cell2(p2("-",true),{w:1446}),cell2(p2("-",true),{w:1446}),cell2(p2("-",true),{w:1348}),cell2(p2("-",true),{w:1349})]})
+      new TableRow2({height:{value:ROW},children:[
+        cell2(p2("비점오염\n저감계획",true),{rs:3,w:1157}),
+        cell2(p2("종류",true),{w:1446}),
+        cell2(p2("적용면적",true),{w:1446}),
+        cell2(p2("처리용량",true),{w:1446}),
+        cell2(p2("삭감량(kg/일)",true),{cs:2,w:2698})
+      ]}),
+      new TableRow2({height:{value:ROW},children:[
+        cell2(p2(""),{w:1157}),
+        cell2(p2(""),{w:1446}),
+        cell2(p2(""),{w:1446}),
+        new TableCell2({children:[p2("BOD",true)],width:{size:1349,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
+        new TableCell2({children:[p2("T-P",true)],width:{size:1349,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+      ]}),
+      new TableRow2({height:{value:ROW},children:[
+        cell2(p2(""),{w:1157}),
+        cell2(p2("-",true),{w:1446}),
+        cell2(p2("-",true),{w:1446}),
+        new TableCell2({children:[p2("-",true)],width:{size:1349,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
+        new TableCell2({children:[p2("-",true)],width:{size:1349,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+      ]})
     ]
   });
 
