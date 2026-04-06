@@ -500,8 +500,9 @@ function buildChapter1(docx,data){
     ]
   });
 
-  // ★ 수정5: 저감계획 표 - 샘플 참고 개선
-  // 샘플 XML 분석 결과: 비점오염 부분을 종류/적용면적/처리용량/삭감량(BOD,T-P) 구조로 변경
+  // ★ 저감계획 표 — 샘플 XML 기준 정확한 7열 구조
+  // 열: [오수처리계획(col1)] [공공/개별(col2)] [방류기준라벨(col3)] [항목(col4)] [값(col5+col6병합)] [단위(col7)]
+  // 샘플 그리드: C1=856, C2=717, C3=788, C4=931, C5=1003, C6=285, C7=1395 (pct 기준)
   var iP=data.afterMethod1==="공공하수처리시설";
   var mPub=iP?"■":"□",mPrv=iP?"□":"■";
   var pn2=data.afterPlantName||"";
@@ -512,80 +513,145 @@ function buildChapter1(docx,data){
   var ROW=400;
   function p2(t,ctr){return H.p(t||"",{center:!!ctr,size:H.SZ_TBL});}
 
-  // 오수처리 방류기준 행 (공공: 처리장 방류기준, 개별: 개인오수처리 기준)
-  var bodStd=iP?String(eBOD):"20";
-  var tpStd=iP?"-":"4";
+  // 공공: 방류기준 BOD/T-P
+  var pubBOD=iP?String(eBOD):"";
+  var pubTP=iP?"-":"";
+  // 개별: 방류기준 BOD/T-P (수변구역 여부 반영)
+  var prvBOD=iP?"":"20";
+  var prvTP=iP?"":"4";
+
+  // 셀 헬퍼: DXA 폭 배열 (합계=9638)
+  // C1=12%, C2=14%, C3=10%, C4=12%, C5=13%+C6=3%, C7=18% (비율 합=100 근사)
+  // 실제 샘플 비율로: 856/9896≈8.7%, 717≈7.2%, 788≈8%, 931≈9.4%, 1003≈10.1%, 285≈2.9%, 1395≈14.1%
+  // → 단순하게 % 기반으로 짜되, colspan으로 합산
+  // 전체 7 gridCol. 행마다 colspan 합이 7이 되어야 함.
+  //
+  // 구조 (샘플 기준):
+  // 행1  [오수처리계획 rs=15] [■공공 rs=4]  [처리시설명 cs=2]         [처리장명 cs=3]
+  // 행2                                      [시설용량    cs=2]         [값 cs=2] [㎥/d]
+  // 행3                                      [방류기준 rs=2] [BOD]      [값 cs=2] [mg/L]
+  // 행4                        [□개별 rs=11] [T-P]                      [값 cs=2] [mg/L]
+  // 행5                                      [처리공법    cs=1]         [값 cs=3]
+  // 행6                                      [시설용량    cs=1]         [값 cs=2] [㎥/d]
+  // 행7                                      [시설개소수  cs=1]         [값 cs=2] [개소]
+  // 행8                                      [방류기준 rs=2] [BOD]      [값 cs=2] [mg/L]
+  // 행9                                                      [T-P]      [값 cs=2] [mg/L]
+  // 행10                                     [강화기준 rs=2] [BOD]      [값 cs=2] [mg/L]
+  // 행11                                                     [T-P]      [값 cs=2] [mg/L]
+  // 행12                                     [관련근거 cs=2]            [값 cs=3]
+  // 행13                                     [폐수처리계획 rs=3] [□공공 rs=3] [처리시설명 cs=2] [값 cs=3]  ← 생략해도 됨
+  // 행14 [비점오염저감계획 rs=2] [종류]      [적용면적]     [처리용량]  [삭감량(kg/일) cs=2]
+  // 행15                         [-]         [-]            [-]         [BOD: -]  [T-P: -]
+  //
+  // 오수처리계획 총 행수: 공공(4) + 개별(8) = 12행 → rs=12
+  // 개별 rs=8 (처리공법/시설용량/시설개소수/방류기준BOD/T-P/강화기준BOD/T-P/관련근거)
+
+  function tc3(ch,o){
+    o=o||{};
+    return new TableCell({
+      children:Array.isArray(ch)?ch:[ch],
+      columnSpan:o.cs||1, rowSpan:o.rs||1,
+      borders:H.CELLB,
+      verticalAlign:VerticalAlign.CENTER,
+      width:o.pct?{size:o.pct,type:WidthType.PERCENTAGE}:undefined
+    });
+  }
 
   var jeogamTable=new Table({
-    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,
+    width:{size:100,type:WidthType.PERCENTAGE},
+    borders:H.TBLB,
     rows:[
-      // 오수처리계획 - 공공
+      // 행1: 오수처리계획 | ■공공 | 처리시설명(cs=2) | 처리장명(cs=3)
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("오수처리계획",true)],rowSpan:10,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:12,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2(mPub+" 공공",true)],rowSpan:3,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:14,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("처리시설명",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:30,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2(iP?pn2:"",true)],columnSpan:3,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:44,type:WidthType.PERCENTAGE}})
+        tc3(p2("오수처리계획",true),{rs:12,pct:12}),
+        tc3(p2(mPub+" 공공",true),{rs:4,pct:14}),
+        tc3(p2("처리시설명",true),{cs:2}),
+        tc3(p2(iP?pn2:"",true),{cs:3})
       ]}),
+      // 행2: 시설용량(cs=2) | 값(cs=2) | ㎥/d
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("시설용량",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?capVal:"",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("㎥/d")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("시설용량",true),{cs:2}),
+        tc3(p2(iP?capVal:"",true),{cs:2}),
+        tc3(p2("㎥/d"))
       ]}),
+      // 행3: 방류기준(rs=2) | BOD | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("방류기준",true)],rowSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("BOD",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?bodStd:"",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("mg/L")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("방류기준",true),{rs:2}),
+        tc3(p2("BOD",true)),
+        tc3(p2(pubBOD,true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
+      // 행4: □개별(rs=8) | T-P | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2(mPrv+" 개별",true)],rowSpan:7,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:14,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("T-P",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?tpStd:"",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("mg/L")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2(mPrv+" 개별",true),{rs:8,pct:14}),
+        tc3(p2("T-P",true)),
+        tc3(p2(pubTP,true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
+      // 행5: 처리공법(cs=1) | 값(cs=3)
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("처리공법",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?"":(data.afterProcessMethod||"FRP 호기성생물학적방법"),true)],columnSpan:3,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("처리공법",true)),
+        tc3(p2(iP?"":(data.afterProcessMethod||"FRP 호기성생물학적방법"),true),{cs:3})
       ]}),
+      // 행6: 시설용량 | 값(cs=2) | ㎥/d
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("시설용량",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?"":capVal,true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("㎥/d")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("시설용량",true)),
+        tc3(p2(iP?"":capVal,true),{cs:2}),
+        tc3(p2("㎥/d"))
       ]}),
+      // 행7: 시설개소수 | 값(cs=2) | 개소
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("시설개소수",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?"":"1",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("개소")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("시설개소수",true)),
+        tc3(p2(iP?"":"1",true),{cs:2}),
+        tc3(p2("개소"))
       ]}),
+      // 행8: 방류기준(rs=2) | BOD | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("방류기준",true)],rowSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("BOD",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?"":bodStd,true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("mg/L")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("방류기준",true),{rs:2}),
+        tc3(p2("BOD",true)),
+        tc3(p2(iP?"":prvBOD,true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
+      // 행9: T-P | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("T-P",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(iP?"":tpStd,true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("mg/L")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("T-P",true)),
+        tc3(p2(iP?"":prvTP,true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
+      // 행10: 강화기준(rs=2) | BOD | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("관련근거",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2(data.techCertNo||"[기술검증번호]",true)],columnSpan:3,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("강화기준",true),{rs:2}),
+        tc3(p2("BOD",true)),
+        tc3(p2("",true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
-      // 비점오염 저감계획 (샘플 구조: 종류/적용면적/처리용량/삭감량BOD/삭감량T-P)
+      // 행11: T-P | 값(cs=2) | mg/L
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("비점오염\n저감계획",true)],rowSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:12,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("종류",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:14,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("적용면적",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:17,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("처리용량",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:18,type:WidthType.PERCENTAGE}}),
-        new TableCell({children:[p2("삭감량(kg/일)",true)],columnSpan:2,borders:H.CELLB,verticalAlign:VerticalAlign.CENTER,width:{size:39,type:WidthType.PERCENTAGE}})
+        tc3(p2("T-P",true)),
+        tc3(p2("",true),{cs:2}),
+        tc3(p2("mg/L"))
       ]}),
+      // 행12: 관련근거(cs=2) | 기술검증번호(cs=3)
       new TableRow({height:{value:ROW},children:[
-        new TableCell({children:[p2("")],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("-",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("-",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("BOD: -",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell({children:[p2("T-P: -",true)],borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
+        tc3(p2("관련근거",true),{cs:2}),
+        tc3(p2(data.techCertNo||"[기술검증번호]",true),{cs:3})
+      ]}),
+      // 행13~14: 비점오염저감계획 (rs=2)
+      // 행13: 비점오염저감계획(rs=2) | 종류 | 적용면적 | 처리용량 | 삭감량(kg/일)(cs=2)
+      new TableRow({height:{value:ROW},children:[
+        tc3(p2("비점오염\n저감계획",true),{rs:2,pct:12}),
+        tc3(p2("종류",true)),
+        tc3(p2("적용면적",true)),
+        tc3(p2("처리용량",true)),
+        tc3(p2("삭감량(kg/일)",true),{cs:2})
+      ]}),
+      // 행14: - | - | - | BOD: - | T-P: -
+      new TableRow({height:{value:ROW},children:[
+        tc3(p2("-",true)),
+        tc3(p2("-",true)),
+        tc3(p2("-",true)),
+        tc3(p2("BOD: -",true)),
+        tc3(p2("T-P: -",true))
       ]})
     ]
   });
