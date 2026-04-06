@@ -551,42 +551,10 @@ function buildChapter1(docx,data){
       new TableRow2({height:{value:ROW},children:[cell2(p2("시설용량",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("㎥/d"),{wPct:15,borders:cb2({left:non2})})]}),
       new TableRow2({height:{value:ROW},children:[cell2(p2("시설개소수",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("개소"),{wPct:15,borders:cb2({left:non2})})]}),
       new TableRow2({height:{value:ROW},children:[cell2(p2("방류기준",true),{rs:2,wPct:9}),cell2(p2("BOD",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("mg/L"),{wPct:15,borders:cb2({left:non2})})]}),
-      new TableRow2({height:{value:ROW},children:[cell2(p2("T-P",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("mg/L"),{wPct:15,borders:cb2({left:non2})})]})
-    ]
-  });
-
-  // 비점오염저감계획 - 별도 독립 표 (tblGrid 독립 적용으로 BOD/T-P 동일 너비 보장)
-  var W_NONPOINT = 9638;
-  var W1n = Math.round(W_NONPOINT * 0.12); // 비점오염: 12%
-  var W2n = Math.round(W_NONPOINT * 0.15); // 종류/적용면적/처리용량: 15%씩
-  var W3n = Math.round((W_NONPOINT - W1n - W2n*3) / 2); // 삭감량 BOD: 나머지 절반
-  var W4n = W_NONPOINT - W1n - W2n*3 - W3n;             // 삭감량 T-P: 나머지
-  var jeogamNonpointTable = new Table2({
-    width:{size:100,type:WidthType.PERCENTAGE},
-    columnWidths:[W1n, W2n, W2n, W2n, W3n, W4n],
-    borders:H.TBLB,
-    rows:[
-      new TableRow2({height:{value:ROW},children:[
-        new TableCell2({children:[p2("비점오염\n저감계획",true)],rowSpan:3,width:{size:W1n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("종류",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("적용면적",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("처리용량",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("삭감량(kg/일)",true)],columnSpan:2,width:{size:W3n+W4n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
-      ]}),
-      new TableRow2({height:{value:ROW},children:[
-        new TableCell2({children:[p2("",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("BOD",true)],width:{size:W3n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("T-P",true)],width:{size:W4n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
-      ]}),
-      new TableRow2({height:{value:ROW},children:[
-        new TableCell2({children:[p2("",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("-",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("-",true)],width:{size:W2n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("-",true)],width:{size:W3n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER}),
-        new TableCell2({children:[p2("-",true)],width:{size:W4n,type:WidthType.DXA},borders:H.CELLB,verticalAlign:VerticalAlign.CENTER})
-      ]})
+      new TableRow2({height:{value:ROW},children:[cell2(p2("T-P",true),{wPct:21}),cell2(p2(""),{wPct:23,borders:cb2({right:non2})}),cell2(p2("mg/L"),{wPct:15,borders:cb2({left:non2})})]}),
+      new TableRow2({height:{value:ROW},children:[cell2(p2("비점오염\n저감계획",true),{rs:3,w:1157}),cell2(p2("종류",true),{w:1446}),cell2(p2("적용면적",true),{w:1446}),cell2(p2("처리용량",true),{w:1446}),cell2(p2("삭감량(kg/일)",true),{cs:2,w:2697})]}),
+      new TableRow2({height:{value:ROW},children:[cell2(p2(""),{w:1157}),cell2(p2(""),{w:1446}),cell2(p2(""),{w:1446}),cell2(p2("BOD",true),{w:1348}),cell2(p2("T-P",true),{w:1349})]}),
+      new TableRow2({height:{value:ROW},children:[cell2(p2(""),{w:1157}),cell2(p2("-",true),{w:1446}),cell2(p2("-",true),{w:1446}),cell2(p2("-",true),{w:1348}),cell2(p2("-",true),{w:1349})]})
     ]
   });
 
@@ -595,7 +563,7 @@ function buildChapter1(docx,data){
     H.blank(),
     H.heading1("2. 할당부하량"),allotTable,H.blank(),
     H.pageBreak(),
-    H.heading1("3. 저감계획"),jeogamTable,jeogamNonpointTable,H.blank()
+    H.heading1("3. 저감계획"),jeogamTable,H.blank()
   ]);
 }
 
