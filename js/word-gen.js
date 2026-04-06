@@ -574,84 +574,85 @@ function buildChapter1(docx,data){
         tc3(p2(iP?capVal:"",true),{cs:2}),
         tc3(p2("㎥/d"))
       ]}),
-      // 행3: 방류기준(rs=2) | BOD | 값(cs=2) | mg/L
+      // 행3: 방류기준(rs=2) | BOD | 값(cs=2) | mg/L  → 공공 방류기준 BOD
       new TableRow({height:{value:ROW},children:[
         tc3(p2("방류기준",true),{rs:2}),
         tc3(p2("BOD",true)),
         tc3(p2(pubBOD,true),{cs:2}),
         tc3(p2("mg/L"))
       ]}),
-      // 행4: □개별(rs=8) | T-P | 값(cs=2) | mg/L
+      // 행4: [오수처리계획↓자동][■공공↓자동][방류기준↓자동] | □개별(rs=8) | T-P | 값(cs=2) | mg/L
+      // docx.js rowSpan은 내부적으로 vMerge 처리 — 행4는 방류기준↓ 이후 칸부터 새 셀 시작
+      // 7열 그리드에서: col1=오수처리계획(span중), col2=■공공(span중), col3=방류기준(span중)
+      // → 행4에 실제 새 셀은 col4~7 = 4개 셀 필요
+      // □개별(col4, rs=8), T-P(col5), 값(col6, cs=1), mg/L(col7) → 합=4칸 ✓
       new TableRow({height:{value:ROW},children:[
-        tc3(p2(mPrv+" 개별",true),{rs:8,pct:14}),
+        tc3(p2(mPrv+" 개별",true),{rs:8}),
         tc3(p2("T-P",true)),
-        tc3(p2(pubTP,true),{cs:2}),
+        tc3(p2(pubTP,true)),
         tc3(p2("mg/L"))
       ]}),
-      // 행5: 처리공법(cs=1) | 값(cs=3)
+      // 행5~12: □개별(rs=8) span 중 → 각 행에 새 셀 3개만 (col5,6,7)
+      // 행5: 처리공법(cs=2) | 값(cs=1)
       new TableRow({height:{value:ROW},children:[
-        tc3(p2("처리공법",true)),
-        tc3(p2(iP?"":(data.afterProcessMethod||"FRP 호기성생물학적방법"),true),{cs:3})
+        tc3(p2("처리공법",true),{cs:2}),
+        tc3(p2(iP?"":(data.afterProcessMethod||"FRP 호기성생물학적방법"),true))
       ]}),
-      // 행6: 시설용량 | 값(cs=2) | ㎥/d
+      // 행6: 시설용량(cs=1) | 값(cs=1) | ㎥/d(cs=1)
       new TableRow({height:{value:ROW},children:[
         tc3(p2("시설용량",true)),
-        tc3(p2(iP?"":capVal,true),{cs:2}),
+        tc3(p2(iP?"":capVal,true)),
         tc3(p2("㎥/d"))
       ]}),
-      // 행7: 시설개소수 | 값(cs=2) | 개소
+      // 행7: 시설개소수(cs=1) | 값(cs=1) | 개소(cs=1)
       new TableRow({height:{value:ROW},children:[
         tc3(p2("시설개소수",true)),
-        tc3(p2(iP?"":"1",true),{cs:2}),
+        tc3(p2(iP?"":"1",true)),
         tc3(p2("개소"))
       ]}),
-      // 행8: 방류기준(rs=2) | BOD | 값(cs=2) | mg/L
+      // 행8: 방류기준(rs=2)(cs=1) | BOD(cs=1) | 값(cs=1)
       new TableRow({height:{value:ROW},children:[
         tc3(p2("방류기준",true),{rs:2}),
         tc3(p2("BOD",true)),
-        tc3(p2(iP?"":prvBOD,true),{cs:2}),
-        tc3(p2("mg/L"))
+        tc3(p2(iP?"":prvBOD+" mg/L",true))
       ]}),
-      // 행9: T-P | 값(cs=2) | mg/L
+      // 행9: T-P(cs=1) | 값(cs=1) → 방류기준↓자동이므로 셀2개만
       new TableRow({height:{value:ROW},children:[
         tc3(p2("T-P",true)),
-        tc3(p2(iP?"":prvTP,true),{cs:2}),
-        tc3(p2("mg/L"))
+        tc3(p2(iP?"":prvTP+" mg/L",true))
       ]}),
-      // 행10: 강화기준(rs=2) | BOD | 값(cs=2) | mg/L
+      // 행10: 강화기준(rs=2)(cs=1) | BOD(cs=1) | 값(cs=1)
       new TableRow({height:{value:ROW},children:[
         tc3(p2("강화기준",true),{rs:2}),
         tc3(p2("BOD",true)),
-        tc3(p2("",true),{cs:2}),
         tc3(p2("mg/L"))
       ]}),
-      // 행11: T-P | 값(cs=2) | mg/L
+      // 행11: T-P(cs=1) | 값(cs=1) → 강화기준↓자동이므로 셀2개만
       new TableRow({height:{value:ROW},children:[
         tc3(p2("T-P",true)),
-        tc3(p2("",true),{cs:2}),
         tc3(p2("mg/L"))
       ]}),
-      // 행12: 관련근거(cs=2) | 기술검증번호(cs=3)
+      // 행12: 관련근거(cs=2) | 기술검증번호(cs=1)
       new TableRow({height:{value:ROW},children:[
         tc3(p2("관련근거",true),{cs:2}),
-        tc3(p2(data.techCertNo||"[기술검증번호]",true),{cs:3})
+        tc3(p2(data.techCertNo||"[기술검증번호]",true))
       ]}),
-      // 행13~14: 비점오염저감계획 (rs=2)
-      // 행13: 비점오염저감계획(rs=2) | 종류 | 적용면적 | 처리용량 | 삭감량(kg/일)(cs=2)
+      // 행13: 비점오염저감계획(rs=2,cs=1) | 종류(cs=1) | 적용면적(cs=1) | 처리용량(cs=2) | 삭감량BOD(cs=1) | 삭감량TP(cs=1) = 7열
       new TableRow({height:{value:ROW},children:[
-        tc3(p2("비점오염\n저감계획",true),{rs:2,pct:12}),
+        tc3(p2("비점오염\n저감계획",true),{rs:2}),
         tc3(p2("종류",true)),
         tc3(p2("적용면적",true)),
-        tc3(p2("처리용량",true)),
-        tc3(p2("삭감량(kg/일)",true),{cs:2})
+        tc3(p2("처리용량",true),{cs:2}),
+        tc3(p2("삭감량\nBOD",true)),
+        tc3(p2("삭감량\nT-P",true))
       ]}),
-      // 행14: - | - | - | BOD: - | T-P: -
+      // 행14: [비점오염↓] | - | - | -(cs=2) | BOD: - | T-P: -
       new TableRow({height:{value:ROW},children:[
         tc3(p2("-",true)),
         tc3(p2("-",true)),
+        tc3(p2("-",true),{cs:2}),
         tc3(p2("-",true)),
-        tc3(p2("BOD: -",true)),
-        tc3(p2("T-P: -",true))
+        tc3(p2("-",true))
       ]})
     ]
   });
