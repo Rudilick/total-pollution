@@ -157,7 +157,7 @@ function makeH(docx){
     var hdrRow=new TableRow({tableHeader:true,children:hdrCells});
     var dataRows=rows.map(function(row){
       var cells=row.map(function(cell,i){
-        return tc(p(String(cell!=null?cell:""),{center:i>0,size:SZ_TBL}),{w:colWidths[i]});
+        return tc(p(String(cell!=null?cell:""),{center:true,size:SZ_TBL}),{w:colWidths[i]});
       });
       return new TableRow({children:cells});
     });
@@ -616,8 +616,15 @@ function buildChapter2(docx,data){
   els.push(H.inputBox("[ 사업의 목적을 입력하세요 ]\n예시) 본 수질오염총량검토서는 개발행위허가 신청에 따라..."));
   els.push(H.blank());
 
+  // ★ 페이지 넘김 1: 배경목적 / 실시근거~
+  els.push(H.pageBreak());
+
   els.push(H.heading1("2. 수질오염총량검토 실시근거"));
+  // ★ 사업의 종류 텍스트 그대로 실시근거에 삽입
+  var bizTypeText=data.bizType||"[사업의 종류 선택]";
   var legalBasis=data.legalBasis||"◦ 한강수계 상수원수질개선 및 주민지원 등에 관한 법률 제8조의2\n◦ 수질오염총량관리기술지침(국립환경과학원)\n◦ 환경영향평가법 제59조 및 제61조제2항 관련 [별표4]";
+  els.push(H.p("◦ 실시근거 : "+bizTypeText,{size:H.SZ_SM}));
+  els.push(H.blank());
   els.push(H.p(legalBasis,{size:H.SZ_SM}));
   els.push(H.blank());
 
@@ -632,21 +639,14 @@ function buildChapter2(docx,data){
       verticalAlign:o.vAlign||VerticalAlign.CENTER
     });
   }
-  function pp2(t,o){o=o||{};return H.p(t,{center:o.center||false,bold:o.bold||false,size:o.size||H.SZ_TBL});}
-  var basisTable=new Table({
-    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,
-    rows:[
-      new TableRow({children:[cell2(pp2("구  분",{center:true,bold:true}),{wPct:20}),cell2(pp2("소규모환경영향평가 대상사업의 종류·규모",{center:true,bold:true}),{wPct:60}),cell2(pp2("협의요청시기",{center:true,bold:true}),{wPct:20})]}),
-      new TableRow({children:[cell2(pp2(data.bizType||"소규모환경영향평가",{center:true}),{wPct:20}),cell2(pp2(data.legalDetail||"[해당 법령 및 규모 기재]")),cell2(pp2("사업의 승인등 전",{center:true}),{wPct:20})]}),
-      new TableRow({children:[cell2(pp2("사업면적",{center:true}),{wPct:20}),cell2(pp2(data.areaTotalSite?"전체부지 "+data.areaTotalSite+"㎡":"전체부지 - ㎡"),{cs:1})]})
-    ]
-  });
-  els.push(basisTable);
-  els.push(H.blank());
+  function pp2(t,o){o=o||{};return H.p(t,{center:o.center!==undefined?o.center:false,bold:o.bold||false,size:o.size||H.SZ_TBL});}
 
   els.push(H.heading1("3. 계획의 추진경위 및 계획"));
   els.push(H.inputBox("[ 추진경위를 입력하세요 ]\n예시)\n◦ 20XX.XX.XX : 개발행위허가 신청\n◦ 20XX.XX.XX : 소규모환경영향평가 접수"));
   els.push(H.blank());
+
+  // ★ 페이지 넘김 2: 추진경위 / 계획내용~
+  els.push(H.pageBreak());
 
   els.push(H.heading1("4. 계획의 내용"));
   els.push(H.heading2("(1) 사업명"));
@@ -674,24 +674,78 @@ function buildChapter2(docx,data){
     [20,8,12,12,12,12,24]
   ));
   els.push(H.blank());
+
   els.push(H.heading2("(7) 토지이용계획"));
-  els.push(H.note("※ 단위: ㎡, (%)"));
+  els.push(H.note("※ 단위: ㎡, (%) / 아래는 예시 항목입니다. 실제 계획에 맞게 수정하세요."));
+  var totalSiteArea=data.areaTotalSite||"-";
   els.push(H.simpleTable(
-    ["구분","면적(㎡)","비율(%)","비고"],
-    [["건  물","","",""],["조경녹지","","",""],["사면녹지","","","씨드스프레이, 코아네트"],
-     ["원형보전녹지","","","절·성토 행위 없음"],["단지내도로","","","아스콘포장 T=15cm"],
-     ["주차장","","",""],["불투수포장","","","아스콘포장 T=15cm"],["기  타","","",""],
-     ["합  계","","100.0",""]],
-    [25,25,20,30]
+    ["구분","면적(㎡)","비율(%)"],
+    [
+      ["건축부지","",""],
+      ["녹  지","",""],
+      ["도  로","",""],
+      ["합  계",totalSiteArea,"100.0"]
+    ],
+    [40,30,30]
   ));
   els.push(H.blank());
+
+  // ★ (8) 건축개요 - UI 사업후 데이터 반영, 1열 제거, 소계/합계 구조
   els.push(H.heading2("(8) 건축개요"));
-  els.push(H.simpleTable(
-    ["구분","동","층","용도","면적(㎡)","단위","비고"],
-    [["","①","지상1층","","","㎡",""],["","②","지상1층","","","㎡",""],["소  계","","","","","㎡",""],["합  계","","","","","㎡",""]],
-    [12,8,10,20,15,10,25]
-  ));
+  var afterState=window.lifeAfter&&window.lifeAfter.state;
+  var buildings=afterState&&afterState.buildings?afterState.buildings:[];
+  var multiBuilding=buildings.length>1;
+
+  // 건축개요 표 생성
+  var bldgHeaderCols=multiBuilding?["동","층","용도","면적(㎡)"]:["층","용도","면적(㎡)"];
+  var bldgColRatios=multiBuilding?[20,15,40,25]:[20,55,25];
+  var bldgRows=[];
+  var grandTotal=0;
+
+  if(buildings.length>0){
+    buildings.forEach(function(bldg){
+      var bldgTotal=0;
+      if(bldg.floors){
+        bldg.floors.forEach(function(floor){
+          if(floor.uses){
+            floor.uses.forEach(function(use){
+              var area=parseFloat(String(use.inputValue||"").replace(/,/g,""))||0;
+              if(area>0){
+                var row=multiBuilding?[bldg.buildingNo+"동",floor.floorNo+"층",use.mid||use.major||"",area.toFixed(2)]:
+                                      [floor.floorNo+"층",use.mid||use.major||"",area.toFixed(2)];
+                bldgRows.push(row);
+                bldgTotal+=area;
+                grandTotal+=area;
+              }
+            });
+          }
+        });
+      }
+      // 다동인 경우 동별 소계 행
+      if(multiBuilding&&bldgTotal>0){
+        bldgRows.push([bldg.buildingNo+"동 소계","","",bldgTotal.toFixed(2)]);
+      }
+    });
+    // 합계 행
+    if(multiBuilding){
+      bldgRows.push(["합  계","","",grandTotal.toFixed(2)]);
+    } else {
+      bldgRows.push(["합  계","",grandTotal.toFixed(2)]);
+    }
+  } else {
+    // 데이터 없으면 빈 양식
+    if(multiBuilding){
+      bldgRows=[["①동","1층","",""],["①동 소계","","",""],["합  계","","",""]];
+    } else {
+      bldgRows=[["1층","",""],["합  계","",""]];
+    }
+  }
+
+  // 소계/합계 행은 첫 셀들을 병합(simpleTable로는 병합 어려우니 일반 표로)
+  // simpleTable 사용 (소계/합계 표시는 텍스트로)
+  els.push(H.simpleTable(bldgHeaderCols,bldgRows,bldgColRatios));
   els.push(H.blank());
+
   els.push(H.heading2("(9) 단위유역 현황도 및 사업지 위치"));
   els.push(H.p("◦ 단위유역 : "+unitBasin,{size:H.SZ_SM}));
   els.push(H.imagePlaceholder("[ 단위유역 현황도를 삽입하고, 사업지 위치를 표시하세요 ]",6000));
@@ -702,24 +756,9 @@ function buildChapter2(docx,data){
 // ── 제3장: 부하량 산정 ───────────────────────────────────────────
 
 // ★ 수정9: 기술지침 원단위 참조표 (표 VI-1)
-// ── 기술지침 원단위 참조표 ───────────────────────────────────────
+// ── 기술지침 원단위 참조표 (사용안함) ───────────────────────────
 function buildLifeStdTable(H,urbanType){
-  var ut=urbanType||"비시가화";
-  var CC=window.CALC_CONSTS||{};
-  var els=[];
-  els.push(H.tableTitle("<표> 생활계 분뇨발생유량원단위, 분뇨발생유량비 및 잡배수오수전환율 (기술지침 표 Ⅵ-1)"));
-  els.push(H.simpleTable(
-    ["구분","가정인구 분뇨발생유량원단위\n(㎥/인/일)","영업인구 분뇨발생유량비\n(-)","잡배수오수전환율\n(-)"],
-    [
-      ["시가화",(CC.FECES_FLOW_UNIT&&CC.FECES_FLOW_UNIT["시가화"])||0.00115,CC.BIZ_FECES_RATIO||0.006,CC.GRAY_CONV_RATE||0.88],
-      ["비시가화",(CC.FECES_FLOW_UNIT&&CC.FECES_FLOW_UNIT["비시가화"])||0.00134,CC.BIZ_FECES_RATIO||0.006,CC.GRAY_CONV_RATE||0.88],
-      ["적용("+ut+")",(CC.FECES_FLOW_UNIT&&CC.FECES_FLOW_UNIT[ut])||0.00134,CC.BIZ_FECES_RATIO||0.006,CC.GRAY_CONV_RATE||0.88]
-    ],
-    [25,25,25,25]
-  ));
-  els.push(H.note("자료) 수질오염총량관리기술지침, 국립환경과학원"));
-  els.push(H.blank());
-  return els;
+  return []; // 불필요하여 제거
 }
 
 // ── 가정인구 오수발생량 표 ───────────────────────────────────────
@@ -1303,9 +1342,15 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   els.push(H.heading2("가. 사업시행 전"));
   els=els.concat(buildLifePhaseSection(docx,H,before,"before",envRiver,urbanType,beforeHouseholds,popUnit));
 
+  // ★ 페이지 넘김: 생활계 사업전 / 사업후
+  els.push(H.pageBreak());
+
   // 사업시행 후
   els.push(H.heading2("나. 사업시행 후"));
   els=els.concat(buildLifePhaseSection(docx,H,after,"after",envRiver,urbanType,afterHouseholds,popUnit));
+
+  // ★ 페이지 넘김: 생활계 사업후 / 토지계+최종
+  els.push(H.pageBreak());
 
   // 생활계 최종 배출부하량
   els.push(H.heading2("다. 생활계 최종 배출부하량"));
@@ -1327,6 +1372,9 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   els.push(H.note("주) 최종 배출부하량이 음수인 경우 ≒0.00으로 처리"));
   els.push(H.blank());
 
+  // ★ 페이지 넘김: 생활계최종 / 토지계
+  // (이미 위에서 처리됨)
+
   // ── 2. 토지계 ──────────────────────────────────────────────
   els.push(H.heading1("2. 토지계"));
   var lB=calcResult&&calcResult.토지계?calcResult.토지계.사업전:null;
@@ -1340,7 +1388,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  els=els.concat(buildLandTables(H,lB,lA));
+  els=els.concat(buildLandTables(H,lB,lA,docx));
 
   // ── 3. 최종배출부하량 ──────────────────────────────────────
   els.push(H.heading1("3. 최종배출부하량"));
