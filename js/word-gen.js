@@ -1231,82 +1231,83 @@ function buildLifePhaseSection(docx,H,lifeData,phase,isWaterBuffer,urbanType,hou
   return els;
 }
 
-// ── 토지계 표 (원단위 그룹별) ────────────────────────────────────
-// 지목을 같은 원단위끼리 묶어서 표로 출력
-function buildLandTables(H,landBefore,landAfter){
+// ── 토지계 표 (한 표로 통합, 3행 헤더, 지목별 개별 행) ────────────
+function buildLandTables(H,landBefore,landAfter,docx){
   var els=[];
-  // 원단위 그룹 정의
-  var GROUPS=[
-    {name:"전·답·과수원",items:["전","답","과수원"]},
-    {name:"목장용지·공원·묘지·사적지",shortName:"목·공·묘·사",items:["목장용지","공원","묘지","사적지"]},
-    {name:"임야",items:["임야"]},
-    {name:"광천지·염전·제방·하천·구거·유지·양어장·잡종지",shortName:"광·염·제·하·구·유·양·잡",items:["광천지","염전","제방","하천","구거","유지","양어장","잡종지"]},
-    {name:"대지",items:["대지"]},
-    {name:"공장용지",items:["공장용지"]},
-    {name:"학교·창고·종교용지",shortName:"학·창·종",items:["학교","창고","종교"]},
-    {name:"주차장·도로·철도·수도",shortName:"주·도·철·수",items:["주차장","도로","철도","수도"]},
-    {name:"주유소",items:["주유소"]},
-    {name:"체육용지",items:["체육용지"]},
-    {name:"유원지",items:["유원지"]}
-  ];
-
   var CC=window.CALC_CONSTS||{};
   var LAND_UNIT=CC.LAND_UNIT||{};
 
-  // 사업전/후 면적 맵
+  var LAND_ITEMS=[
+    "전","답","과수원","목장용지","공원","묘지","사적지",
+    "임야",
+    "광천지","염전","제방","하천","구거","유지","양어장","잡종지",
+    "대지","공장용지","학교","창고","종교",
+    "주차장","도로","철도","수도","주유소","체육용지","유원지"
+  ];
+
   var beforeMap={};
   (landBefore&&landBefore.rows||[]).forEach(function(r){beforeMap[r.jmok]=r.area||0;});
   var afterMap={};
   (landAfter&&landAfter.rows||[]).forEach(function(r){afterMap[r.jmok]=r.area||0;});
 
-  // 전체 합계 집계
-  var totalBefore={BOD:0,TP:0},totalAfter={BOD:0,TP:0};
-  var totalAreaBefore=0,totalAreaAfter=0;
+  var activeItems=LAND_ITEMS.filter(function(j){return (beforeMap[j]||0)>0||(afterMap[j]||0)>0;});
+  if(!activeItems.length){els.push(H.p("◦ 토지계 입력 데이터가 없습니다."));return els;}
 
-  // 그룹별 표 생성
-  GROUPS.forEach(function(grp){
-    // 해당 그룹에서 데이터 있는 지목만
-    var activeItems=grp.items.filter(function(jmok){
-      return (beforeMap[jmok]||0)>0||(afterMap[jmok]||0)>0;
-    });
-    if(!activeItems.length)return;
+  var Table=docx.Table,TableRow=docx.TableRow,TableCell=docx.TableCell;
+  var WidthType=docx.WidthType,VerticalAlign=docx.VerticalAlign;
+  var W=9638;
+  var cw=[Math.round(W*0.12),Math.round(W*0.11),Math.round(W*0.11),Math.round(W*0.10),Math.round(W*0.10),Math.round(W*0.11),Math.round(W*0.11),Math.round(W*0.12),0];
+  cw[8]=W-cw[0]-cw[1]-cw[2]-cw[3]-cw[4]-cw[5]-cw[6]-cw[7];
+  var TBLB=H.TBLB,CELLB=H.CELLB;
+  function c(ch,w,cs,rs){return new TableCell({children:Array.isArray(ch)?ch:[ch],columnSpan:cs||1,rowSpan:rs||1,width:{size:w,type:WidthType.DXA},borders:CELLB,verticalAlign:VerticalAlign.CENTER});}
+  function ph(t){return H.p(t||"",{center:true,bold:true,size:H.SZ_HDR});}
+  function pd(t){return H.p(String(t!=null?t:""),{center:true,size:H.SZ_TBL});}
 
-    var unit=LAND_UNIT[grp.items[0]]||{BOD:0,TP:0};
-    var displayName=activeItems.length>3&&grp.shortName?grp.shortName:grp.name;
-    var rows=activeItems.map(function(jmok){
-      var ba=beforeMap[jmok]||0,aa=afterMap[jmok]||0;
-      var bBOD=Math.round(unit.BOD*ba/1e6*1e6)/1e6;
-      var bTP=Math.round(unit.TP*ba/1e6*1e6)/1e6;
-      var aBOD=Math.round(unit.BOD*aa/1e6*1e6)/1e6;
-      var aTP=Math.round(unit.TP*aa/1e6*1e6)/1e6;
-      totalBefore.BOD+=bBOD;totalBefore.TP+=bTP;
-      totalAfter.BOD+=aBOD;totalAfter.TP+=aTP;
-      totalAreaBefore+=ba;totalAreaAfter+=aa;
-      return[
-        jmok,
-        ba>0?ba.toLocaleString():"-",
-        aa>0?aa.toLocaleString():"-",
-        unit.BOD,unit.TP,
-        ba>0?F.f5(bBOD):"-",ba>0?F.f5(bTP):"-",
-        aa>0?F.f5(aBOD):"-",aa>0?F.f5(aTP):"-"
-      ];
-    });
-    els.push(H.tableTitle("<표> 토지계 발생부하량 산정 - "+displayName));
-    els.push(H.simpleTable(
-      ["구분","면적(㎡)\n사업전","면적(㎡)\n사업후","원단위\nBOD\n(kg/㎢·일)","원단위\nT-P\n(kg/㎢·일)","발생부하량\n사업전BOD\n(kg/일)","발생부하량\n사업전T-P\n(kg/일)","발생부하량\n사업후BOD\n(kg/일)","발생부하량\n사업후T-P\n(kg/일)"],
-      rows,
-      [10,10,10,10,10,12,12,12,12]
-    ));
-    els.push(H.blank());
+  var hdr1=new TableRow({tableHeader:true,children:[
+    c(ph("구분"),cw[0],1,3),
+    c(ph("면 적(㎡)"),cw[1]+cw[2],2),
+    c(ph("원단위(kg/㎢·일)"),cw[3]+cw[4],2),
+    c(ph("발생부하량(kg/일)"),cw[5]+cw[6]+cw[7]+cw[8],4)
+  ]});
+  var hdr2=new TableRow({tableHeader:true,children:[
+    c(ph("사업시행\n전"),cw[1]),c(ph("사업시행\n후"),cw[2]),
+    c(ph("BOD"),cw[3]),c(ph("T-P"),cw[4]),
+    c(ph("사업시행 전"),cw[5]+cw[6],2),c(ph("사업시행 후"),cw[7]+cw[8],2)
+  ]});
+  var hdr3=new TableRow({tableHeader:true,children:[
+    c(ph(""),cw[1]),c(ph(""),cw[2]),c(ph(""),cw[3]),c(ph(""),cw[4]),
+    c(ph("BOD"),cw[5]),c(ph("T-P"),cw[6]),c(ph("BOD"),cw[7]),c(ph("T-P"),cw[8])
+  ]});
+
+  var dataRows=[];
+  var tBOD=0,tTP=0,taBOD=0,taTP=0,tAB=0,tAA=0;
+  activeItems.forEach(function(jmok){
+    var unit=LAND_UNIT[jmok]||{BOD:0,TP:0};
+    var ba=beforeMap[jmok]||0,aa=afterMap[jmok]||0;
+    var bBOD=Math.round(unit.BOD*ba/1e6*1e7)/1e7;
+    var bTP=Math.round(unit.TP*ba/1e6*1e7)/1e7;
+    var aBOD=Math.round(unit.BOD*aa/1e6*1e7)/1e7;
+    var aTP=Math.round(unit.TP*aa/1e6*1e7)/1e7;
+    tBOD+=bBOD;tTP+=bTP;taBOD+=aBOD;taTP+=aTP;tAB+=ba;tAA+=aa;
+    dataRows.push(new TableRow({children:[
+      c(pd(jmok),cw[0]),
+      c(pd(ba>0?ba.toLocaleString():"-"),cw[1]),c(pd(aa>0?aa.toLocaleString():"-"),cw[2]),
+      c(pd(unit.BOD),cw[3]),c(pd(unit.TP),cw[4]),
+      c(pd(ba>0?bBOD.toFixed(5):"-"),cw[5]),c(pd(ba>0?bTP.toFixed(5):"-"),cw[6]),
+      c(pd(aa>0?aBOD.toFixed(5):"-"),cw[7]),c(pd(aa>0?aTP.toFixed(5):"-"),cw[8])
+    ]}));
   });
+  dataRows.push(new TableRow({children:[
+    c(pd("합  계"),cw[0]),
+    c(pd(tAB>0?tAB.toLocaleString():"-"),cw[1]),c(pd(tAA>0?tAA.toLocaleString():"-"),cw[2]),
+    c(pd("-"),cw[3]),c(pd("-"),cw[4]),
+    c(pd(tBOD.toFixed(5)),cw[5]),c(pd(tTP.toFixed(5)),cw[6]),
+    c(pd(taBOD.toFixed(5)),cw[7]),c(pd(taTP.toFixed(5)),cw[8])
+  ]}));
 
-  // 합계 표
-  els.push(H.tableTitle("<표> 토지계 발생부하량 총괄"));
-  els.push(H.simpleTable(
-    ["구분","면적(㎡)\n사업전","면적(㎡)\n사업후","발생부하량 사업전\nBOD(kg/일)","발생부하량 사업전\nT-P(kg/일)","발생부하량 사업후\nBOD(kg/일)","발생부하량 사업후\nT-P(kg/일)"],
-    [["합  계",totalAreaBefore.toLocaleString(),totalAreaAfter.toLocaleString(),F.f5(totalBefore.BOD),F.f5(totalBefore.TP),F.f5(totalAfter.BOD),F.f5(totalAfter.TP)]],
-    [15,14,14,14,14,14,15]
-  ));
+  var landTable=new Table({width:{size:100,type:WidthType.PERCENTAGE},borders:TBLB,rows:[hdr1,hdr2,hdr3].concat(dataRows)});
+  els.push(H.tableTitle("<표> 사업시행 전·후 토지계 발생부하량 산정"));
+  els.push(landTable);
   els.push(H.blank());
   return els;
 }
