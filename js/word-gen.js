@@ -151,6 +151,9 @@ function makeH(docx){
       var scale=PAGE_W/total;
       colWidths=colRatios.map(function(r){return Math.round(r*scale);});
     }
+    // 반올림 오차 보정: 마지막 셀 너비를 나머지 값으로 맞춤
+    var sumW=colWidths.reduce(function(a,b){return a+b;},0);
+    if(sumW!==PAGE_W)colWidths[colWidths.length-1]+=PAGE_W-sumW;
     var hdrCells=headers.map(function(h,i){
       return tc(p(String(h),{center:true,bold:true,size:SZ_HDR}),{w:colWidths[i]});
     });
@@ -593,7 +596,9 @@ function buildChapter2(docx,data){
   var legalBasis=data.legalBasis||"◦ 한강수계 상수원수질개선 및 주민지원 등에 관한 법률 제8조의2\n◦ 수질오염총량관리기술지침(국립환경과학원)\n◦ 환경영향평가법 제59조 및 제61조제2항 관련 [별표4]";
   els.push(H.p("◦ 실시근거 : "+bizTypeText,{size:H.SZ_SM}));
   els.push(H.blank());
-  els.push(H.p(legalBasis,{size:H.SZ_SM}));
+  // legalBasis를 줄바꿈별로 별도 단락으로 분리 (한 단락 w:br 방식 시 페이지 경계에서 ◦ 잘림 방지)
+  var legalLines=(legalBasis||"").split("\n");
+  legalLines.forEach(function(line){if(line.trim())els.push(H.p(line,{size:H.SZ_SM}));});
   els.push(H.blank());
 
   var nb=H.BN;
@@ -733,22 +738,14 @@ function buildLifeStdTable(H,urbanType){
 function buildHHSewageTable(H,hh,households,popUnit,urbanType,phase){
   var ut=urbanType||"비시가화";
   var CC=window.CALC_CONSTS||{};
-  var waterSupply=(CC.WATER_SUPPLY&&CC.WATER_SUPPLY[ut])||170;
+  // 읍면 여부에 따라 170(읍면) / 200(그외) 적용
+  var waterSupply=window.isEupMyeon?170:200;
   var els=[];
   var phaseLabel=phase==="before"?"사업시행 전":"사업시행 후";
-  var phaseDesc=phase==="before"
-    ?"현재 사업부지 내 건축물대장으로 확인한 주거세대 수는 "
-    :"사업추진에 따른 계획 세대는 ";
-  var phaseDesc2=phase==="before"
-    ?"이며 세대당 인구수 "
-    :"이며 세대당 인구수 ";
-  var phaseDesc3=phase==="before"
-    ?" 인을 적용하여 "
-    :" 인을 적용하여 ";
-  els.push(H.p(
-    "◦ "+phaseDesc+(households||"-")+"세대"+phaseDesc2+(F.f2(popUnit||2.63))+phaseDesc3+Math.round(hh.population||0)+"인으로 산정하였다.",
-    {size:H.SZ_SM}
-  ));
+  var hhDesc=phase==="before"
+    ?"◦ 현재 사업부지 내 건축물대장으로 확인한 주거세대 수는 "+(households||"-")+"세대이며, 세대당 인구수 "+F.f2(popUnit||2.63)+"인을 적용하여 "+Math.round(hh.population||0)+"인으로 산정되었다."
+    :"◦ 사업계획에 따른 계획 세대는 "+(households||"-")+"세대이며, 세대당 인구수 "+F.f2(popUnit||2.63)+"인을 적용하여 "+Math.round(hh.population||0)+"인으로 산정되었다.";
+  els.push(H.p(hhDesc,{size:H.SZ_SM}));
   els.push(H.blank());
   els.push(H.tableTitle("<표> "+phaseLabel+" 가정인구 오수발생량 산정"));
   els.push(H.simpleTable(
@@ -781,7 +778,7 @@ function buildBizSewageTable(H,biz,phase){
   })();
   var totalSewage=biz.합계?biz.합계.오수발생유량||0:0;
   els.push(H.p(
-    "◦ "+phaseLabel+" 오수발생량 산정은 건축물의 용도별 오수발생량 원단위를 적용하여 산정하였다. 그 결과 오수발생량은 "+F.f4(totalSewage)+"㎥/일로 예측되었다.",
+    "◦ "+phaseLabel+" 오수발생량은 건축물의 용도별 오수발생량 원단위를 적용하여 산정하였으며, 그 결과 "+F.f4(totalSewage)+"㎥/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
@@ -847,7 +844,7 @@ function buildLoadTable(H,lifeData,phase){
   var totalBOD=lifeData.합계&&lifeData.합계.발생부하량?lifeData.합계.발생부하량.BOD:0;
   var totalTP=lifeData.합계&&lifeData.합계.발생부하량?lifeData.합계.발생부하량.TP:0;
   els.push(H.p(
-    "◦ "+phaseLabel+" 발생부하량은 오염총량관리기술지침의 원단위를 적용하여 산정하였으며 산정결과 BOD "+F.f4(totalBOD)+"kg/일, T-P "+F.f4(totalTP)+"kg/일로 산정되었다.",
+    "◦ "+phaseLabel+" 발생부하량은 수질오염총량관리기술지침의 원단위를 적용하여 산정하였으며, 산정결과 BOD "+F.f4(totalBOD)+"kg/일, T-P "+F.f4(totalTP)+"kg/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
@@ -924,7 +921,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
       var coef=CC.DIRECT_TRANSFER_COEF&&CC.DIRECT_TRANSFER_COEF[hhM1]?CC.DIRECT_TRANSFER_COEF[hhM1]:{flow:1.0,BOD:0.079,TP:0.081};
       var ratio=CC.DIRECT_TRANSFER_RATIO||1.0;
       els.push(H.p(
-        "◦ 사업부지에 해당하는 직접이송유량비("+F.f3(coef.flow)+")와 "+dt.처리장+"의 처리농도를 적용하여 분뇨의 직접이송에 따른 방류부하량은 BOD "+F.f4(dt.방류부하량.BOD)+"kg/일, T-P "+F.f4(dt.방류부하량.TP)+"kg/일로 산정되었다.",
+        "◦ 분뇨의 직접이송 유량비("+F.f3(coef.flow)+")와 "+dt.처리장+"의 처리농도를 적용하여 분뇨 직접이송에 따른 방류부하량은 BOD "+F.f4(dt.방류부하량.BOD)+"kg/일, T-P "+F.f4(dt.방류부하량.TP)+"kg/일로 산정되었다.",
         {size:H.SZ_SM}
       ));
       els.push(H.blank());
@@ -1108,21 +1105,21 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
 
   if(hasPub){
     var pubDesc=isPubHH?"공공하수처리시설로 연결":"공공하수처리시설로 연결";
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 "+pubDesc+"하는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 공공하수처리시설로 유입·처리되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
     els.push(H.tableTitle("<표> 공공하수처리시설 연결 개별배출부하량 산정"));
     els.push(buildPubTable(pubBizRows,isPubHH,isPubHH?hh:null));
     els.push(H.blank());
   }
   if(hasInd){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 처리 후 방류하는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
     els.push(H.tableTitle("<표> 개인오수처리시설 개별배출부하량 산정"));
     els.push(buildIndTable(indBizRows,isIndHH,isIndHH?hh:null));
     els.push(H.blank());
   }
   if(hasSep){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 처리 후 방류하는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
     els.push(H.tableTitle("<표> 정화조 처리 개별배출부하량 산정"));
     els.push(buildSepTable(sepBizRows,isSepHH,isSepHH?hh:null));
@@ -1148,7 +1145,7 @@ function buildDischargeSummary(H,lifeData,phase){
   var totBOD=_r2(dtBOD+indBOD),totTP=_r2(dtTP+indTP);
   function _r2(v){return Math.round(v*1e6)/1e6;}
   els.push(H.p(
-    "◦ "+phaseLabel+" 점오염원(생활계) 배출부하량을 산정한 결과 BOD "+F.f4(totBOD)+"kg/일, T-P "+F.f4(totTP)+"kg/일로 산정되었다.",
+    "◦ "+phaseLabel+" 점오염원(생활계) 배출부하량 산정결과, BOD "+F.f4(totBOD)+"kg/일, T-P "+F.f4(totTP)+"kg/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
@@ -1173,8 +1170,8 @@ function buildLifePhaseSection(docx,H,lifeData,phase,isWaterBuffer,urbanType,hou
 
   if(!hasHH&&!hasBiz){
     var emptyMsg=phase==="before"
-      ?"◦ 본 사업부지는 사업시행 전 점오염원(생활계)에 의한 배출부하량은 없는 것으로 조사되었습니다."
-      :"◦ 사업시행 후 생활계 배출부하량은 없는 것으로 산정됩니다.";
+      ?"◦ 본 사업부지는 사업시행 전 점오염원(생활계)에 의한 배출부하량은 없는 것으로 조사되었다."
+      :"◦ 사업시행 후 생활계 배출부하량은 없는 것으로 산정되었다.";
     els.push(H.p(emptyMsg));
     return els;
   }
@@ -1328,7 +1325,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   var finalBOD=Math.round((aD.BOD-bD.BOD)*1e6)/1e6;
   var finalTP=Math.round((aD.TP-bD.TP)*1e6)/1e6;
   els.push(H.p(
-    "◦ 사업시행으로 인해 사업부지에서 발생하는 점오염원(생활계) 배출부하량은 BOD "+F.f4(Math.max(0,finalBOD))+"kg/일, T-P "+F.f4(Math.max(0,finalTP))+"kg/일로 산정되었다.",
+    "◦ 금회 사업으로 인한 점오염원(생활계) 최종 배출부하량은 BOD "+F.f4(Math.max(0,finalBOD))+"kg/일, T-P "+F.f4(Math.max(0,finalTP))+"kg/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
@@ -1353,7 +1350,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   var taB=(lA&&lA.합계&&lA.합계.배출부하량)?lA.합계.배출부하량.BOD:0;
   var taT=(lA&&lA.합계&&lA.합계.배출부하량)?lA.합계.배출부하량.TP:0;
   els.push(H.p(
-    "◦ 사업시행 전 토지계 부하량은 현재 사업부지의 현황지목을 적용하였고 사업시행 후 토지계 부하량은 사업계획에 따른 토지이용계획 면적에 대응되는 지목을 적용하여 산정하였으며 그 결과 비점오염원은 BOD "+F.f4(Math.max(0,taB-tbB))+"kg/일, T-P "+F.f4(Math.max(0,taT-tbT))+"kg/일로 산정되었다.",
+    "◦ 사업시행 전 토지계 부하량은 현재 사업부지의 현황지목을 적용하였고, 사업시행 후 토지계 부하량은 사업계획에 따른 토지이용계획 면적에 대응되는 지목을 적용하여 산정하였으며, 그 결과 비점오염원 발생부하량은 BOD "+F.f4(Math.max(0,taB-tbB))+"kg/일, T-P "+F.f4(Math.max(0,taT-tbT))+"kg/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
