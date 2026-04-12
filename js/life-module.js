@@ -40,7 +40,7 @@ function createLifeModule(opts) {
     const flist = (typeof FECES_PLANT_DB !== "undefined") ? FECES_PLANT_DB.filter(p => p.sigun === sigun) : [];
     if (flist.length === 0) return `<span style="font-size:12px;color:#9ca3af;white-space:nowrap;">분뇨처리시설 없음</span>`;
     const opts = flist.map(p=>`<option value="${p.name}" ${m4===p.name?"selected":""}>${p.name}</option>`).join("");
-    return `<select style="font-size:12px;min-width:150px;"
+    return `<select style="font-size:12px;flex:1;min-width:0;width:0;"
         onchange="window.__lifeOnMethod4Change('${rootId}','${idPrefix}',this.value)">
         <option value="" disabled ${m4?"":"selected"} hidden>분뇨처리시설</option>
         ${opts}
@@ -50,9 +50,11 @@ function createLifeModule(opts) {
   function _renderMethodCascade(m1, m2, m3, m4, idPrefix) {
     const plants = _getFilteredPlants();
     const sigun = document.getElementById("sigunSelect")?.value || "";
-    let html = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap;">`;
+    // 드롭박스 3개 각각 1/3 균등 분배
+    const selStyle = "font-size:12px;flex:1;min-width:0;width:0;";
+    let html = `<div style="display:flex;gap:5px;align-items:center;flex:1;min-width:0;">`;
 
-    html += `<select style="font-size:12px;min-width:120px;flex-shrink:0;"
+    html += `<select style="${selStyle}"
         onchange="window.__lifeOnMethod1Change('${rootId}','${idPrefix}',this.value)">
         <option value="공공하수처리시설" ${m1==="공공하수처리시설"?"selected":""}>공공하수처리시설</option>
         <option value="개인하수처리시설" ${m1==="개인하수처리시설"?"selected":""}>개인하수처리시설</option>
@@ -63,18 +65,18 @@ function createLifeModule(opts) {
       const opts = plants.length > 0
         ? plants.map(p=>`<option value="${p.name}" ${m2===p.name?"selected":""}>${p.name}</option>`).join("")
         : `<option value="">${sigun?"처리장 없음":"시군 선택 필요"}</option>`;
-      html += `<select style="font-size:12px;min-width:120px;flex-shrink:0;"
+      html += `<select style="${selStyle}"
           onchange="window.__lifeOnMethod2Change('${rootId}','${idPrefix}',this.value)">
           <option value="" disabled ${m2?"":"selected"} hidden>처리장 선택</option>
           ${opts}
         </select>`;
     } else if (m1 === "개인하수처리시설") {
-      html += `<select style="font-size:12px;min-width:75px;flex-shrink:0;"
+      html += `<select style="${selStyle}"
           onchange="window.__lifeOnMethod2Change('${rootId}','${idPrefix}',this.value)">
           <option value="고도처리" ${m2==="고도처리"?"selected":""}>고도처리</option>
           <option value="일반처리" ${m2==="일반처리"?"selected":""}>일반처리</option>
         </select>
-        <select style="font-size:12px;min-width:85px;flex-shrink:0;"
+        <select style="${selStyle}"
           onchange="window.__lifeOnMethod3Change('${rootId}','${idPrefix}',this.value)">
           <option value="50톤이상" ${m3==="50톤이상"||!m3?"selected":""}>50톤 이상</option>
           <option value="50톤미만" ${m3==="50톤미만"?"selected":""}>50톤 미만</option>
