@@ -23,7 +23,7 @@
     .lifeTwoCol { display: flex; gap: 16px; }
     .lifeCol { flex: 1; min-width: 0; overflow: hidden; }
     .lifeColHeader { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-    .lifeColTitle { font-size: 14px; font-weight: 800; color: #111827; }
+    .lifeColTitle { font-size: 18px; font-weight: 900; color: #111827; }
     .lifeTop { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
     .inlineUnitRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .inlineUnitRow .label { font-size: 13px; font-weight: 700; color: #374151; }
@@ -214,20 +214,17 @@
               </div>
               <div id="beforeInputs">
                 <div class="lifeTop">
-                  <div class="inlineUnitRow" style="flex-wrap:wrap;gap:8px;">
-                    <div class="label" style="flex-shrink:0;">가정인구</div>
-                    <div class="inputWrap" style="flex:0 0 160px;">
-                      <input id="householdCount_before" type="text" inputmode="numeric"
-                        placeholder="세대수" style="width:100%;" />
-                      <div class="unitText">세대</div>
-                    </div>
-                    <div id="hhMethod_livingContainer_before"
-                         style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
-                      <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
-                    </div>
+                  <!-- 가정인구 섹션 -->
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
+                    <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeBefore.addHousehold()">+ 가정인구 추가</button>
                   </div>
-                  <div class="bizHeaderRow">
-                    <div class="sectionLabel">영업인구 (동별)</div>
+                  <div id="hhMethod_livingContainer_before" style="width:100%;">
+                    <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
+                  </div>
+                  <!-- 영업인구 섹션 -->
+                  <div class="bizHeaderRow" style="margin-top:8px;">
+                    <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
                     <button type="button" class="btnGhost" onclick="lifeBefore.addBuilding()">+ 동 추가</button>
                   </div>
                 </div>
@@ -243,20 +240,17 @@
               <div class="lifeColHeader"><div class="lifeColTitle">사업후</div></div>
               <div id="afterInputs">
                 <div class="lifeTop">
-                  <div class="inlineUnitRow" style="flex-wrap:wrap;gap:8px;">
-                    <div class="label" style="flex-shrink:0;">가정인구</div>
-                    <div class="inputWrap" style="flex:0 0 160px;">
-                      <input id="householdCount_after" type="text" inputmode="numeric"
-                        placeholder="세대수" style="width:100%;" />
-                      <div class="unitText">세대</div>
-                    </div>
-                    <div id="hhMethod_livingContainer_after"
-                         style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
-                      <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
-                    </div>
+                  <!-- 가정인구 섹션 -->
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
+                    <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeAfter.addHousehold()">+ 가정인구 추가</button>
                   </div>
-                  <div class="bizHeaderRow">
-                    <div class="sectionLabel">영업인구 (동별)</div>
+                  <div id="hhMethod_livingContainer_after" style="width:100%;">
+                    <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
+                  </div>
+                  <!-- 영업인구 섹션 -->
+                  <div class="bizHeaderRow" style="margin-top:8px;">
+                    <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
                     <button type="button" class="btnGhost" onclick="lifeAfter.addBuilding()">+ 동 추가</button>
                   </div>
                 </div>
