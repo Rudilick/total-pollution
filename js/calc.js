@@ -187,18 +187,52 @@ function _calcBusinessRows(buildings, urbanType, isWaterBuffer){
 }
 
 function _calcLifeSection(moduleState, urbanType, isWaterBuffer){
-  const households=_pn(moduleState.householdCount);
-  const m1=moduleState.householdMethod1||"공공하수처리시설";
-  const m2=moduleState.householdMethod2||"", m3=moduleState.householdMethod3||"", m4=moduleState.householdMethod4||"";
-  const plantInfo=(m1==="공공하수처리시설")?_getPlantInfo(m2):null;
-  const fecesFacility=(m1==="개인하수처리시설"||m1==="정화조")?_getFecesPlantInfo(m4):null;
   const popUnit=_getPopUnit(document.getElementById("sidoSelect")?.value||"",document.getElementById("sigunSelect")?.value||"");
-  const hhResult=(households>0&&popUnit>0)?_calcHousehold(households,popUnit,urbanType,m1,m2,m3,isWaterBuffer,plantInfo,fecesFacility):null;
+
+  // 가정인구 배열 처리 (v5: households 배열)
+  const hhList = moduleState.households||[{count:moduleState.householdCount||"",method1:moduleState.householdMethod1||"공공하수처리시설",method2:moduleState.householdMethod2||"",method3:moduleState.householdMethod3||"",method4:moduleState.householdMethod4||""}];
+  const hhResults = hhList.map(hh=>{
+    const cnt=_pn(hh.count);
+    if(!cnt||cnt<=0||!popUnit) return null;
+    const m1=hh.method1||"공공하수처리시설", m2=hh.method2||"", m3=hh.method3||"", m4=hh.method4||"";
+    const plantInfo=(m1==="공공하수처리시설")?_getPlantInfo(m2):null;
+    const fecesFacility=(m1==="개인하수처리시설"||m1==="정화조")?_getFecesPlantInfo(m4):null;
+    return _calcHousehold(cnt,popUnit,urbanType,m1,m2,m3,isWaterBuffer,plantInfo,fecesFacility);
+  }).filter(Boolean);
+
+  // 합산 (word-gen 하위호환: 첫 번째 결과를 가정인구로, 나머지는 합산)
+  let hhCombined = null;
+  if(hhResults.length===1){
+    hhCombined = hhResults[0];
+  } else if(hhResults.length>1){
+    // 여러 가정인구 그룹을 합산한 가상 결과 생성
+    hhCombined = hhResults.reduce((acc,r)=>{
+      if(!acc) return r;
+      return{
+        population:_r(acc.population+r.population),
+        급수원단위:acc.급수원단위, // 대표값
+        일평균급수량:_r(acc.일평균급수량+r.일평균급수량),
+        분뇨발생유량:_r(acc.분뇨발생유량+r.분뇨발생유량),
+        잡배수발생유량:_r(acc.잡배수발생유량+r.잡배수발생유량),
+        오수발생유량:_r(acc.오수발생유량+r.오수발생유량),
+        발생부하량:_add(acc.발생부하량,r.발생부하량),
+        배출부하량:_add(acc.배출부하량,r.배출부하량),
+        분뇨발생부하량:_add(acc.분뇨발생부하량,r.분뇨발생부하량),
+        잡배수발생부하량:_add(acc.잡배수발생부하량,r.잡배수발생부하량),
+        // 처리장정보는 첫번째 것 사용
+        처리장정보:acc.처리장정보||r.처리장정보,
+        직접이송결과:acc.직접이송결과||r.직접이송결과,
+        개인처리기준:acc.개인처리기준||r.개인처리기준,
+        _groups:hhResults, // 상세 접근용
+      };
+    },null);
+  }
+
   const bizResult=_calcBusinessRows(moduleState.buildings,urbanType,isWaterBuffer);
-  const totalSewage=_r((hhResult?.오수발생유량||0)+bizResult.합계.오수발생유량);
-  const total발생=_add(hhResult?.발생부하량||_zero(),bizResult.합계.발생부하량);
-  const total배출=_add(hhResult?.배출부하량||_zero(),bizResult.합계.배출부하량);
-  return{가정인구:hhResult,영업인구:bizResult,합계:{오수발생유량:totalSewage,발생부하량:total발생,배출부하량:total배출}};
+  const totalSewage=_r((hhCombined?.오수발생유량||0)+bizResult.합계.오수발생유량);
+  const total발생=_add(hhCombined?.발생부하량||_zero(),bizResult.합계.발생부하량);
+  const total배출=_add(hhCombined?.배출부하량||_zero(),bizResult.합계.배출부하량);
+  return{가정인구:hhCombined,가정인구목록:hhResults,영업인구:bizResult,합계:{오수발생유량:totalSewage,발생부하량:total발생,배출부하량:total배출}};
 }
 
 function _calcLand(landObj){
