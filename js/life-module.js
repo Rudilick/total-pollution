@@ -50,7 +50,7 @@ function createLifeModule(opts) {
   function _renderMethodCascade(m1, m2, m3, m4, idPrefix) {
     const plants = _getFilteredPlants();
     const sigun = document.getElementById("sigunSelect")?.value || "";
-    let html = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap;flex:1;min-width:0;overflow:hidden;">`;
+    let html = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex:1;min-width:0;">`;
 
     html += `<select style="font-size:12px;min-width:140px;flex-shrink:0;"
         onchange="window.__lifeOnMethod1Change('${rootId}','${idPrefix}',this.value)">
