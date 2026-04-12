@@ -50,7 +50,7 @@ function createLifeModule(opts) {
   function _renderMethodCascade(m1, m2, m3, m4, idPrefix) {
     const plants = _getFilteredPlants();
     const sigun = document.getElementById("sigunSelect")?.value || "";
-    let html = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex:1;min-width:0;">`;
+    let html = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap;flex:1;min-width:0;">`;
 
     html += `<select style="font-size:12px;min-width:140px;flex-shrink:0;"
         onchange="window.__lifeOnMethod1Change('${rootId}','${idPrefix}',this.value)">
@@ -97,14 +97,12 @@ function createLifeModule(opts) {
       const idPrefix = `hh${idx}`;
       const methodHtml = _renderMethodCascade(hh.method1, hh.method2, hh.method3, hh.method4||"", idPrefix);
       html += `
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
-          <div class="inputWrap" style="flex:0 0 auto;display:flex;align-items:center;gap:4px;">
-            <input id="hhCount_${rootId}_${idx}" type="text" inputmode="numeric"
-              value="${hh.count||""}" placeholder="세대수"
-              style="width:80px;font-size:12px;"
-              oninput="window.__lifeOnHHCountChange('${rootId}',${idx},this.value)" />
-            <span style="font-size:12px;color:#6b7280;white-space:nowrap;">세대</span>
-          </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;width:100%;">
+          <input id="hhCount_${rootId}_${idx}" type="text" inputmode="numeric"
+            value="${hh.count||""}" placeholder="세대수"
+            style="width:72px;font-size:12px;flex-shrink:0;"
+            oninput="window.__lifeOnHHCountChange('${rootId}',${idx},this.value)" />
+          <span style="font-size:12px;color:#6b7280;white-space:nowrap;flex-shrink:0;">세대</span>
           ${methodHtml}
           ${state.households.length > 1
             ? `<button type="button" class="miniBtnDanger" style="font-size:11px;flex-shrink:0;"
