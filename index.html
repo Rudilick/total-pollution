@@ -199,37 +199,33 @@
         <div class="formCard">
           <div class="lifeTwoCol">
             <div class="lifeCol">
-              <div style="text-align:center;padding:18px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px;">
-                <div style="font-size:32px;font-weight:900;color:#111827;">사업전</div>
-                <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
-                  <label class="noSourceChk" for="beforeNoSource" style="font-size:13px;">
-                    <input id="beforeNoSource" type="checkbox" />사업전 오염원 없음
-                  </label>
-                </div>
+              <div class="landColHeader">
+                <div class="landColTitle">사업전</div>
+                <label class="noSourceChk" for="beforeNoSource" style="font-size:13px;margin-left:auto;">
+                  <input id="beforeNoSource" type="checkbox" />사업전 오염원 없음
+                </label>
               </div>
               <div id="beforeInputs">
                 <div class="lifeTop">
                   <!-- 가정인구 섹션 -->
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                     <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#1a7f64;cursor:pointer;"
-                        title="읍·면 지역 선택 시 170 L/인/일 적용 (그 외 200 L/인/일)">
-                        <input type="checkbox" id="eupMyeonCheck"
-                          onchange="window.isEupMyeon=this.checked;document.getElementById('eupMyeonBadge').textContent=this.checked?'170 L/인·일':'200 L/인·일';" />
-                        읍·면
-                        <span id="eupMyeonBadge" style="font-size:11px;padding:2px 5px;background:#e0f2f1;border-radius:5px;color:#065f46;">200 L/인·일</span>
-                      </label>
-                      <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeBefore.addHousehold()">+ 추가</button>
-                    </div>
+                    <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeBefore.addHousehold()">+ 추가</button>
+                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#1a7f64;cursor:pointer;margin-left:auto;white-space:nowrap;"
+                      title="읍·면 지역 선택 시 170 L/인/일 적용 (그 외 200 L/인/일)">
+                      <input type="checkbox" id="eupMyeonCheck"
+                        onchange="window.isEupMyeon=this.checked;document.getElementById('eupMyeonBadge').textContent=this.checked?'170 L/인·일':'200 L/인·일';" />
+                      읍·면
+                      <span id="eupMyeonBadge" style="font-size:11px;padding:2px 5px;background:#e0f2f1;border-radius:5px;color:#065f46;">200 L/인·일</span>
+                    </label>
                   </div>
                   <div id="hhMethod_livingContainer_before" style="width:100%;">
                     <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
                   </div>
                   <!-- 영업인구 섹션 -->
-                  <div class="bizHeaderRow" style="margin-top:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:10px;margin-bottom:6px;">
                     <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
-                    <button type="button" class="btnGhost" onclick="lifeBefore.addBuilding()">+ 동 추가</button>
+                    <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeBefore.addBuilding()">+ 추가</button>
                   </div>
                 </div>
                 <div id="livingContainer_before"></div>
@@ -241,13 +237,13 @@
               </div>
             </div>
             <div class="lifeCol">
-              <div style="text-align:center;padding:18px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px;">
-                <div style="font-size:32px;font-weight:900;color:#111827;">사업후</div>
+              <div class="landColHeader">
+                <div class="landColTitle">사업후</div>
               </div>
               <div id="afterInputs">
                 <div class="lifeTop">
                   <!-- 가정인구 섹션 -->
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                     <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
                     <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeAfter.addHousehold()">+ 추가</button>
                   </div>
@@ -255,9 +251,9 @@
                     <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
                   </div>
                   <!-- 영업인구 섹션 -->
-                  <div class="bizHeaderRow" style="margin-top:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:10px;margin-bottom:6px;">
                     <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
-                    <button type="button" class="btnGhost" onclick="lifeAfter.addBuilding()">+ 동 추가</button>
+                    <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeAfter.addBuilding()">+ 추가</button>
                   </div>
                 </div>
                 <div id="livingContainer_after"></div>
