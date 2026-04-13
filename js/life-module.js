@@ -51,7 +51,8 @@ function createLifeModule(opts) {
     const plants = _getFilteredPlants();
     const sigun = document.getElementById("sigunSelect")?.value || "";
     // 드롭박스 3개 각각 1/3 균등 분배
-    const selStyle = "font-size:12px;flex:1;min-width:0;width:0;";
+    const selStyle = "font-size:12px;flex:0 0 calc(200%/9);min-width:0;";
+    const selStyle2 = selStyle.replace('calc(200%/9)', 'calc(200%/9 * 1.25)');
     let html = `<div style="display:flex;gap:5px;align-items:center;flex:1;min-width:0;">`;
 
     html += `<select style="${selStyle}"
@@ -65,7 +66,7 @@ function createLifeModule(opts) {
       const opts = plants.length > 0
         ? plants.map(p=>`<option value="${p.name}" ${m2===p.name?"selected":""}>${p.name}</option>`).join("")
         : `<option value="">${sigun?"처리장 없음":"시군 선택 필요"}</option>`;
-      html += `<select style="${selStyle}"
+      html += `<select style="${selStyle2}"
           onchange="window.__lifeOnMethod2Change('${rootId}','${idPrefix}',this.value)">
           <option value="" disabled ${m2?"":"selected"} hidden>처리장 선택</option>
           ${opts}
