@@ -247,7 +247,16 @@
                   <!-- 가정인구 섹션 -->
                   <div style="display:flex;align-items:center;width:100%;margin-bottom:6px;">
                     <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
-                    <button type="button" class="btnGhost" style="font-size:12px;margin-left:auto;" onclick="lifeAfter.addHousehold()">+ 추가</button>
+                    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#1a7f64;cursor:pointer;white-space:nowrap;"
+                        title="읍·면 지역 선택 시 170 L/인/일 적용 (그 외 200 L/인/일)">
+                        <input type="checkbox" id="eupMyeonCheck"
+                          onchange="window.isEupMyeon=this.checked;document.getElementById('eupMyeonBadge').textContent=this.checked?'170 L/인·일':'200 L/인·일';" />
+                        읍·면
+                        <span id="eupMyeonBadge" style="font-size:11px;padding:2px 5px;background:#e0f2f1;border-radius:5px;color:#065f46;">200 L/인·일</span>
+                      </label>
+                      <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeAfter.addHousehold()">+ 추가</button>
+                    </div>
                   </div>
                   <div id="hhMethod_livingContainer_after" style="width:100%;">
                     <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
