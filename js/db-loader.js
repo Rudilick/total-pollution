@@ -157,7 +157,8 @@ function applyExcelBuffer(buf, sourceLabel) {
   // ── 마지막 시트: 시군구동읍면리 ─────────────────────────────
   // 열: 0광역자치단체, 1기초자치단체, 2읍면동, 3리(없으면 빈 문자)
   // 헤더 없음 - 첫 행부터 데이터
-  const snAddr = wb.SheetNames.find(n => n.includes("읍면") || (n.includes("시군구") && n.includes("리"))) || null;
+  // 이름 매칭이 불안정하므로 항상 마지막 시트를 참조
+  const snAddr = wb.SheetNames[wb.SheetNames.length - 1];
   if (snAddr && wb.Sheets[snAddr]) {
     const aoaAddr = XLSX.utils.sheet_to_json(wb.Sheets[snAddr], { header:1, defval:"" });
     DONG_RI_DB = {};

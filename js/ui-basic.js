@@ -70,14 +70,20 @@ function fillBizTypeSelect(){
   bizTypes.forEach((t,i)=>{const o=document.createElement("option");o.value=t;o.textContent=t;if(i===0)o.selected=true;s.appendChild(o);});
 }
 
-// ── sido/sigun 드롭박스 ──────────────────────────────────────
+// ── sido/sigun 드롭박스 (DONG_RI_DB 기반, 없으면 SIDO_SIGUN_LIST 폴백) ──
 function fillSidoSelect(){
   const ss=document.getElementById("sidoSelect"); if(!ss) return;
-  const list=typeof SIDO_SIGUN_LIST!=="undefined"?SIDO_SIGUN_LIST:[];
+  const db=typeof DONG_RI_DB!=="undefined"?DONG_RI_DB:{};
+  let sidos=Object.keys(db).sort();
+  // DONG_RI_DB 미로드 시 인구수 원단위 목록으로 폴백
+  if(sidos.length===0){
+    const list=typeof SIDO_SIGUN_LIST!=="undefined"?SIDO_SIGUN_LIST:[];
+    sidos=list.map(e=>e.sido);
+  }
   const cur=ss.value;
   ss.innerHTML=`<option value="" disabled selected>광역자치단체 선택</option>`;
-  list.forEach(({sido})=>{const o=document.createElement("option");o.value=sido;o.textContent=sido;ss.appendChild(o);});
-  if(cur) ss.value=cur;
+  sidos.forEach(sido=>{const o=document.createElement("option");o.value=sido;o.textContent=sido;ss.appendChild(o);});
+  if(cur&&sidos.includes(cur)) ss.value=cur;
   _refreshSigunSelect();
 }
 
@@ -86,10 +92,15 @@ function _refreshSigunSelect(){
   const gs=document.getElementById("sigunSelect");
   if(!gs) return;
   const sido=ss?.value||"";
-  const list=typeof SIDO_SIGUN_LIST!=="undefined"?SIDO_SIGUN_LIST:[];
-  const entry=list.find(e=>e.sido===sido);
+  const db=typeof DONG_RI_DB!=="undefined"?DONG_RI_DB:{};
+  let siguns=Object.keys(db[sido]||{}).sort();
+  // DONG_RI_DB에 해당 sido 없으면 SIDO_SIGUN_LIST 폴백
+  if(siguns.length===0){
+    const list=typeof SIDO_SIGUN_LIST!=="undefined"?SIDO_SIGUN_LIST:[];
+    siguns=(list.find(e=>e.sido===sido)?.siguns)||[];
+  }
   gs.innerHTML=`<option value="" disabled selected>기초자치단체 선택</option>`;
-  (entry?.siguns||[]).forEach(sg=>{const o=document.createElement("option");o.value=sg;o.textContent=sg;gs.appendChild(o);});
+  siguns.forEach(sg=>{const o=document.createElement("option");o.value=sg;o.textContent=sg;gs.appendChild(o);});
 }
 
 // ── 단위유역 드롭박스 (sigun 기반) ───────────────────────────
