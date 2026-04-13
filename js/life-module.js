@@ -72,7 +72,7 @@ function createLifeModule(opts) {
           ${opts}
         </select>`;
     } else if (m1 === "개인하수처리시설") {
-      const narrowSelStyle = "font-size:12px;flex:0 0 calc(120%/9);min-width:0;";
+      const narrowSelStyle = "font-size:12px;flex:0 0 calc(180%/9);min-width:0;";
       html += `<select style="${narrowSelStyle}"
           onchange="window.__lifeOnMethod2Change('${rootId}','${idPrefix}',this.value)">
           <option value="고도처리" ${m2==="고도처리"?"selected":""}>고도처리</option>
