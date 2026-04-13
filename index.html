@@ -94,7 +94,13 @@
               <select id="sigunSelect" onchange="onSigunChange()">
                 <option value="" disabled selected>기초자치단체</option>
               </select>
-              <input id="projectLocationDetail" placeholder="○○읍 ○○리 000번지 일원" />
+              <select id="dongSelect" onchange="onDongChange()">
+                <option value="" disabled selected>읍면동</option>
+              </select>
+              <select id="riSelect" onchange="onRiChange()" style="display:none;">
+                <option value="" disabled selected>리</option>
+              </select>
+              <input id="projectLocationDetail" placeholder="000번지 일원" />
             </div>
           </div>
           <div class="row">

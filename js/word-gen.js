@@ -1399,8 +1399,9 @@ function generateDoc(calcResult){
     if(!_docx)throw new Error("docx 라이브러리 로드 실패");
     var Document=_docx.Document,Packer=_docx.Packer;
     var pn=getVal("projectName"),sido=getVal("sidoSelect"),sigun=getVal("sigunSelect");
+    var dong=getVal("dongSelect"),ri=getVal("riSelect");
     var loc=getVal("projectLocationDetail");
-    var projectLocation=[sido,sigun,loc].filter(function(x){return!!x;}).join(" ");
+    var projectLocation=[sido,sigun,dong,ri,loc].filter(function(x){return!!x;}).join(" ");
     var year=getVal("yearSelect"),month=getVal("monthSelect");
     var 작성일자=(year&&month)?(year+". "+month+"."):"";;
     var sy=getVal("startYearSelect"),cy=getVal("completeYearSelect");

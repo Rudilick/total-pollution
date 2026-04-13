@@ -1,9 +1,10 @@
 // ================================================================
-// db-loader.js  v4
+// db-loader.js  v5
 // [변경]
 //   시트3(인구수): row[0]=광역, row[1]=기초 (A열 빈칸 보정)
 //   시트5(분뇨처리장): FECES_PLANT_DB
 //   시트6(단위유역):   UNIT_BASIN_LIST
+//   마지막시트(시군구동읍면리): DONG_RI_DB
 // ================================================================
 
 const DB_EXCEL_URL = (typeof CONFIG !== "undefined") ? CONFIG.DB_EXCEL_URL : "";
@@ -15,6 +16,7 @@ let SIDO_SIGUN_LIST    = [];
 let LIFE_USE_DB        = {};
 let FECES_PLANT_DB     = [];   // [{ sigun, name, linkedPlant }]
 let UNIT_BASIN_LIST    = [];   // [{ sigun, basins:[] }]
+let DONG_RI_DB         = {};   // { sido: { sigun: { dong: [리,...] } } }
 
 async function loadExcelDB(url) {
   const statusEl      = document.getElementById("lifeExcelStatus");
@@ -150,6 +152,28 @@ function applyExcelBuffer(buf, sourceLabel) {
     UNIT_BASIN_LIST = Array.from(basinMap.entries()).map(([sigun,set])=>({
       sigun, basins:Array.from(set)
     }));
+  }
+
+  // ── 마지막 시트: 시군구동읍면리 ─────────────────────────────
+  // 열: 0광역자치단체, 1기초자치단체, 2읍면동, 3리(없으면 빈 문자)
+  // 헤더 없음 - 첫 행부터 데이터
+  const snAddr = wb.SheetNames.find(n => n.includes("읍면") || (n.includes("시군구") && n.includes("리"))) || null;
+  if (snAddr && wb.Sheets[snAddr]) {
+    const aoaAddr = XLSX.utils.sheet_to_json(wb.Sheets[snAddr], { header:1, defval:"" });
+    DONG_RI_DB = {};
+    for (let r = 0; r < aoaAddr.length; r++) {
+      const row = aoaAddr[r] || [];
+      const sido  = String(row[0]||"").trim();
+      const sigun = String(row[1]||"").trim();
+      const dong  = String(row[2]||"").trim();
+      const ri    = String(row[3]||"").trim();
+      if (!sido || !sigun || !dong) continue;
+      if (!DONG_RI_DB[sido])               DONG_RI_DB[sido] = {};
+      if (!DONG_RI_DB[sido][sigun])        DONG_RI_DB[sido][sigun] = {};
+      if (!DONG_RI_DB[sido][sigun][dong])  DONG_RI_DB[sido][sigun][dong] = [];
+      if (ri && !DONG_RI_DB[sido][sigun][dong].includes(ri))
+        DONG_RI_DB[sido][sigun][dong].push(ri);
+    }
   }
 
   // UI 갱신

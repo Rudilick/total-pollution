@@ -105,18 +105,67 @@ function fillUnitBasinSelect(){
   if(cur&&basins.includes(cur)) sel.value=cur;
 }
 
+// ── 읍면동 드롭박스 (sigun 기반) ─────────────────────────────
+function fillDongSelect(){
+  const dongEl=document.getElementById("dongSelect"); if(!dongEl) return;
+  const sido=document.getElementById("sidoSelect")?.value||"";
+  const sigun=document.getElementById("sigunSelect")?.value||"";
+  const db=typeof DONG_RI_DB!=="undefined"?DONG_RI_DB:{};
+  const dongs=Object.keys(db[sido]?.[sigun]||{}).sort();
+  dongEl.innerHTML=`<option value="" disabled selected>읍면동</option>`;
+  dongs.forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;dongEl.appendChild(o);});
+  _refreshRiSelect();
+}
+
+// ── 리 드롭박스 (dong 기반) ──────────────────────────────────
+function _refreshRiSelect(){
+  const riEl=document.getElementById("riSelect"); if(!riEl) return;
+  const sido=document.getElementById("sidoSelect")?.value||"";
+  const sigun=document.getElementById("sigunSelect")?.value||"";
+  const dong=document.getElementById("dongSelect")?.value||"";
+  const db=typeof DONG_RI_DB!=="undefined"?DONG_RI_DB:{};
+  const ris=db[sido]?.[sigun]?.[dong]||[];
+  riEl.innerHTML=`<option value="" disabled selected>리</option>`;
+  if(ris.length===0){
+    riEl.style.display="none";
+  } else {
+    riEl.style.display="";
+    ris.forEach(r=>{const o=document.createElement("option");o.value=r;o.textContent=r;riEl.appendChild(o);});
+  }
+}
+
+function onDongChange(){
+  const dong=document.getElementById("dongSelect")?.value||"";
+  // 읍·면이면 급수원단위 170 L/인/일 자동 적용
+  const isEM=dong.endsWith("읍")||dong.endsWith("면");
+  window.isEupMyeon=isEM;
+  document.querySelectorAll("#eupMyeonBadge").forEach(el=>{
+    el.textContent=isEM?"170 L/인·일":"200 L/인·일";
+  });
+  document.querySelectorAll("#eupMyeonCheck").forEach(el=>{
+    el.checked=isEM;
+  });
+  _refreshRiSelect();
+}
+function onRiChange(){ /* 추후 확장용 */ }
+
 function onSidoChange(){
   _refreshSigunSelect();
   if(typeof refreshLifeModulePlants==="function") refreshLifeModulePlants();
   fillUnitBasinSelect();
+  fillDongSelect();
 }
 function onSigunChange(){
   if(typeof refreshLifeModulePlants==="function") refreshLifeModulePlants();
   fillUnitBasinSelect();
+  fillDongSelect();
 }
 window.onSidoChange=onSidoChange;
 window.onSigunChange=onSigunChange;
+window.onDongChange=onDongChange;
+window.onRiChange=onRiChange;
 window.fillSidoSelect=fillSidoSelect;
+window.fillDongSelect=fillDongSelect;
 window.fillUnitBasinSelect=fillUnitBasinSelect;
 window.fillPlantSelects=function(){};
 
@@ -273,6 +322,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   loadExcelDB(DB_EXCEL_URL).finally(()=>{
     fillSidoSelect();
     fillUnitBasinSelect();
+    fillDongSelect();
     if(window.lifeBefore){window.lifeBefore.render();window.lifeBefore.bindHouseholdInput();}
     if(window.lifeAfter) {window.lifeAfter.render(); window.lifeAfter.bindHouseholdInput();}
     refreshBeforeProofVisibility();
