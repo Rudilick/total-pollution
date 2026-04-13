@@ -131,7 +131,7 @@ function _calcDischargeLoad(오수발생유량,발생부하량,method1,method2,m
 function _calcHousehold(households, popUnit, urbanType, method1, method2, method3, isWaterBuffer, plantInfo, fecesFacility){
   if(!households||households<=0) return null;
   const ut=urbanType||"비시가화";
-  const population=_r(households*popUnit);
+  const population=Math.ceil(households*popUnit);
   // ★ v5: 단순 급수원단위 적용 (200 or 170)
   const 급수원단위=window.isEupMyeon===true ? 170 : 200;
   const 오수발생유량=_r(population*급수원단위/1000);
