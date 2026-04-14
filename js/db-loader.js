@@ -24,7 +24,8 @@ async function loadExcelDB(url) {
   try {
     if (loadingBanner) loadingBanner.style.display = "flex";
     if (statusEl)      statusEl.textContent = "원단위 DB 로딩 중...";
-    const resp = await fetch(url, { cache: "no-cache" });
+    const bustUrl = url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now();
+    const resp = await fetch(bustUrl, { cache: "no-cache" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     applyExcelBuffer(await resp.arrayBuffer(), "(GitHub 자동 로드)");
     if (loadingBanner) loadingBanner.style.display = "none";
