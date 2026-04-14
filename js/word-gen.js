@@ -127,7 +127,7 @@ function makeH(docx){
   }
 
   function pageBreak(){
-    return new Paragraph({pageBreakBefore:true,children:[new TextRun({text:"",font:FONT,size:SZ})]});
+    return new Paragraph({pageBreakBefore:true,spacing:{before:0,after:0},children:[new TextRun({text:"",size:2})]});
   }
 
   function tc(ch,opts){
