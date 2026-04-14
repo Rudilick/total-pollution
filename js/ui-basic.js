@@ -153,9 +153,6 @@ function onDongChange(){
   document.querySelectorAll("#eupMyeonBadge").forEach(el=>{
     el.textContent=isEM?"170 L/인·일":"200 L/인·일";
   });
-  document.querySelectorAll("#eupMyeonCheck").forEach(el=>{
-    el.checked=isEM;
-  });
   _refreshRiSelect();
 }
 function onRiChange(){ /* 추후 확장용 */ }
