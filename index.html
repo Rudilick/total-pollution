@@ -310,36 +310,37 @@
 
     <!-- TAB Q&A -->
     <section id="tab-qa" class="tabPanel" role="tabpanel">
-      <div class="formCard" style="max-width:800px;margin:0 auto;">
 
-        <!-- 관리자 로그인 바 -->
-        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-          <div id="qa-auth-bar"></div>
-        </div>
+      <!-- 관리자 로그인 바 -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <div id="qa-auth-bar"></div>
+      </div>
 
-        <!-- 질문 등록 폼 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
-          <div style="font-size:14px;font-weight:800;color:#111827;margin-bottom:12px;">질문 등록</div>
+      <div style="display:flex;gap:20px;align-items:flex-start;">
+
+        <!-- 왼쪽: 질문 등록 폼 -->
+        <div class="formCard" style="flex:0 0 360px;min-width:280px;">
+          <div class="cardTitle">질문 / 개선요구 등록</div>
           <form id="qa-post-form" style="display:flex;flex-direction:column;gap:8px;">
             <input id="qa-name" type="text" placeholder="이름 (선택, 미입력 시 익명)"
               style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
             <input id="qa-title" type="text" placeholder="제목 *" required
               style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
-            <textarea id="qa-content" placeholder="내용 *" rows="4" required
+            <textarea id="qa-content" placeholder="내용 *" rows="8" required
               style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;resize:vertical;"></textarea>
-            <div style="display:flex;justify-content:flex-end;">
-              <button type="submit"
-                style="padding:7px 22px;background:#1a7f64;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-                등록
-              </button>
-            </div>
+            <button type="submit"
+              style="padding:8px;background:#1a7f64;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+              등록
+            </button>
           </form>
         </div>
 
-        <!-- 게시글 목록 -->
-        <div style="font-size:14px;font-weight:800;color:#111827;margin-bottom:10px;">질문 목록</div>
-        <div id="qa-post-list">
-          <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">로딩 중...</div>
+        <!-- 오른쪽: 게시글 목록 -->
+        <div class="formCard" style="flex:1;min-width:0;">
+          <div class="cardTitle">목록</div>
+          <div id="qa-post-list">
+            <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">로딩 중...</div>
+          </div>
         </div>
 
       </div>
