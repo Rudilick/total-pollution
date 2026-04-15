@@ -811,12 +811,9 @@ function buildBizSewageTable(H,biz,phase){
   });
   // 합계행
   var sumRow=[];
-  if(multiBuilding)sumRow.push("합  계");
-  else sumRow.push("합  계");
-  sumRow.push("","");
-  // 건축연면적 합
   var sumArea=biz.rows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0);
-  sumRow.push(F.area(sumArea));
+  if(multiBuilding){sumRow.push("합  계","","",F.area(sumArea));}
+  else{sumRow.push("합  계","",F.area(sumArea));}
   if(hasCommon){var sumCommon=biz.rows.reduce(function(s,r){return s+(r.공용배분||0);},0);sumRow.push(F.area(sumCommon));}
   var sumFinal=biz.rows.reduce(function(s,r){return s+(r.적용면적||0);},0);
   sumRow.push(F.area(sumFinal),"-",F.f4(totalSewage),
@@ -878,9 +875,11 @@ function buildLoadTable(H,lifeData,phase){
       return row;
     });
     var sumR=[];
-    if(multiBuilding)sumR.push("합  계");
-    else sumR.push("합  계");
-    sumR.push("","",F.f4(biz.합계?biz.합계.오수발생유량:0),"","-",F.f4(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.BOD:0),F.f4(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.TP:0));
+    var _sq=F.f4(biz.합계?biz.합계.오수발생유량:0);
+    var _sb=F.f4(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.BOD:0);
+    var _st=F.f4(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.TP:0);
+    if(multiBuilding){sumR.push("합  계","","",_sq,"","-",_sb,_st);}
+    else{sumR.push("합  계","",_sq,"","-",_sb,_st);}
     dataRows.push(sumR);
     // 비율 합 조정
     var tot=cols.reduce(function(a,b){return a+b;},0);
