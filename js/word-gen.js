@@ -931,7 +931,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
       var BN=H.BN,CELLB=H.CELLB,TBLB=H.TBLB;
       function tc(ch,o){o=o||{};return new TableCell({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType.DXA}:undefined,borders:o.borders||CELLB,verticalAlign:o.vAlign||VerticalAlign.CENTER});}
       var W=9638;
-      var w=[Math.round(W*0.12),Math.round(W*0.18),Math.round(W*0.14),Math.round(W*0.14),Math.round(W*0.14),Math.round(W*0.14),Math.round(W*0.14)];
+      var w=[Math.round(W*0.10),Math.round(W*0.22),Math.round(W*0.18),Math.round(W*0.18),Math.round(W*0.32)];
       var linkedPlantInfo=null;
       if(typeof SEWAGE_PLANT_DB!=="undefined")linkedPlantInfo=SEWAGE_PLANT_DB.find(function(p){return p.name===dt.처리장;})||null;
       var efflBOD=linkedPlantInfo?linkedPlantInfo.efflBOD:"-";
@@ -979,7 +979,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
         var eB2=linkedPlant2?linkedPlant2.efflBOD:"-";
         var eT2=linkedPlant2?linkedPlant2.efflTP:"-";
         var W2=9638;
-        var w2=[Math.round(W2*0.12),Math.round(W2*0.18),Math.round(W2*0.14),Math.round(W2*0.14),Math.round(W2*0.14)];
+        var w2=[Math.round(W2*0.10),Math.round(W2*0.22),Math.round(W2*0.18),Math.round(W2*0.18),Math.round(W2*0.32)];
         function tc2(ch,o){o=o||{};return new TableCell2({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType2.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign2.CENTER});}
         var dt2Table=new Table2({width:{size:100,type:WidthType2.PERCENTAGE},borders:H.TBLB,rows:[
           new TableRow2({children:[tc2(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[0]}),tc2(H.p("분뇨발생\n유량(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[1]}),tc2(H.p("직접이송",{center:true,bold:true,size:H.SZ_HDR}),{cs:2,w:w2[2]+w2[3]}),tc2(H.p("방류부하량\n(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[4]})]}),
@@ -1002,7 +1002,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     var Table3=docx.Table,TableRow3=docx.TableRow,TableCell3=docx.TableCell;
     var WidthType3=docx.WidthType,VerticalAlign3=docx.VerticalAlign;
     var W3=9638;
-    var w3=[Math.round(W3*0.12),Math.round(W3*0.2),Math.round(W3*0.18),Math.round(W3*0.18),Math.round(W3*0.16),Math.round(W3*0.16)];
+    var w3=[Math.round(W3*0.12),Math.round(W3*0.22),Math.round(W3*0.20),Math.round(W3*0.20),Math.round(W3*0.26)];
     function tc3(ch,o){o=o||{};return new TableCell3({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType3.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign3.CENTER});}
     var dataRows3=[];
     if(isHH&&hhData){
@@ -1018,9 +1018,8 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
       var pn2=r.처리장정보?r.처리장정보.name:(r.plantName||"-");
       var eB2=r.처리장정보?r.처리장정보.efflBOD:"-";
       var eT2=r.처리장정보?r.처리장정보.efflTP:"-";
-      var label=r.buildingNo+"동 "+r.floorNo+"층";
       dataRows3.push(
-        new TableRow3({children:[tc3(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(label,{center:true,size:H.SZ_TBL}),{rs:2,w:w3[1]}),tc3(H.p(F.f4(r.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w3[2]}),tc3(H.p(String(eB2),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f4(r.배출부하량?r.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]}),
+        new TableRow3({children:[tc3(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(pn2,{center:true,size:H.SZ_TBL}),{rs:2,w:w3[1]}),tc3(H.p(F.f4(r.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w3[2]}),tc3(H.p(String(eB2),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f4(r.배출부하량?r.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]}),
         new TableRow3({children:[tc3(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(String(eT2),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f4(r.배출부하량?r.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]})
       );
     });
@@ -1035,7 +1034,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     var Table4=docx.Table,TableRow4=docx.TableRow,TableCell4=docx.TableCell;
     var WidthType4=docx.WidthType,VerticalAlign4=docx.VerticalAlign;
     var W4=9638;
-    var w4=[Math.round(W4*0.12),Math.round(W4*0.2),Math.round(W4*0.18),Math.round(W4*0.18),Math.round(W4*0.16),Math.round(W4*0.16)];
+    var w4=[Math.round(W4*0.12),Math.round(W4*0.22),Math.round(W4*0.20),Math.round(W4*0.20),Math.round(W4*0.26)];
     function tc4(ch,o){o=o||{};return new TableCell4({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType4.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign4.CENTER});}
     var dataRows4=[];
     if(isHH&&hhData){
@@ -1064,7 +1063,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     var Table5=docx.Table,TableRow5=docx.TableRow,TableCell5=docx.TableCell;
     var WidthType5=docx.WidthType,VerticalAlign5=docx.VerticalAlign;
     var W5=9638;
-    var w5=[Math.round(W5*0.12),Math.round(W5*0.2),Math.round(W5*0.18),Math.round(W5*0.18),Math.round(W5*0.16),Math.round(W5*0.16)];
+    var w5=[Math.round(W5*0.12),Math.round(W5*0.22),Math.round(W5*0.20),Math.round(W5*0.20),Math.round(W5*0.26)];
     function tc5(ch,o){o=o||{};return new TableCell5({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType5.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign5.CENTER});}
     var dataRows5=[];
     if(isHH&&hhData){
