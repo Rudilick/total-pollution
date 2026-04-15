@@ -53,6 +53,8 @@
     select { font-size: 13px; }
     input[type="text"], input[type="number"] { font-size: 13px; }
     @media(max-width:900px){ .lifeTwoCol{flex-direction:column;} }
+    .qa-post-item{padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;}
+    .qa-post-item:hover{background:#f0fdf4;}
   </style>
 </head>
 <body>
@@ -70,6 +72,7 @@
         <button class="tabBtn"        data-tab="tab-life"   type="button">생활계</button>
         <button class="tabBtn"        data-tab="tab-land"   type="button">토지계</button>
         <button class="tabBtn"        data-tab="tab-result" type="button">결과확인</button>
+        <button class="tabBtn"        data-tab="tab-qa"     type="button">Q&amp;A</button>
       </div>
       <button type="button" class="wordBtn" onclick="runAndGenerate()">📥 Word 다운로드</button>
     </div>
@@ -305,6 +308,43 @@
       </div>
     </section>
 
+    <!-- TAB Q&A -->
+    <section id="tab-qa" class="tabPanel" role="tabpanel">
+      <div class="formCard" style="max-width:800px;margin:0 auto;">
+
+        <!-- 관리자 로그인 바 -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <div id="qa-auth-bar"></div>
+        </div>
+
+        <!-- 질문 등록 폼 -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
+          <div style="font-size:14px;font-weight:800;color:#111827;margin-bottom:12px;">질문 등록</div>
+          <form id="qa-post-form" style="display:flex;flex-direction:column;gap:8px;">
+            <input id="qa-name" type="text" placeholder="이름 (선택, 미입력 시 익명)"
+              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
+            <input id="qa-title" type="text" placeholder="제목 *" required
+              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
+            <textarea id="qa-content" placeholder="내용 *" rows="4" required
+              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;resize:vertical;"></textarea>
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="submit"
+                style="padding:7px 22px;background:#1a7f64;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+                등록
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 게시글 목록 -->
+        <div style="font-size:14px;font-weight:800;color:#111827;margin-bottom:10px;">질문 목록</div>
+        <div id="qa-post-list">
+          <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">로딩 중...</div>
+        </div>
+
+      </div>
+    </section>
+
   </div>
 
   <script src="js/config.js"></script>
@@ -316,5 +356,13 @@
   <script src="js/land-module.js"></script>
   <script src="js/calc.js"></script>
   <script src="js/word-gen.js"></script>
+  <script type="module">
+    import { initQaBoard } from "./js/qa-board.js";
+    // Q&A 탭 클릭 시 초기화 (최초 1회)
+    let qaInited = false;
+    document.querySelector('[data-tab="tab-qa"]')?.addEventListener("click", () => {
+      if (!qaInited) { qaInited = true; initQaBoard(); }
+    });
+  </script>
 </body>
 </html>
