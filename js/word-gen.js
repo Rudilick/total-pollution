@@ -152,6 +152,11 @@ function makeH(docx){
   }
 
   function pageBreak(){
+    // PageBreak 문자를 이전 페이지 끝에 삽입 → 새 페이지 첫줄에 아무 흔적 없음
+    if(docx.PageBreak){
+      return new Paragraph({spacing:{before:0,after:0},children:[new docx.PageBreak()]});
+    }
+    // fallback
     return new Paragraph({pageBreakBefore:true,spacing:{before:0,after:0},children:[new TextRun({text:" ",size:2,color:"FFFFFF"})]});
   }
 
