@@ -815,11 +815,16 @@ function buildBizSewageTable(H,biz,phase){
   var headers=[];
   var colRatios=[];
   if(multiBuilding){headers.push("동");colRatios.push(7);}
-  headers.push("층","용도","건축연면적\n(㎡)");
-  colRatios.push(6,10,10);
-  if(hasCommon){headers.push("공용배분\n면적(㎡)");colRatios.push(9);}
-  headers.push("최종면적\n(㎡)","오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
-  colRatios.push(10,10,10,10,9,9);
+  headers.push("층","용도");colRatios.push(6,10);
+  // 공용면적 있으면: 건축연면적 + 공용배분 + 최종면적 / 없으면: 면적 하나
+  if(hasCommon){
+    headers.push("건축연면적\n(㎡)","공용배분\n면적(㎡)","최종면적\n(㎡)");
+    colRatios.push(10,9,10);
+  }else{
+    headers.push("면적\n(㎡)");colRatios.push(10);
+  }
+  headers.push("오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
+  colRatios.push(10,10,10,9,9);
   if(hasNote){headers.push("비고");colRatios.push(10);}
   // 비율 합 100 맞추기
   var total=colRatios.reduce(function(a,b){return a+b;},0);
@@ -827,10 +832,13 @@ function buildBizSewageTable(H,biz,phase){
   var rows=biz.rows.map(function(r){
     var row=[];
     if(multiBuilding)row.push(r.buildingNo+"동");
-    row.push(r.floorNo+"층",useLabel(r),F.area(r.전용면적||r.적용면적));
-    if(hasCommon)row.push(F.area(r.공용배분||0));
+    row.push(r.floorNo+"층",useLabel(r));
+    if(hasCommon){
+      row.push(F.area(r.전용면적||r.적용면적),F.area(r.공용배분||0),F.area(r.적용면적));
+    }else{
+      row.push(F.area(r.적용면적));
+    }
     row.push(
-      F.area(r.적용면적),
       r.오수발생원단위||"-",
       F.f3(r.오수발생유량||0),
       F.f3(r.분뇨발생유량||0),
@@ -841,13 +849,18 @@ function buildBizSewageTable(H,biz,phase){
     return row;
   });
   // 합계행
-  var sumRow=[];
-  var sumArea=biz.rows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0);
-  if(multiBuilding){sumRow.push("합  계","","",F.area(sumArea));}
-  else{sumRow.push("합  계","",F.area(sumArea));}
-  if(hasCommon){var sumCommon=biz.rows.reduce(function(s,r){return s+(r.공용배분||0);},0);sumRow.push(F.area(sumCommon));}
   var sumFinal=biz.rows.reduce(function(s,r){return s+(r.적용면적||0);},0);
-  sumRow.push(F.area(sumFinal),"-",F.f3(totalSewage),
+  var sumRow=[];
+  if(multiBuilding){sumRow.push("합  계","","");}
+  else{sumRow.push("합  계","");}
+  if(hasCommon){
+    var sumArea=biz.rows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0);
+    var sumCommon=biz.rows.reduce(function(s,r){return s+(r.공용배분||0);},0);
+    sumRow.push(F.area(sumArea),F.area(sumCommon),F.area(sumFinal));
+  }else{
+    sumRow.push(F.area(sumFinal));
+  }
+  sumRow.push("-",F.f3(totalSewage),
     F.f3(biz.rows.reduce(function(s,r){return s+(r.분뇨발생유량||0);},0)),
     F.f3(biz.rows.reduce(function(s,r){return s+(r.사용유량||r.오수발생유량||0);},0)),
     F.f3(biz.rows.reduce(function(s,r){return s+(r.잡배수발생유량||0);},0))
