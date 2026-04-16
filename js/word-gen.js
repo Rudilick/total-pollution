@@ -152,7 +152,7 @@ function makeH(docx){
   }
 
   function pageBreak(){
-    return new Paragraph({pageBreakBefore:true,spacing:{before:0,after:0},children:[new TextRun({text:"",size:2})]});
+    return new Paragraph({pageBreakBefore:true,spacing:{before:0,after:0},children:[new TextRun({text:" ",size:2,color:"FFFFFF"})]});
   }
 
   function tc(ch,opts){
@@ -216,8 +216,8 @@ function makeH(docx){
     });
   }
 
-  // 장 제목용: 1pt 크기로 거의 보이지 않지만 TOC에 Heading1으로 등록됨
-  function chapterTitle(t){return new Paragraph({style:"Heading1",spacing:{before:0,after:0},children:[new TextRun({text:t,font:FONT,bold:true,size:2})]});}
+  // 장 제목용: 흰색 1pt로 완전히 보이지 않지만 TOC에 Heading1으로 등록됨
+  function chapterTitle(t){return new Paragraph({style:"Heading1",spacing:{before:0,after:0},children:[new TextRun({text:t,font:FONT,bold:true,size:2,color:"FFFFFF"})]});}
   // 기존 heading들은 한 레벨씩 내려 Heading2~4 스타일 사용 (TOC 범위 1-2에서 가나다/(1)(2)(3) 제외됨)
   function heading1(t){return new Paragraph({style:"Heading2",spacing:SP_H1,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H1})]});}
   function heading2(t){return new Paragraph({style:"Heading3",spacing:SP_H2,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H2})]});}
