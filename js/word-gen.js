@@ -33,23 +33,34 @@ function getVal(id,fb){
   return el?(el.value!=null?el.value:fb):fb;
 }
 
+// 소분류가 "있음"/"없음"으로 끝나는 조건 선택형 여부 판별
+function _isConditionMinor(minor){
+  if(!minor)return false;
+  var t=minor.trim();
+  return t.endsWith("있음")||t.endsWith("없음");
+}
 function useLabel(r){
-  // 엑셀 열11(buildingUse) 우선 사용
+  // 엑셀 열11(buildingUse) 우선
   if(typeof LIFE_FACTOR_MAP!=="undefined"){
     var _key=(r.major||"")+"|"+(r.mid||"")+"|"+(r.minor||"");
     var _f=LIFE_FACTOR_MAP[_key];
     if(_f&&_f.buildingUse)return _f.buildingUse;
   }
+  // 조건형 소분류(있음/없음): 중분류를 용도로 표시
+  if(r.minor&&_isConditionMinor(r.minor))return r.mid||r.major||"";
   if(r.minor)return r.minor;
   if(r.mid)return r.mid;
   return r.major||"";
 }
 function useBuildingNote(r){
+  // 엑셀 열12(buildingNote) 우선
   if(typeof LIFE_FACTOR_MAP!=="undefined"){
     var _key=(r.major||"")+"|"+(r.mid||"")+"|"+(r.minor||"");
     var _f=LIFE_FACTOR_MAP[_key];
     if(_f&&_f.buildingNote)return _f.buildingNote;
   }
+  // 조건형 소분류: 소분류 자체를 비고로
+  if(r.minor&&_isConditionMinor(r.minor))return r.minor;
   return "";
 }
 
