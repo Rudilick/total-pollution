@@ -65,10 +65,13 @@ function applyExcelBuffer(buf, sourceLabel) {
     const unit = String(row[4]??"").trim();
     const sewage=parseFloat(row[7])||0, bod=parseFloat(row[8])||0;
     const tn=parseFloat(row[9])||0, tp=parseFloat(row[10])||0;
+    // 열11: 건축물용도 표기내용, 열12: 비고 표기내용 (사용자가 엑셀에 직접 입력)
+    const buildingUse=String(row[11]??"").trim();
+    const buildingNote=String(row[12]??"").trim();
     if (["-","–","—"].includes(minor.replace(/\s/g,""))) minor="";
     if (!major||!mid) continue;
     lifeRows.push([major,mid,minor,unit]);
-    LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit};
+    LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit,buildingUse,buildingNote};
   }
   LIFE_USE_DB = _buildLifeDB(lifeRows);
 

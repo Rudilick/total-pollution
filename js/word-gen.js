@@ -34,9 +34,23 @@ function getVal(id,fb){
 }
 
 function useLabel(r){
+  // 엑셀 열11(buildingUse) 우선 사용
+  if(typeof LIFE_FACTOR_MAP!=="undefined"){
+    var _key=(r.major||"")+"|"+(r.mid||"")+"|"+(r.minor||"");
+    var _f=LIFE_FACTOR_MAP[_key];
+    if(_f&&_f.buildingUse)return _f.buildingUse;
+  }
   if(r.minor)return r.minor;
   if(r.mid)return r.mid;
   return r.major||"";
+}
+function useBuildingNote(r){
+  if(typeof LIFE_FACTOR_MAP!=="undefined"){
+    var _key=(r.major||"")+"|"+(r.mid||"")+"|"+(r.minor||"");
+    var _f=LIFE_FACTOR_MAP[_key];
+    if(_f&&_f.buildingNote)return _f.buildingNote;
+  }
+  return "";
 }
 
 // ── 사업의 종류 줄바꿈 ──────────────────────────────────────
@@ -191,9 +205,12 @@ function makeH(docx){
     });
   }
 
-  function heading1(t){return new Paragraph({style:"Heading1",spacing:SP_H1,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H1})]});}
-  function heading2(t){return new Paragraph({style:"Heading2",spacing:SP_H2,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H2})]});}
-  function heading3(t){return new Paragraph({style:"Heading3",spacing:SP_H3,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H3})]});}
+  // 장 제목용: 인쇄 안 보이지만 TOC에 Heading1으로 등록
+  function chapterTitle(t){return new Paragraph({style:"Heading1",spacing:{before:0,after:0},children:[new TextRun({text:t,font:FONT,bold:true,size:2,vanish:true})]});}
+  // 기존 heading들은 한 레벨씩 내려 Heading2~4 스타일 사용 (TOC 범위 1-2에서 가나다/(1)(2)(3) 제외됨)
+  function heading1(t){return new Paragraph({style:"Heading2",spacing:SP_H1,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H1})]});}
+  function heading2(t){return new Paragraph({style:"Heading3",spacing:SP_H2,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H2})]});}
+  function heading3(t){return new Paragraph({style:"Heading4",spacing:SP_H3,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H3})]});}
   function heading4(t){return new Paragraph({style:"Heading4",spacing:SP_H4,children:[new TextRun({text:t,font:FONT,bold:true,size:SZ_H4})]});}
   function note(t){return new Paragraph({spacing:{before:40,after:40},children:[new TextRun({text:String(t),font:FONT,size:SZ_SM})]});}
   function blank(){return new Paragraph({spacing:SP_AFT,children:[]});}
@@ -214,7 +231,7 @@ function makeH(docx){
       border:{bottom:{style:BorderStyle.SINGLE,size:6,color:"000000"}},
       spacing:{before:80,after:160},children:[]
     });
-    return [box,line];
+    return [chapterTitle(title),box,line];
   }
 
   function inputBox(hint){
@@ -256,7 +273,7 @@ function makeH(docx){
 
   return{
     p:p,pageBreak:pageBreak,tc:tc,simpleTable:simpleTable,tableTitle:tableTitle,tocRow:tocRow,
-    heading1:heading1,heading2:heading2,heading3:heading3,heading4:heading4,
+    chapterTitle:chapterTitle,heading1:heading1,heading2:heading2,heading3:heading3,heading4:heading4,
     note:note,blank:blank,chapterBox:chapterBox,inputBox:inputBox,imagePlaceholder:imagePlaceholder,
     hiddenNote:hiddenNote,
     FONT:FONT,SZ:SZ,SZ_TBL:SZ_TBL,SZ_HDR:SZ_HDR,SZ_SM:SZ_SM,
@@ -340,13 +357,13 @@ function buildTocBlock(docx){
 
   if(typeof docx.TableOfContents==="function"){
     try{
-      els.push(new docx.TableOfContents("목  차",{headingStyleRange:"1-4",hyperlink:true}));
+      els.push(new docx.TableOfContents("목  차",{headingStyleRange:"1-2",hyperlink:true}));
       return els;
     }catch(e){}
   }
   if(typeof docx.SimpleField==="function"){
     try{
-      els.push(new Paragraph({spacing:{before:0,after:0},children:[new docx.SimpleField(' TOC \\o "1-4" \\h \\z \\u ')]}));
+      els.push(new Paragraph({spacing:{before:0,after:0},children:[new docx.SimpleField(' TOC \\o "1-2" \\h \\z \\u ')]}));
       return els;
     }catch(e){}
   }
@@ -747,7 +764,7 @@ function buildHHSewageTable(H,hh,households,popUnit,urbanType,phase){
     :"◦ 사업계획에 따른 계획 세대는 "+(households||"-")+"세대이며, 세대당 인구수 "+F.f2(popUnit||2.63)+"인을 적용하여 "+Math.round(hh.population||0)+"인으로 산정되었다.";
   els.push(H.p(hhDesc,{size:H.SZ_SM}));
   els.push(H.blank());
-  els.push(H.tableTitle("<표> "+phaseLabel+" 가정인구 오수발생량 산정"));
+  els.push(H.tableTitle(phaseLabel+" 가정인구 오수발생량 산정"));
   els.push(H.simpleTable(
     ["계획 세대수\n(세대)","세대당 인구수\n(인/세대)","계획인구\n(인)","오수발생원단위\n(L/인·일)","오수발생량\n(㎥/일)","물사용량\n(㎥/일)"],
     [[
@@ -776,13 +793,14 @@ function buildBizSewageTable(H,biz,phase){
     biz.rows.forEach(function(r){nos[r.buildingNo]=1;});
     return Object.keys(nos).length>1;
   })();
+  var hasNote=biz.rows.some(function(r){return !!useBuildingNote(r);});
   var totalSewage=biz.합계?biz.합계.오수발생유량||0:0;
   els.push(H.p(
     "◦ "+phaseLabel+" 오수발생량은 건축물의 용도별 오수발생량 원단위를 적용하여 산정하였으며, 그 결과 "+F.f4(totalSewage)+"㎥/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  // 열 구성 (동: 다동인 경우만, 공용배분: 있는 경우만)
+  // 열 구성 (동: 다동인 경우만, 공용배분: 있는 경우만, 비고: 있는 경우만)
   var headers=[];
   var colRatios=[];
   if(multiBuilding){headers.push("동");colRatios.push(7);}
@@ -791,6 +809,7 @@ function buildBizSewageTable(H,biz,phase){
   if(hasCommon){headers.push("공용배분\n면적(㎡)");colRatios.push(9);}
   headers.push("최종면적\n(㎡)","오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
   colRatios.push(10,10,10,10,9,9);
+  if(hasNote){headers.push("비고");colRatios.push(10);}
   // 비율 합 100 맞추기
   var total=colRatios.reduce(function(a,b){return a+b;},0);
   if(total<100){var diff=100-total;colRatios[colRatios.length-1]+=diff;}
@@ -807,6 +826,7 @@ function buildBizSewageTable(H,biz,phase){
       F.f4(r.사용유량||r.오수발생유량||0),
       F.f4(r.잡배수발생유량||0)
     );
+    if(hasNote)row.push(useBuildingNote(r));
     return row;
   });
   // 합계행
@@ -821,8 +841,9 @@ function buildBizSewageTable(H,biz,phase){
     F.f4(biz.rows.reduce(function(s,r){return s+(r.사용유량||r.오수발생유량||0);},0)),
     F.f4(biz.rows.reduce(function(s,r){return s+(r.잡배수발생유량||0);},0))
   );
+  if(hasNote)sumRow.push("");
   rows.push(sumRow);
-  els.push(H.tableTitle("<표> "+phaseLabel+" 영업인구 오수발생량 산정"));
+  els.push(H.tableTitle(phaseLabel+" 영업인구 오수발생량 산정"));
   els.push(H.simpleTable(headers,rows,colRatios));
   els.push(H.blank());
   return els;
@@ -847,7 +868,7 @@ function buildLoadTable(H,lifeData,phase){
   els.push(H.blank());
   // 가정인구 발생부하량 표
   if(hh){
-    els.push(H.tableTitle("<표> "+phaseLabel+" 가정인구 발생부하량 산정"));
+    els.push(H.tableTitle(phaseLabel+" 가정인구 발생부하량 산정"));
     var R=CC.FECES_LOAD_RATIO||{BOD:0.45,TP:0.8};
     els.push(H.simpleTable(
       ["구분","오수발생량\n(㎥/일)","적용원단위\nBOD\n(g/인·일)","적용원단위\nT-P\n(g/인·일)","발생부하량\nBOD\n(kg/일)","발생부하량\nT-P\n(kg/일)"],
@@ -862,7 +883,7 @@ function buildLoadTable(H,lifeData,phase){
       var nos={};biz.rows.forEach(function(r){nos[r.buildingNo]=1;});
       return Object.keys(nos).length>1;
     })();
-    els.push(H.tableTitle("<표> "+phaseLabel+" 영업인구 발생부하량 산정"));
+    els.push(H.tableTitle(phaseLabel+" 영업인구 발생부하량 산정"));
     var hdrs=[];var cols=[];
     if(multiBuilding){hdrs.push("동");cols.push(7);}
     hdrs.push("층","용도","오수발생량\n(㎥/일)","적용원단위\nBOD","적용원단위\nT-P","발생부하량\nBOD(kg/일)","발생부하량\nT-P(kg/일)");
@@ -960,7 +981,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
           tc(H.p(F.f4(dt.방류부하량.TP),{center:true,size:H.SZ_TBL}),{w:w[4]})
         ]})
       ]});
-      els.push(H.tableTitle("<표> 분뇨의 직접이송에 따른 방류부하량 산정 (가정인구)"));
+      els.push(H.tableTitle("분뇨의 직접이송에 따른 방류부하량 산정 (가정인구)"));
       els.push(dtTable);
       els.push(H.blank());
     }
@@ -986,7 +1007,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
           new TableRow2({children:[tc2(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w2[0]}),tc2(H.p(F.f7(r.분뇨발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w2[1]}),tc2(H.p(F.f3(coef2.BOD),{center:true,size:H.SZ_TBL}),{w:w2[2]}),tc2(H.p(String(eB2),{center:true,size:H.SZ_TBL}),{w:w2[3]}),tc2(H.p(F.f4(dt2.방류부하량.BOD),{center:true,size:H.SZ_TBL}),{w:w2[4]})]}),
           new TableRow2({children:[tc2(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w2[0]}),tc2(H.p(F.f3(coef2.TP),{center:true,size:H.SZ_TBL}),{w:w2[2]}),tc2(H.p(String(eT2),{center:true,size:H.SZ_TBL}),{w:w2[3]}),tc2(H.p(F.f4(dt2.방류부하량.TP),{center:true,size:H.SZ_TBL}),{w:w2[4]})]})
         ]});
-        els.push(H.tableTitle("<표> 분뇨의 직접이송에 따른 방류부하량 산정 ("+r.buildingNo+"동 "+r.floorNo+"층 "+useLabel(r)+")"));
+        els.push(H.tableTitle("분뇨의 직접이송에 따른 방류부하량 산정 ("+r.buildingNo+"동 "+r.floorNo+"층 "+useLabel(r)+")"));
         els.push(dt2Table);
         els.push(H.blank());
       });
@@ -1105,21 +1126,21 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     var pubDesc=isPubHH?"공공하수처리시설로 연결":"공공하수처리시설로 연결";
     els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 공공하수처리시설로 유입·처리되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("<표> 공공하수처리시설 연결 개별배출부하량 산정"));
+    els.push(H.tableTitle("공공하수처리시설 연결 개별배출부하량 산정"));
     els.push(buildPubTable(pubBizRows,isPubHH,isPubHH?hh:null));
     els.push(H.blank());
   }
   if(hasInd){
     els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("<표> 개인오수처리시설 개별배출부하량 산정"));
+    els.push(H.tableTitle("개인오수처리시설 개별배출부하량 산정"));
     els.push(buildIndTable(indBizRows,isIndHH,isIndHH?hh:null));
     els.push(H.blank());
   }
   if(hasSep){
     els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f4(totalDischBOD)+"kg/일, T-P "+F.f4(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("<표> 정화조 처리 개별배출부하량 산정"));
+    els.push(H.tableTitle("정화조 처리 개별배출부하량 산정"));
     els.push(buildSepTable(sepBizRows,isSepHH,isSepHH?hh:null));
     els.push(H.blank());
   }
@@ -1147,7 +1168,7 @@ function buildDischargeSummary(H,lifeData,phase){
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  els.push(H.tableTitle("<표> "+phaseLabel+" 배출부하량 총괄"));
+  els.push(H.tableTitle(phaseLabel+" 배출부하량 총괄"));
   els.push(H.simpleTable(
     ["구분","직접이송에 따른\n방류부하량(kg/일)","개별배출\n부하량(kg/일)","배출부하량\n합(kg/일)"],
     [["BOD",F.f4(dtBOD),F.f4(indBOD),F.f4(totBOD)],["T-P",F.f4(dtTP),F.f4(indTP),F.f4(totTP)]],
@@ -1269,7 +1290,7 @@ function buildLandTables(H,landBefore,landAfter,docx){
   ]}));
 
   var landTable=new Table({width:{size:100,type:WidthType.PERCENTAGE},borders:TBLB,rows:[hdr1,hdr2,hdr3].concat(dataRows)});
-  els.push(H.tableTitle("<표> 사업시행 전·후 토지계 발생부하량 산정"));
+  els.push(H.tableTitle("사업시행 전·후 토지계 발생부하량 산정"));
   els.push(landTable);
   els.push(H.blank());
   return els;
@@ -1327,7 +1348,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  els.push(H.tableTitle("<표> 생활계 최종 배출부하량"));
+  els.push(H.tableTitle("생활계 최종 배출부하량"));
   els.push(H.simpleTable(
     ["구분","사업시행 후\n배출부하량(kg/일)","사업시행 전\n배출부하량(kg/일)","최종배출부하량\n(kg/일)"],
     [["BOD",F.f4(aD.BOD),F.f4(bD.BOD),F.bodDelta(finalBOD)],["T-P",F.f4(aD.TP),F.f4(bD.TP),F.tpDelta(finalTP)]],
@@ -1363,7 +1384,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  els.push(H.tableTitle("<표> 최종 배출부하량 (단위: kg/일)"));
+  els.push(H.tableTitle("최종 배출부하량 (단위: kg/일)"));
   els.push(H.simpleTable(
     ["구분","배출원","BOD\n(kg/일)","T-P\n(kg/일)"],
     [[unitBasin||"-","점오염(생활계)",F.bod(pt.BOD),F.tp(pt.TP)],
@@ -1462,8 +1483,16 @@ function generateDoc(calcResult){
       buildChapter4(_docx)
     );
 
+    var _PageNumber=_docx.PageNumber;
+    var _pageFooter=new _docx.Footer({children:[
+      new _docx.Paragraph({
+        alignment:_docx.AlignmentType.CENTER,
+        children:[new _docx.TextRun({children:[_PageNumber.CURRENT],font:"맑은 고딕",size:20})]
+      })
+    ]});
     var bodySection={
       properties:{page:{margin:{top:MARGIN_TOP,bottom:MARGIN_BOTTOM,left:MARGIN_LEFT,right:MARGIN_RIGHT}}},
+      footers:{default:_pageFooter},
       children:bodyChildren
     };
     var doc=new Document({
