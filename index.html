@@ -43,14 +43,14 @@
     }
 
     .card {
-      width: 240px;
-      height: 240px;
+      width: 320px;
+      height: 320px;
       border-radius: 50%;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 16px;
       cursor: pointer;
       text-decoration: none;
       border: none;
@@ -59,7 +59,7 @@
       outline: none;
     }
     .card:hover {
-      transform: translateY(-6px) scale(1.04);
+      transform: translateY(-8px) scale(1.04);
     }
     .card:focus-visible {
       outline: 3px solid #3b82f6;
@@ -83,25 +83,25 @@
     }
 
     .card-icon {
-      font-size: 42px;
+      font-size: 62px;
       line-height: 1;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.20));
     }
     .card-name {
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 900;
       color: #fff;
       text-align: center;
       line-height: 1.4;
-      padding: 0 18px;
+      padding: 0 24px;
       letter-spacing: -0.2px;
     }
     .card-desc {
-      font-size: 11px;
-      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      color: rgba(255,255,255,0.80);
       text-align: center;
-      line-height: 1.5;
-      padding: 0 20px;
+      line-height: 1.6;
+      padding: 0 28px;
     }
 
     .footer {
@@ -111,12 +111,19 @@
       text-align: center;
     }
 
+    @media (max-width: 720px) {
+      .cards { gap: 2rem; }
+      .card { width: 260px; height: 260px; }
+      .card-icon { font-size: 50px; }
+      .card-name { font-size: 16px; }
+      .card-desc { font-size: 12px; }
+    }
     @media (max-width: 560px) {
-      .cards { gap: 1.8rem; }
-      .card { width: 200px; height: 200px; }
-      .card-icon { font-size: 34px; }
-      .card-name { font-size: 13px; }
-      .card-desc { font-size: 10px; }
+      .cards { gap: 1.5rem; }
+      .card { width: 210px; height: 210px; }
+      .card-icon { font-size: 40px; }
+      .card-name { font-size: 14px; }
+      .card-desc { font-size: 11px; }
     }
   </style>
 </head>
