@@ -217,6 +217,25 @@ body {
   cursor: not-allowed;
 }
 
+/* ── export button ── */
+.export-btn {
+  display: inline-block;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+  background: #1a7f64;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background .2s, box-shadow .2s;
+  box-shadow: 0 4px 14px rgba(26, 127, 100, 0.30);
+}
+.export-btn:hover {
+  background: #15664f;
+  box-shadow: 0 6px 18px rgba(26, 127, 100, 0.40);
+}
+
 /* ── error ── */
 .errmsg {
   background: var(--red-light);
