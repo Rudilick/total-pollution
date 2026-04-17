@@ -3,367 +3,147 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>수질오염총량검토서 작성 시스템</title>
-  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>환경 검토 시스템</title>
   <style>
-    .locRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-    .locRow select{flex:0 0 auto;width:auto;min-width:115px;}
-    .locRow input{flex:1;min-width:130px;}
-    .overviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;align-items:start;}
-    .tabBarRow{display:flex;align-items:center;gap:12px;margin:12px 0 16px;flex-wrap:wrap;}
-    .tabBarRow .tabBar{flex:1;margin:0;}
-    .wordBtn{padding:10px 18px;border-radius:12px;background:#1a7f64;color:#fff;font-weight:1000;border:none;cursor:pointer;white-space:nowrap;box-shadow:var(--shadow);flex-shrink:0;}
-    .wordBtn:hover{filter:brightness(1.06);}
-    @media(max-width:980px){.overviewGrid{grid-template-columns:1fr;}.locRow select{min-width:100px;}}
-    /* 생활계 탭 전체 폭 확대 */
-    .container { max-width: 1800px; }
-    .lifeTwoCol { display: flex; gap: 16px; }
-    .lifeCol { flex: 1; min-width: 0; overflow: hidden; }
-    .lifeColHeader { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-    .lifeColTitle { font-size: 18px; font-weight: 900; color: #111827; }
-    .lifeTop { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-    .inlineUnitRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .inlineUnitRow .label { font-size: 13px; font-weight: 700; color: #374151; }
-    .inlineUnitRow input { font-size: 12px; }
-    .bizHeaderRow { display: flex; align-items: center; justify-content: space-between; }
-    .sectionLabel { font-size: 12px; font-weight: 700; color: #6b7280; }
-    .buildingCard { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
-    .buildingHead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-    .buildingTitle { font-size: 13px; font-weight: 800; color: #111827; }
-    .floorBlock { background: #f9fafb; border-radius: 6px; padding: 8px; }
-    .floorHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-    .floorTitle { font-size: 12px; font-weight: 700; color: #374151; }
-    .useRow { display: grid; grid-template-columns: auto auto auto 1fr auto auto auto; gap: 5px; align-items: center; font-size: 12px; }
-    .useRow.noMinor { grid-template-columns: auto auto 1fr auto auto auto; }
-    .useRow select, .useRow input { font-size: 12px; min-width: 0; }
-    .unitCell { font-size: 12px; color: #374151; white-space: nowrap; }
-    .calcHint { font-size: 11px; color: #6b7280; grid-column: 1 / -1; }
-    .nsWrap { display: flex; align-items: center; gap: 4px; }
-    .nsTag { display: flex; align-items: center; gap: 3px; font-size: 11px; white-space: nowrap; cursor: pointer; }
-    .miniBtn, .miniBtnDanger { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: none; cursor: pointer; white-space: nowrap; }
-    .miniBtn { background: #e5e7eb; color: #374151; }
-    .miniBtn:hover { background: #d1d5db; }
-    .miniBtnDanger { background: #fee2e2; color: #dc2626; }
-    .miniBtnDanger:hover { background: #fecaca; }
-    .miniSelect { font-size: 12px; }
-    .noSourceChk { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
-    select { font-size: 13px; }
-    input[type="text"], input[type="number"] { font-size: 13px; }
-    @media(max-width:900px){ .lifeTwoCol{flex-direction:column;} }
-    .qa-post-item{padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;}
-    .qa-post-item:hover{background:#f0fdf4;}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: #f6f7fb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 3.5rem;
+    }
+    .brand-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #121826;
+      letter-spacing: -0.3px;
+    }
+    .brand-sub {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.7;
+    }
+
+    .cards {
+      display: flex;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .card {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      position: relative;
+      outline: none;
+    }
+    .card:hover {
+      transform: translateY(-6px) scale(1.04);
+    }
+    .card:focus-visible {
+      outline: 3px solid #3b82f6;
+      outline-offset: 4px;
+    }
+
+    .card-water {
+      background: linear-gradient(145deg, #1a7f64 0%, #059669 55%, #0d9488 100%);
+      box-shadow: 0 12px 40px rgba(26, 127, 100, 0.38);
+    }
+    .card-water:hover {
+      box-shadow: 0 20px 52px rgba(26, 127, 100, 0.48);
+    }
+
+    .card-dxf {
+      background: linear-gradient(145deg, #185fa5 0%, #2563eb 55%, #0284c7 100%);
+      box-shadow: 0 12px 40px rgba(24, 95, 165, 0.38);
+    }
+    .card-dxf:hover {
+      box-shadow: 0 20px 52px rgba(24, 95, 165, 0.48);
+    }
+
+    .card-icon {
+      font-size: 42px;
+      line-height: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+    }
+    .card-name {
+      font-size: 15px;
+      font-weight: 900;
+      color: #fff;
+      text-align: center;
+      line-height: 1.4;
+      padding: 0 18px;
+      letter-spacing: -0.2px;
+    }
+    .card-desc {
+      font-size: 11px;
+      color: rgba(255,255,255,0.78);
+      text-align: center;
+      line-height: 1.5;
+      padding: 0 20px;
+    }
+
+    .footer {
+      margin-top: 4rem;
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    }
+
+    @media (max-width: 560px) {
+      .cards { gap: 1.8rem; }
+      .card { width: 200px; height: 200px; }
+      .card-icon { font-size: 34px; }
+      .card-name { font-size: 13px; }
+      .card-desc { font-size: 10px; }
+    }
   </style>
 </head>
 <body>
-  <div id="db-loading-banner" style="display:flex;align-items:center;gap:12px;background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#1e40af;font-weight:700;">
-    <span style="font-size:18px;animation:spin 1s linear infinite;display:inline-block;">⏳</span>
-    <span>원단위 데이터베이스 로드 중...</span>
+
+  <div class="brand">
+    <div class="brand-title">환경 검토 시스템</div>
+    <p class="brand-sub">수질오염총량 검토서 작성 및 토지이용계획 변경률 분석 도구</p>
   </div>
 
-  <div class="container">
-    <h3>검토서 템플릿 생성</h3>
+  <div class="cards">
 
-    <div class="tabBarRow">
-      <div class="tabBar" role="tablist">
-        <button class="tabBtn active" data-tab="tab-basic"  type="button">사업개요</button>
-        <button class="tabBtn"        data-tab="tab-life"   type="button">생활계</button>
-        <button class="tabBtn"        data-tab="tab-land"   type="button">토지계</button>
-        <button class="tabBtn"        data-tab="tab-result" type="button">결과확인</button>
-        <button class="tabBtn"        data-tab="tab-qa"     type="button">질문 및 개선요구</button>
-      </div>
-      <button type="button" class="wordBtn" onclick="runAndGenerate()">📥 Word 다운로드</button>
-    </div>
+    <a class="card card-water" href="water.html" title="수질오염총량검토서 작성">
+      <span class="card-icon">💧</span>
+      <span class="card-name">수질오염총량<br>검토서 작성</span>
+      <span class="card-desc">생활계·토지계 오염원 입력 및<br>Word 검토서 자동 생성</span>
+    </a>
 
-    <!-- TAB 1 -->
-    <section id="tab-basic" class="tabPanel active" role="tabpanel">
-      <div class="overviewGrid">
-
-        <div class="formCard">
-          <div class="cardTitle">기본정보</div>
-          <div class="row">
-            <label class="title">사업명</label>
-            <input id="projectName" placeholder="○○ 근린생활시설 증축공사" />
-            <div class="cardHint">[사업자명] + [동(읍면리)] + [개발사업명]</div>
-          </div>
-          <div class="row">
-            <label class="title">사업위치 (소재지)</label>
-            <div class="locRow">
-              <select id="sidoSelect" onchange="onSidoChange()">
-                <option value="" disabled selected>광역자치단체</option>
-              </select>
-              <select id="sigunSelect" onchange="onSigunChange()">
-                <option value="" disabled selected>기초자치단체</option>
-              </select>
-              <select id="dongSelect" onchange="onDongChange()">
-                <option value="" disabled selected>읍면동</option>
-              </select>
-              <select id="riSelect" onchange="onRiChange()" style="display:none;">
-                <option value="" disabled selected>리</option>
-              </select>
-              <input id="projectLocationDetail" placeholder="000번지 일원" />
-            </div>
-          </div>
-          <div class="row">
-            <label class="title">사업시행자</label>
-            <input id="ownerName" placeholder="(주)○○ / 남양주시장" />
-          </div>
-          <div class="row">
-            <label class="title">사업의 종류</label>
-            <select id="bizTypeSelect"></select>
-          </div>
-          <div class="row">
-            <label class="title">사업의 추진경위</label>
-            <textarea id="bizHistory" placeholder="202X년 ○월 개발행위허가 신청 접수 등"></textarea>
-          </div>
-        </div>
-
-        <div class="formCard">
-          <div class="cardTitle">기간 / 용도지역 / 면적·도로</div>
-          <div class="row-half">
-            <div class="half"><label class="title">작성 년도</label><select id="yearSelect"></select></div>
-            <div class="half"><label class="title">작성 월</label><select id="monthSelect"></select></div>
-          </div>
-          <div class="row-half">
-            <div class="half"><label class="title">사업기간 시작년도</label><select id="startYearSelect"></select></div>
-            <div class="half"><label class="title">준공(예정)년도</label><select id="completeYearSelect"></select></div>
-          </div>
-          <div class="row-half">
-            <div class="half">
-              <label class="title">용도지역 (대분류)</label>
-              <select id="zoneMainSelect"></select>
-              <div class="cardHint" style="margin-top:4px;">주거·상업·공업 → 시가화 / 그 외 → 비시가화 자동 적용</div>
-            </div>
-            <div class="half"><label class="title">세부용도지역</label><select id="zoneSubSelect"></select></div>
-          </div>
-          <div class="row">
-            <label class="title">면적 (㎡)</label>
-            <div class="row-half" style="margin:6px 0 0;">
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">전체부지</label><input id="areaTotalSite" type="text" inputmode="decimal" placeholder="예: 14909" /></div>
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">건축부지</label><input id="areaBuildSite" type="text" inputmode="decimal" placeholder="예: 515" /></div>
-            </div>
-            <div class="row-half" style="margin:6px 0 0;">
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">도로부지</label><input id="areaRoadSite" type="text" inputmode="decimal" placeholder="예: 0" /></div>
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">건축연면적</label><input id="areaGrossFloor" type="text" inputmode="decimal" placeholder="예: 1909.58" /></div>
-            </div>
-            <div class="row-half" style="margin:6px 0 0;">
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">도로 길이 (m)</label><input id="roadLength" type="text" inputmode="decimal" placeholder="예: 50" /></div>
-              <div class="half"><label class="title" style="font-size:12px;font-weight:700;color:#6b7280;">도로 폭 (m)</label><input id="roadWidth" type="text" inputmode="decimal" placeholder="예: 6" /></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="formCard">
-          <div class="cardTitle">환경현황</div>
-          <div class="envBox">
-            <div class="envTitle">해당 여부</div>
-            <div class="envGrid">
-              <div class="envLabel">수변구역</div>
-              <div class="envOptions">
-                <label><input type="radio" name="env_river" value="해당">해당</label>
-                <label><input type="radio" name="env_river" value="해당없음" checked>해당없음</label>
-              </div>
-              <div class="envLabel">상수원보호구역</div>
-              <div class="envOptions">
-                <label><input type="radio" name="env_water" value="해당">해당</label>
-                <label><input type="radio" name="env_water" value="해당없음" checked>해당없음</label>
-              </div>
-              <div class="envLabel">특별대책지역</div>
-              <div class="envOptions">
-                <label><input type="radio" name="env_special" value="1권역">1권역</label>
-                <label><input type="radio" name="env_special" value="2권역">2권역</label>
-                <label><input type="radio" name="env_special" value="none" checked>해당없음</label>
-              </div>
-            </div>
-            <div class="envHint">※ 수변구역 해당 시 개인처리시설 방류수질: BOD 10 / T-P (50t이상 2, 50t미만 4)</div>
-          </div>
-        </div>
-
-        <div class="formCard">
-          <div class="cardTitle">검토서 정보</div>
-          <div class="row-half">
-            <div class="half"><label class="title">검토서 작성자</label><input id="writerName" placeholder="예: 홍길동" /></div>
-            <div class="half"><label class="title">연락처</label><input id="writerContact" placeholder="예: 010-0000-0000" /></div>
-          </div>
-          <div class="row">
-            <label class="title">총량단위유역</label>
-            <select id="unitBasinSelect" style="width:100%;">
-              <option value="" disabled selected>단위유역 선택 (시군 선택 후 자동 목록)</option>
-            </select>
-          </div>
-          <div style="margin-top:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);">
-            <small id="lifeExcelStatus" style="color:#9ca3af;">DB 로드 대기 중...</small>
-          </div>
-          <input id="lifeExcel" type="file" accept=".xlsx,.xls" class="hidden" />
-        </div>
-
-      </div>
-    </section>
-
-    <!-- TAB 2 -->
-    <section id="tab-life" class="tabPanel" role="tabpanel">
-      <div class="tabGrid oneCol">
-        <div class="formCard">
-          <div class="lifeTwoCol">
-            <div class="lifeCol">
-              <div class="lifeColHeader">
-                <div class="landColTitle" style="text-align: center;">사업전</div>
-                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;">
-                  <input id="beforeNoSource" type="checkbox" />사업전 오염원 없음
-                </label>
-              </div>
-              <div id="beforeInputs">
-                <div class="lifeTop">
-                  <!-- 가정인구 섹션 -->
-                  <div style="display:flex;align-items:center;width:100%;margin-bottom:6px;">
-                    <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
-                    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-                      <span id="eupMyeonBadge" style="font-size:11px;padding:2px 5px;background:#e0f2f1;border-radius:5px;color:#065f46;" title="사업개요 탭 읍면동 선택에 따라 자동 적용">200 L/인·일</span>
-                      <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeBefore.addHousehold()">+ 추가</button>
-                    </div>
-                  </div>
-                  <div id="hhMethod_livingContainer_before" style="width:100%;">
-                    <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
-                  </div>
-                  <!-- 영업인구 섹션 -->
-                  <div style="display:flex;align-items:center;width:100%;margin-top:10px;margin-bottom:6px;">
-                    <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
-                    <button type="button" class="btnGhost" style="font-size:12px;margin-left:auto;" onclick="lifeBefore.addBuilding()">+ 추가</button>
-                  </div>
-                </div>
-                <div id="livingContainer_before"></div>
-                <div id="beforeProofWrap" class="proofWrap hidden">
-                  <button type="button" class="btnGhost" onclick="document.getElementById('beforeProof').click()">증빙자료 업로드</button>
-                  <input id="beforeProof" type="file" accept="image/*,application/pdf" class="hidden" multiple />
-                  <div id="beforeProofList" class="proofList"></div>
-                </div>
-              </div>
-            </div>
-            <div class="lifeCol">
-              <div class="landColHeader">
-                <div class="landColTitle" style="text-align: center;">사업후</div>
-              </div>
-              <div id="afterInputs">
-                <div class="lifeTop">
-                  <!-- 가정인구 섹션 -->
-                  <div style="display:flex;align-items:center;width:100%;margin-bottom:6px;">
-                    <span style="font-size:13px;font-weight:800;color:#111827;">가정인구</span>
-                    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-                      <span id="eupMyeonBadge" style="font-size:11px;padding:2px 5px;background:#e0f2f1;border-radius:5px;color:#065f46;" title="사업개요 탭 읍면동 선택에 따라 자동 적용">200 L/인·일</span>
-                      <button type="button" class="btnGhost" style="font-size:12px;" onclick="lifeAfter.addHousehold()">+ 추가</button>
-                    </div>
-                  </div>
-                  <div id="hhMethod_livingContainer_after" style="width:100%;">
-                    <span style="font-size:12px;color:#9ca3af;">DB 로드 후 표시</span>
-                  </div>
-                  <!-- 영업인구 섹션 -->
-                  <div style="display:flex;align-items:center;width:100%;margin-top:10px;margin-bottom:6px;">
-                    <span style="font-size:13px;font-weight:800;color:#111827;">영업인구 (동별)</span>
-                    <button type="button" class="btnGhost" style="font-size:12px;margin-left:auto;" onclick="lifeAfter.addBuilding()">+ 추가</button>
-                  </div>
-                </div>
-                <div id="livingContainer_after"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3 -->
-    <section id="tab-land" class="tabPanel" role="tabpanel">
-      <div class="tabGrid oneCol">
-        <div class="formCard">
-          <div class="landTwoCol">
-            <div class="landCol">
-              <div class="landColHeader"><div class="landColTitle">사업전</div></div>
-              <div id="landContainer_before"></div>
-            </div>
-            <div class="landCol">
-              <div class="landColHeader"><div class="landColTitle">사업후</div></div>
-              <div id="landContainer_after"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 4: 결과확인 -->
-    <section id="tab-result" class="tabPanel" role="tabpanel">
-      <div class="tabGrid oneCol">
-        <div class="formCard">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div class="cardTitle" style="margin:0;">부하량 산정 결과</div>
-            <button type="button" onclick="runCalcOnly()"
-              style="background:#2563eb;padding:10px 16px;border-radius:12px;color:#fff;font-weight:1000;border:none;cursor:pointer;box-shadow:var(--shadow);">
-              🔄 재계산
-            </button>
-          </div>
-          <div id="calc-result-detail" style="color:#9ca3af;font-size:13px;text-align:center;padding:48px 0;">
-            ※ 입력 완료 후 '재계산' 버튼을 누르면 상세 결과가 표시됩니다.
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB Q&A -->
-    <section id="tab-qa" class="tabPanel" role="tabpanel">
-
-      <!-- 관리자 로그인 바 -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <div id="qa-auth-bar"></div>
-      </div>
-
-      <div style="display:flex;gap:20px;align-items:flex-start;">
-
-        <!-- 왼쪽: 질문 등록 폼 -->
-        <div class="formCard" style="flex:0 0 360px;min-width:280px;">
-          <div class="cardTitle">질문 / 개선요구 등록</div>
-          <form id="qa-post-form" style="display:flex;flex-direction:column;gap:8px;">
-            <input id="qa-name" type="text" placeholder="이름 (선택, 미입력 시 익명)"
-              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
-            <input id="qa-title" type="text" placeholder="제목 *" required
-              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;" />
-            <textarea id="qa-content" placeholder="내용 *" rows="8" required
-              style="font-size:13px;border-radius:8px;border:1px solid #d1d5db;padding:7px 10px;resize:vertical;"></textarea>
-            <button type="submit"
-              style="padding:8px;background:#1a7f64;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-              등록
-            </button>
-          </form>
-        </div>
-
-        <!-- 오른쪽: 게시글 목록 -->
-        <div class="formCard" style="flex:1;min-width:0;">
-          <div class="cardTitle">목록</div>
-          <div id="qa-post-list">
-            <div style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">로딩 중...</div>
-          </div>
-        </div>
-
-      </div>
-    </section>
+    <a class="card card-dxf" href="dxf/index.html" title="환경영향평가 변경률 검토">
+      <span class="card-icon">🗺️</span>
+      <span class="card-name">환경영향평가<br>변경률 검토</span>
+      <span class="card-desc">DXF 도면 단계별 분석으로<br>토지이용 변경률 자동 산출</span>
+    </a>
 
   </div>
 
-  <script src="js/config.js"></script>
-  <script>window.isEupMyeon = false;</script>
-  <script src="js/utils.js"></script>
-  <script src="js/db-loader.js"></script>
-  <script src="js/ui-basic.js"></script>
-  <script src="js/life-module.js"></script>
-  <script src="js/land-module.js"></script>
-  <script src="js/calc.js"></script>
-  <script src="js/word-gen.js"></script>
-  <script type="module">
-    import { initQaBoard } from "./js/qa-board.js";
-    // Q&A 탭 클릭 시 초기화 (최초 1회)
-    let qaInited = false;
-    document.querySelector('[data-tab="tab-qa"]')?.addEventListener("click", () => {
-      if (!qaInited) { qaInited = true; initQaBoard(); }
-    });
-  </script>
+  <div class="footer">수질 오염 총량 검토 시스템</div>
+
 </body>
 </html>
