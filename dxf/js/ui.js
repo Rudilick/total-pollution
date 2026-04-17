@@ -139,7 +139,7 @@ function _makeSlotEl(slot, idx, sharedBbox) {
 
     const sub = document.createElement('div');
     sub.className = 'slot-sub';
-    sub.textContent = '.dxf 클릭하여 업로드';
+    sub.textContent = '클릭 또는 드래그';
 
     inner.appendChild(num);
     inner.appendChild(lbl);
@@ -159,6 +159,29 @@ function _makeSlotEl(slot, idx, sharedBbox) {
   }
 
   el.onclick = () => input.click();
+
+  // 드래그앤드롭
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    el.style.borderColor = 'var(--blue-mid)';
+    el.style.background  = 'var(--blue-light)';
+  });
+  el.addEventListener('dragleave', () => {
+    el.style.borderColor = '';
+    el.style.background  = '';
+  });
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.style.borderColor = '';
+    el.style.background  = '';
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.toLowerCase().endsWith('.dxf')) {
+      handleFileSelect(slot, file);
+    } else if (file) {
+      alert('.dxf 파일만 업로드할 수 있습니다.');
+    }
+  });
+
   return el;
 }
 
