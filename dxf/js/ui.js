@@ -309,7 +309,7 @@ function _renderPairs(pairResults) {
         .sort((a, b) => b.area - a.area)
         .forEach(c => {
           const tr = document.createElement('tr');
-          const pctVal = r.totalAreaA > 0 ? (c.area / r.totalAreaA * 100) : 0;
+          const pctVal = r.areaFirst > 0 ? (c.area / r.areaFirst * 100) : 0;
           tr.innerHTML =
             `<td><span class="layer-dot" style="background:${layerColor(c.from)}"></span>${c.from}</td>` +
             `<td><span class="layer-dot" style="background:${layerColor(c.to)}"></span>${c.to}</td>` +
@@ -327,7 +327,7 @@ function _renderPairs(pairResults) {
     meta.className = 'pair-meta';
     meta.textContent =
       `전 도면 면적: ${_fmtArea(r.totalAreaA)} ㎡  |  후 도면 면적: ${_fmtArea(r.totalAreaB)} ㎡` +
-      `  |  정합: ${r.alignTypeA} → ${r.alignTypeB}`;
+      `  |  기준 면적(최초 도면): ${_fmtArea(r.areaFirst)} ㎡`;
     detail.appendChild(meta);
 
     // 접기/펼치기

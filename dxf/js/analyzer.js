@@ -2,13 +2,13 @@
  * analyzer.js
  *
  * ① 증가부지: 최초(A) vs 최종(F) → A에 없는 자리에 F에서 생긴 면적
- *    증가율 = 증가면적 / A 전체면적 × 100
+ *    증가율 = 증가면적 / 최초도면 전체면적 × 100
  *
- * ② 변경부지: 각 인접 단계(A→B, B→C...) 누적 합산
+ * ② 변경부지: 각 인접 단계(A→B, B→C...) 변경 면적 합산
  *    레이어X → 레이어Y 로 바뀐 교차 면적
- *    각 단계 변경률 = 변경면적 / 해당단계 전 도면 전체면적 × 100 의 누적 합
+ *    모든 단계 변경률의 분모 = 최초 도면 전체면적 (1차·2차·3차 공통)
  *
- * 정합 기준: 지정된 레이어 우선, 없으면 둘레 패딩
+ * 정합: 같은 프로젝트 도면은 좌표계 동일 → 변환 없이 직접 겹침
  */
 
 function getAlignTransform(_dataA, _dataB) {
@@ -65,10 +65,23 @@ function runAnalysis(slots) {
   const loaded = slots.filter(s => s.data);
   if (loaded.length < 2) throw new Error('최소 2개 도면이 필요합니다.');
 
-  // 단계별 변경률
+  const first = loaded[0];
+  const last  = loaded[loaded.length - 1];
+
+  // ── 최초 도면 면적 (모든 변경률·증가율의 공통 분모) ──────────
+  const alignFirst = detectAlignLayer(first.data);
+  const lsFirst    = getLandUseLayers(first.data,
+    [alignFirst.layer, detectBorderLayer(first.data)].filter(Boolean));
+  const ringsFirst = lsFirst.flatMap(l => first.data.layers[l] || []);
+  const areaFirst  = polyAreaSum(ringsFirst);
+
+  // ── 단계별 변경 계산 ─────────────────────────────────────────
   const pairResults = [];
   for (let i = 0; i < loaded.length - 1; i++) {
     const r = calcPairChange(loaded[i].data, loaded[i + 1].data);
+    // 분모를 최초 도면 면적으로 통일
+    r.changePct = areaFirst > 0 ? (r.changeArea / areaFirst * 100) : 0;
+    r.areaFirst = areaFirst;   // ui에서 상세 비율 표시에 사용
     r.labelFrom = loaded[i].label;
     r.labelTo   = loaded[i + 1].label;
     r.idxFrom   = slots.indexOf(loaded[i]);
@@ -76,26 +89,19 @@ function runAnalysis(slots) {
     pairResults.push(r);
   }
 
-  // 증가율: 최초 vs 최종
-  const first = loaded[0];
-  const last  = loaded[loaded.length - 1];
-
-  const { T: TFL } = getAlignTransform(first.data, last.data);
-  const alignFirst = detectAlignLayer(first.data);
-  const alignLast  = detectAlignLayer(last.data);
-  const lsFirst = getLandUseLayers(first.data, [alignFirst.layer, detectBorderLayer(first.data)].filter(Boolean));
-  const lsLast  = getLandUseLayers(last.data,  [alignLast.layer,  detectBorderLayer(last.data)].filter(Boolean));
-
-  const ringsFirst = lsFirst.flatMap(l => (first.data.layers[l] || []).map(r => applyTransform(r, TFL)));
+  // ── 증가율: 최초 vs 최종 ─────────────────────────────────────
+  const alignLast = detectAlignLayer(last.data);
+  const lsLast    = getLandUseLayers(last.data,
+    [alignLast.layer, detectBorderLayer(last.data)].filter(Boolean));
   const ringsLast  = lsLast.flatMap(l => last.data.layers[l] || []);
 
-  const areaFirst    = polyAreaSum(ringsFirst);
   const areaLast     = polyAreaSum(ringsLast);
   const increaseArea = newAreaOnly(ringsFirst, ringsLast);
   const increasePct  = areaFirst > 0 ? (increaseArea / areaFirst * 100) : 0;
 
-  const totalChangePct  = pairResults.reduce((s, r) => s + r.changePct,  0);
+  // 누적 변경률도 최초 도면 면적 기준
   const totalChangeArea = pairResults.reduce((s, r) => s + r.changeArea, 0);
+  const totalChangePct  = areaFirst > 0 ? (totalChangeArea / areaFirst * 100) : 0;
 
   return {
     pairResults,
