@@ -42,18 +42,36 @@ function removeSlot(id) {
   renderSlotsWrap();
 }
 
+// ── 모든 로드된 슬롯의 공유 bbox ────────────────────────────
+function _getSharedBbox() {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  slots.forEach(s => {
+    if (!s.data) return;
+    Object.values(s.data.layers).forEach(rings => {
+      rings.forEach(ring => ring.forEach(([x, y]) => {
+        if (x < minX) minX = x; if (y < minY) minY = y;
+        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+      }));
+    });
+  });
+  return isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+}
+
 // ── 슬롯 렌더링 ─────────────────────────────────────────────
 function renderSlotsWrap() {
   const wrap = document.getElementById('slots-wrap');
   if (!wrap) return;
   wrap.innerHTML = '';
 
+  // 로드된 슬롯 전체를 아우르는 공유 bbox (썸네일 동일 축척)
+  const sharedBbox = _getSharedBbox();
+
   slots.forEach((slot, idx) => {
     if (idx > 0) wrap.appendChild(_makeArrow());
 
     const col = document.createElement('div');
     col.className = 'slot-col';
-    col.appendChild(_makeSlotEl(slot, idx));
+    col.appendChild(_makeSlotEl(slot, idx, sharedBbox));
 
     // 삭제 버튼 (3개 이상일 때)
     if (slots.length > 2) {
@@ -88,7 +106,7 @@ function _makeArrow() {
   return div;
 }
 
-function _makeSlotEl(slot, idx) {
+function _makeSlotEl(slot, idx, sharedBbox) {
   const el = document.createElement('div');
   el.className = 'slot' + (slot.data ? ' loaded' : '');
 
@@ -108,7 +126,7 @@ function _makeSlotEl(slot, idx) {
     canvas.className = 'thumb-canvas';
     canvas.width  = 148;
     canvas.height = 88;
-    setTimeout(() => drawThumbnail(canvas, slot.data), 0);
+    setTimeout(() => drawThumbnail(canvas, slot.data, sharedBbox), 0);
     inner.appendChild(canvas);
   } else {
     const num = document.createElement('div');
@@ -157,14 +175,16 @@ async function handleFileSelect(slot, file) {
 }
 
 // ── 썸네일 캔버스 ────────────────────────────────────────────
-function drawThumbnail(canvas, data) {
+// sharedBbox: 전체 슬롯 공유 bbox → 모든 썸네일이 동일 축척으로 표시
+function drawThumbnail(canvas, data, sharedBbox) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const allLayers = Object.keys(data.layers);
   if (!allLayers.length) return;
 
-  const bbox = getDataBBox(data, allLayers);
+  // 공유 bbox 우선, 없으면 이 슬롯 단독 bbox
+  const bbox = sharedBbox || getDataBBox(data, allLayers);
   if (!bbox) return;
 
   const pad = 5;
@@ -208,17 +228,13 @@ function updateRunBtn() {
     : '분석 실행';
 }
 
-// ── 둘레 레이어 정보 표시 ────────────────────────────────────
+// ── 정합 방식 표시 ───────────────────────────────────────────
 function _renderBorderInfo() {
   const el = document.getElementById('border-info');
   if (!el) return;
-  const msgs = [];
-  slots.forEach((s, i) => {
-    if (!s.data) return;
-    const bl = detectBorderLayer(s.data);
-    msgs.push(`도면 ${i + 1}: 정합 레이어 = ${bl ? `"${bl}"` : '없음 (전체 bbox 사용)'}`);
-  });
-  el.textContent = msgs.join('  |  ');
+  const loaded = slots.filter(s => s.data).length;
+  if (!loaded) { el.textContent = ''; return; }
+  el.textContent = `도면 ${loaded}개 로드됨  ·  좌표 직접 정합 (변환 없음)`;
 }
 
 // ── 에러 표시 ────────────────────────────────────────────────

@@ -11,16 +11,9 @@
  * 정합 기준: 지정된 레이어 우선, 없으면 둘레 패딩
  */
 
-function getAlignTransform(dataA, dataB) {
-  const alignA = detectAlignLayer(dataA);
-  const alignB = detectAlignLayer(dataB);
-  const bboxA = getBorderBBox(dataA, alignA.layer);
-  const bboxB = getBorderBBox(dataB, alignB.layer);
-  return {
-    T: computeTransform(bboxA, bboxB),
-    typeA: alignA.type,
-    typeB: alignB.type,
-  };
+function getAlignTransform(_dataA, _dataB) {
+  // 같은 프로젝트 도면은 좌표계가 동일 → 변환 없이 그대로 겹침
+  return { T: { scale: 1, tx: 0, ty: 0 }, typeA: 'direct', typeB: 'direct' };
 }
 
 function calcPairChange(dataA, dataB) {
