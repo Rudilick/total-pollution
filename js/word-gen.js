@@ -121,7 +121,7 @@ function makeH(docx){
   var WidthType=docx.WidthType,VerticalAlign=docx.VerticalAlign;
 
   var FONT="맑은 고딕";
-  var SZ=21,SZ_TBL=20,SZ_HDR=16,SZ_SM=18,SZ_H1=26,SZ_H2=24,SZ_H3=22,SZ_H4=21;
+  var SZ=21,SZ_TBL=16,SZ_HDR=16,SZ_SM=18,SZ_H1=26,SZ_H2=24,SZ_H3=22,SZ_H4=21;
   var SP_H1={before:280,after:120,line:276,lineRule:"auto"};
   var SP_H2={before:200,after:100,line:276,lineRule:"auto"};
   var SP_H3={before:160,after:80,line:276,lineRule:"auto"};
@@ -801,80 +801,58 @@ function buildHHSewageTable(H,hh,households,popUnit,urbanType,phase){
 function buildBizSewageTable(H,biz,phase){
   var els=[];
   var phaseLabel=phase==="before"?"사업시행 전":"사업시행 후";
-  var CC=window.CALC_CONSTS||{};
-  var bizFecesRatio=CC.BIZ_FECES_RATIO||0.006;
   var hasCommon=biz.rows.some(function(r){return r.공용배분&&r.공용배분>0;});
-  var multiBuilding=biz.rows.length>0&&(function(){
-    var nos={};
-    biz.rows.forEach(function(r){nos[r.buildingNo]=1;});
-    return Object.keys(nos).length>1;
-  })();
   var hasNote=biz.rows.some(function(r){return !!useBuildingNote(r);});
+  var buildingNos=(function(){
+    var seen={};var order=[];
+    biz.rows.forEach(function(r){if(!seen[r.buildingNo]){seen[r.buildingNo]=1;order.push(r.buildingNo);}});
+    return order;
+  })();
+  var multiBuilding=buildingNos.length>1;
   var totalSewage=biz.합계?biz.합계.오수발생유량||0:0;
+
   els.push(H.p(
     "◦ "+phaseLabel+" 오수발생량은 건축물의 용도별 오수발생량 원단위를 적용하여 산정하였으며, 그 결과 "+F.f3(totalSewage)+"㎥/일로 산정되었다.",
     {size:H.SZ_SM}
   ));
   els.push(H.blank());
-  // 열 구성 (동: 다동인 경우만, 공용배분: 있는 경우만, 비고: 있는 경우만)
-  var headers=[];
-  var colRatios=[];
-  if(multiBuilding){headers.push("동");colRatios.push(7);}
-  headers.push("층","용도");colRatios.push(6,10);
-  // 공용면적 있으면: 건축연면적 + 공용배분 + 최종면적 / 없으면: 면적 하나
-  if(hasCommon){
-    headers.push("건축연면적\n(㎡)","공용배분\n면적(㎡)","최종면적\n(㎡)");
-    colRatios.push(10,9,10);
-  }else{
-    headers.push("면적\n(㎡)");colRatios.push(10);
-  }
-  headers.push("오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
-  colRatios.push(10,10,10,9,9);
-  if(hasNote){headers.push("비고");colRatios.push(10);}
-  // 비율 합 100 맞추기
-  var total=colRatios.reduce(function(a,b){return a+b;},0);
-  if(total<100){var diff=100-total;colRatios[colRatios.length-1]+=diff;}
-  var rows=biz.rows.map(function(r){
-    var row=[];
-    if(multiBuilding)row.push(r.buildingNo+"동");
-    row.push(r.floorNo+"층",useLabel(r));
-    if(hasCommon){
-      row.push(F.area(r.전용면적||r.적용면적),F.area(r.공용배분||0),F.area(r.적용면적));
-    }else{
-      row.push(F.area(r.적용면적));
-    }
-    row.push(
-      r.오수발생원단위||"-",
-      F.f3(r.오수발생유량||0),
-      F.f3(r.분뇨발생유량||0),
-      F.f3(r.사용유량||r.오수발생유량||0),
-      F.f3(r.잡배수발생유량||0)
-    );
-    if(hasNote)row.push(useBuildingNote(r));
-    return row;
+
+  // 동별 개별 표 생성
+  buildingNos.forEach(function(bldgNo){
+    var bldgRows=biz.rows.filter(function(r){return r.buildingNo===bldgNo;});
+    var headers=["층","용도"];
+    var colRatios=[5,18];
+    if(hasCommon){headers.push("건축연면적\n(㎡)","공용배분\n면적(㎡)","최종면적\n(㎡)");}
+    else{headers.push("면적\n(㎡)");}
+    headers.push("오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
+    if(hasNote)headers.push("비고");
+    var fixedSum=23;
+    var remainN=headers.length-2;
+    var eachR=Math.floor((100-fixedSum)/remainN);
+    var extraR=(100-fixedSum)-eachR*remainN;
+    for(var i=0;i<remainN;i++)colRatios.push(i===remainN-1?eachR+extraR:eachR);
+
+    var rows=bldgRows.map(function(r){
+      var row=[r.floorNo+"층",useLabel(r)];
+      if(hasCommon)row.push(F.area(r.전용면적||r.적용면적),F.area(r.공용배분||0),F.area(r.적용면적));
+      else row.push(F.area(r.적용면적));
+      row.push(r.오수발생원단위||"-",F.f3(r.오수발생유량||0),F.f3(r.분뇨발생유량||0),F.f3(r.사용유량||r.오수발생유량||0),F.f3(r.잡배수발생유량||0));
+      if(hasNote)row.push(useBuildingNote(r));
+      return row;
+    });
+    var sumRow=["합  계",""];
+    if(hasCommon){sumRow.push(F.area(bldgRows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0)),F.area(bldgRows.reduce(function(s,r){return s+(r.공용배분||0);},0)),F.area(bldgRows.reduce(function(s,r){return s+(r.적용면적||0);},0)));}
+    else{sumRow.push(F.area(bldgRows.reduce(function(s,r){return s+(r.적용면적||0);},0)));}
+    sumRow.push("-",F.f3(bldgRows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),F.f3(bldgRows.reduce(function(s,r){return s+(r.분뇨발생유량||0);},0)),F.f3(bldgRows.reduce(function(s,r){return s+(r.사용유량||r.오수발생유량||0);},0)),F.f3(bldgRows.reduce(function(s,r){return s+(r.잡배수발생유량||0);},0)));
+    if(hasNote)sumRow.push("");
+    rows.push(sumRow);
+
+    var titleSuffix=multiBuilding?"("+bldgNo+"동)":"";
+    els.push(H.tableTitle(phaseLabel+" 영업인구 오수발생량 산정"+titleSuffix));
+    els.push(H.simpleTable(headers,rows,colRatios));
+    els.push(H.blank());
   });
-  // 합계행
-  var sumFinal=biz.rows.reduce(function(s,r){return s+(r.적용면적||0);},0);
-  var sumRow=[];
-  if(multiBuilding){sumRow.push("합  계","","");}
-  else{sumRow.push("합  계","");}
-  if(hasCommon){
-    var sumArea=biz.rows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0);
-    var sumCommon=biz.rows.reduce(function(s,r){return s+(r.공용배분||0);},0);
-    sumRow.push(F.area(sumArea),F.area(sumCommon),F.area(sumFinal));
-  }else{
-    sumRow.push(F.area(sumFinal));
-  }
-  sumRow.push("-",F.f3(totalSewage),
-    F.f3(biz.rows.reduce(function(s,r){return s+(r.분뇨발생유량||0);},0)),
-    F.f3(biz.rows.reduce(function(s,r){return s+(r.사용유량||r.오수발생유량||0);},0)),
-    F.f3(biz.rows.reduce(function(s,r){return s+(r.잡배수발생유량||0);},0))
-  );
-  if(hasNote)sumRow.push("");
-  rows.push(sumRow);
-  els.push(H.tableTitle(phaseLabel+" 영업인구 오수발생량 산정"));
-  els.push(H.simpleTable(headers,rows,colRatios));
-  els.push(H.blank());
+
   return els;
 }
 
@@ -906,276 +884,180 @@ function buildLoadTable(H,lifeData,phase){
     ));
     els.push(H.blank());
   }
-  // 영업인구 발생부하량 표
+  // 영업인구 발생부하량 표 (동별 분리)
   if(biz&&biz.rows&&biz.rows.length){
-    var multiBuilding=biz.rows.length>0&&(function(){
-      var nos={};biz.rows.forEach(function(r){nos[r.buildingNo]=1;});
-      return Object.keys(nos).length>1;
+    var bizBldgNos2=(function(){
+      var seen={};var order=[];
+      biz.rows.forEach(function(r){if(!seen[r.buildingNo]){seen[r.buildingNo]=1;order.push(r.buildingNo);}});
+      return order;
     })();
+    var multiBldgL=bizBldgNos2.length>1;
     var hasNoteL=biz.rows.some(function(r){return !!useBuildingNote(r);});
-    els.push(H.tableTitle(phaseLabel+" 영업인구 발생부하량 산정"));
-    var hdrs=[];var cols=[];
-    if(multiBuilding){hdrs.push("동");cols.push(7);}
-    hdrs.push("층","용도","오수발생량\n(㎥/일)","적용원단위\nBOD","적용원단위\nT-P","발생부하량\nBOD(kg/일)","발생부하량\nT-P(kg/일)");
-    cols.push(7,12,14,12,12,14,14);
-    if(hasNoteL){hdrs.push("비고");cols.push(10);}
-    if(multiBuilding)cols[0]=7;
-    var dataRows=biz.rows.map(function(r){
-      var row=[];
-      if(multiBuilding)row.push(r.buildingNo+"동");
-      row.push(r.floorNo+"층",useLabel(r),F.f3(r.오수발생유량||0),r.BOD농도||"-",r.TP농도||"-",F.f3(r.발생부하량?r.발생부하량.BOD:0),F.f3(r.발생부하량?r.발생부하량.TP:0));
-      if(hasNoteL)row.push(useBuildingNote(r));
-      return row;
+    bizBldgNos2.forEach(function(bldgNo){
+      var bldgRows=biz.rows.filter(function(r){return r.buildingNo===bldgNo;});
+      var hdrs=["층","용도","오수발생량\n(㎥/일)","적용원단위\nBOD","적용원단위\nT-P","발생부하량\nBOD(kg/일)","발생부하량\nT-P(kg/일)"];
+      if(hasNoteL)hdrs.push("비고");
+      var cols=[5,18];
+      var remN3=hdrs.length-2;
+      var eR3=Math.floor(77/remN3);
+      var exR3=77-eR3*remN3;
+      for(var i=0;i<remN3;i++)cols.push(i===remN3-1?eR3+exR3:eR3);
+      var dataRows=bldgRows.map(function(r){
+        var row=[r.floorNo+"층",useLabel(r),F.f3(r.오수발생유량||0),r.BOD농도||"-",r.TP농도||"-",F.f3(r.발생부하량?r.발생부하량.BOD:0),F.f3(r.발생부하량?r.발생부하량.TP:0)];
+        if(hasNoteL)row.push(useBuildingNote(r));
+        return row;
+      });
+      var sumR=["합  계","",F.f3(bldgRows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),"","-",F.f3(bldgRows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.BOD:0);},0)),F.f3(bldgRows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.TP:0);},0))];
+      if(hasNoteL)sumR.push("");
+      dataRows.push(sumR);
+      var titleSuffix=multiBldgL?"("+bldgNo+"동)":"";
+      els.push(H.tableTitle(phaseLabel+" 영업인구 발생부하량 산정"+titleSuffix));
+      els.push(H.simpleTable(hdrs,dataRows,cols));
+      els.push(H.blank());
     });
-    var sumR=[];
-    var _sq=F.f3(biz.합계?biz.합계.오수발생유량:0);
-    var _sb=F.f3(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.BOD:0);
-    var _st=F.f3(biz.합계&&biz.합계.발생부하량?biz.합계.발생부하량.TP:0);
-    if(multiBuilding){sumR.push("합  계","","",_sq,"","-",_sb,_st);}
-    else{sumR.push("합  계","",_sq,"","-",_sb,_st);}
-    if(hasNoteL)sumR.push("");
-    dataRows.push(sumR);
-    // 비율 합 조정
-    var tot=cols.reduce(function(a,b){return a+b;},0);
-    if(tot<100)cols[cols.length-1]+=(100-tot);
-    els.push(H.simpleTable(hdrs,dataRows,cols));
-    els.push(H.blank());
   }
   return els;
 }
 
 // ── 배출부하량 (직접이송 + 개별) ─────────────────────────────────
 function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
+  void isWaterBuffer;
   var els=[];
   var phaseLabel=phase==="before"?"사업시행 전":"사업시행 후";
+  void phaseLabel;
   var hh=lifeData.가정인구;
   var biz=lifeData.영업인구;
+  var CC=window.CALC_CONSTS||{};
 
-  // 처리방식 판별 (가정인구 우선, 없으면 영업인구 첫행)
-  var m1=hh?(lifeData.가정인구.직접이송결과?"개인하수처리시설":"공공하수처리시설")
-         :(biz&&biz.rows&&biz.rows[0]?biz.rows[0].sewageMethod1:"공공하수처리시설");
-
-  // 직접이송 있는지 확인
   var hasDirectHH=hh&&hh.직접이송결과&&hh.직접이송결과.직접이송유량>0;
   var directBizRows=biz&&biz.rows?biz.rows.filter(function(r){return r.직접이송결과&&r.직접이송결과.직접이송유량>0;}):[];
   var hasDirectBiz=directBizRows.length>0;
 
-  // ── 분뇨 직접이송에 따른 방류부하량
+  // ── ① 분뇨의 직접이송에 따른 방류부하량
   if(hasDirectHH||hasDirectBiz){
     els.push(H.heading4("① 분뇨의 직접이송에 따른 방류부하량"));
-    var CC=window.CALC_CONSTS||{};
 
-    // 가정인구 직접이송
+    // 처리장 이름
+    var dt0=hasDirectHH?hh.직접이송결과:directBizRows[0].직접이송결과;
+    var plantName0=dt0.처리장||"-";
+
+    // 연계하수처리시설 여부 확인
+    var fecesLinked=null;
+    if(typeof FECES_PLANT_DB!=="undefined"){
+      var fecesP=FECES_PLANT_DB.find(function(p){return p.name===plantName0;});
+      if(fecesP&&fecesP.linkedPlant)fecesLinked=fecesP.linkedPlant;
+    }
+    var descText="◦ 직접이송유량은 대상물질별 직접이송유량비를 곱하여 산정하였으며, 현황 조사 결과 "+plantName0+"으로 이송되어 처리 후 방류하는 것으로 확인되었다.";
+    if(fecesLinked)descText="◦ 직접이송유량은 대상물질별 직접이송유량비를 곱하여 산정하였으며, 현황 조사 결과 "+plantName0+"으로 이송되어 연계된 "+fecesLinked+"에서 처리, 방류하는 것으로 확인되었다.";
+    els.push(H.p(descText,{size:H.SZ_SM}));
+    els.push(H.blank());
+
+    // 산정 기준 표 (factor table)
+    var m1Key=hasDirectHH?(hh.개인처리기준?"개인하수처리시설":"정화조"):(directBizRows[0].sewageMethod1||"개인하수처리시설");
+    var coef=CC.DIRECT_TRANSFER_COEF&&CC.DIRECT_TRANSFER_COEF[m1Key]?CC.DIRECT_TRANSFER_COEF[m1Key]:{flow:1.0,BOD:0.079,TN:0.080,TP:0.081};
+    var linkedPlantInfo=null;
+    if(typeof SEWAGE_PLANT_DB!=="undefined")linkedPlantInfo=SEWAGE_PLANT_DB.find(function(p){return p.name===(fecesLinked||plantName0);})||null;
+    var efflBOD=linkedPlantInfo?linkedPlantInfo.efflBOD:"-";
+    var efflTP=linkedPlantInfo?linkedPlantInfo.efflTP:"-";
+    var totalFeces=0,totalDtBOD=0,totalDtTP=0;
+    if(hasDirectHH){totalFeces+=(hh.분뇨발생유량||0);totalDtBOD+=(hh.직접이송결과.방류부하량.BOD||0);totalDtTP+=(hh.직접이송결과.방류부하량.TP||0);}
+    directBizRows.forEach(function(r){totalFeces+=(r.분뇨발생유량||0);totalDtBOD+=(r.직접이송결과.방류부하량.BOD||0);totalDtTP+=(r.직접이송결과.방류부하량.TP||0);});
+
+    els.push(H.tableTitle("분뇨 직접이송 산정 기준"));
+    els.push(H.simpleTable(
+      ["구분","분뇨발생유량\n(㎥/일)","직접이송유량비\n(BOD / T-P)","처리시설 방류농도\n(BOD / T-P, mg/L)","직접이송 방류부하량\n(BOD / T-P, kg/일)"],
+      [[plantName0,F.f3(totalFeces),F.f3(coef.BOD)+" / "+F.f3(coef.TP||coef.BOD),String(efflBOD)+" / "+String(efflTP),F.f3(totalDtBOD)+" / "+F.f3(totalDtTP)]],
+      [18,16,18,24,24]
+    ));
+    els.push(H.blank());
+
+    // 동/층/용도별 상세 표
+    var detailRows=[];
     if(hasDirectHH){
-      var dt=hh.직접이송결과;
-      var coefKey=hh.처리장정보?"공공하수처리시설":"개인하수처리시설";
-      // method1 판별
-      var hhM1=hh.개인처리기준?"개인하수처리시설":(hh.처리장정보?"공공하수처리시설":"정화조");
-      var coef=CC.DIRECT_TRANSFER_COEF&&CC.DIRECT_TRANSFER_COEF[hhM1]?CC.DIRECT_TRANSFER_COEF[hhM1]:{flow:1.0,BOD:0.079,TP:0.081};
-      var ratio=CC.DIRECT_TRANSFER_RATIO||1.0;
-      els.push(H.p(
-        "◦ 분뇨의 직접이송 유량비("+F.f3(coef.flow)+")와 "+dt.처리장+"의 처리농도를 적용하여 분뇨 직접이송에 따른 방류부하량은 BOD "+F.f3(dt.방류부하량.BOD)+"kg/일, T-P "+F.f3(dt.방류부하량.TP)+"kg/일로 산정되었다.",
-        {size:H.SZ_SM}
-      ));
-      els.push(H.blank());
-      // 표: 구분/분뇨발생유량/직접이송비(유량비/처리농도)/방류부하량
-      var Table=docx.Table,TableRow=docx.TableRow,TableCell=docx.TableCell;
-      var WidthType=docx.WidthType,VerticalAlign=docx.VerticalAlign;
-      var BN=H.BN,CELLB=H.CELLB,TBLB=H.TBLB;
-      function tc(ch,o){o=o||{};return new TableCell({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType.DXA}:undefined,borders:o.borders||CELLB,verticalAlign:o.vAlign||VerticalAlign.CENTER});}
-      var W=9638;
-      var w=[Math.round(W*0.10),Math.round(W*0.22),Math.round(W*0.18),Math.round(W*0.18),Math.round(W*0.32)];
-      var linkedPlantInfo=null;
-      if(typeof SEWAGE_PLANT_DB!=="undefined")linkedPlantInfo=SEWAGE_PLANT_DB.find(function(p){return p.name===dt.처리장;})||null;
-      var efflBOD=linkedPlantInfo?linkedPlantInfo.efflBOD:"-";
-      var efflTP=linkedPlantInfo?linkedPlantInfo.efflTP:"-";
-      var dtTable=new Table({width:{size:100,type:WidthType.PERCENTAGE},borders:TBLB,rows:[
-        new TableRow({children:[
-          tc(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w[0]}),
-          tc(H.p("분뇨발생\n유량(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w[1]}),
-          tc(H.p("직접이송",{center:true,bold:true,size:H.SZ_HDR}),{cs:2,w:w[2]+w[3]}),
-          tc(H.p("방류부하량\n(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w[4]})
-        ]}),
-        new TableRow({children:[
-          tc(H.p("직접이송\n유량비",{center:true,bold:true,size:H.SZ_HDR}),{w:w[2]}),
-          tc(H.p("처리농도\n(mg/L)",{center:true,bold:true,size:H.SZ_HDR}),{w:w[3]})
-        ]}),
-        new TableRow({children:[
-          tc(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w[0]}),
-          tc(H.p(F.f3(hh.분뇨발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w[1]}),
-          tc(H.p(F.f3(coef.BOD),{center:true,size:H.SZ_TBL}),{w:w[2]}),
-          tc(H.p(String(efflBOD),{center:true,size:H.SZ_TBL}),{w:w[3]}),
-          tc(H.p(F.f3(dt.방류부하량.BOD),{center:true,size:H.SZ_TBL}),{w:w[4]})
-        ]}),
-        new TableRow({children:[
-          tc(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w[0]}),
-          tc(H.p(F.f3(coef.TP),{center:true,size:H.SZ_TBL}),{w:w[2]}),
-          tc(H.p(String(efflTP),{center:true,size:H.SZ_TBL}),{w:w[3]}),
-          tc(H.p(F.f3(dt.방류부하량.TP),{center:true,size:H.SZ_TBL}),{w:w[4]})
-        ]})
-      ]});
-      els.push(H.tableTitle("분뇨의 직접이송에 따른 방류부하량 산정 (가정인구)"));
-      els.push(dtTable);
-      els.push(H.blank());
+      detailRows.push({구분:"가정인구",오수:hh.오수발생유량||0,분뇨:hh.분뇨발생유량||0,직이:hh.직접이송결과.직접이송유량||0,dtBOD:hh.직접이송결과.방류부하량.BOD||0,dtTP:hh.직접이송결과.방류부하량.TP||0});
     }
-
-    // 영업인구 직접이송 (처리방식별 그룹)
-    if(hasDirectBiz){
-      var Table2=docx.Table,TableRow2=docx.TableRow,TableCell2=docx.TableCell;
-      var WidthType2=docx.WidthType,VerticalAlign2=docx.VerticalAlign;
-      var CC2=window.CALC_CONSTS||{};
-      directBizRows.forEach(function(r){
-        var dt2=r.직접이송결과;
-        var coef2=CC2.DIRECT_TRANSFER_COEF&&CC2.DIRECT_TRANSFER_COEF[r.sewageMethod1]?CC2.DIRECT_TRANSFER_COEF[r.sewageMethod1]:{flow:1.0,BOD:0.079,TP:0.081};
-        var linkedPlant2=null;
-        if(typeof SEWAGE_PLANT_DB!=="undefined")linkedPlant2=SEWAGE_PLANT_DB.find(function(p){return p.name===dt2.처리장;})||null;
-        var eB2=linkedPlant2?linkedPlant2.efflBOD:"-";
-        var eT2=linkedPlant2?linkedPlant2.efflTP:"-";
-        var W2=9638;
-        var w2=[Math.round(W2*0.10),Math.round(W2*0.22),Math.round(W2*0.18),Math.round(W2*0.18),Math.round(W2*0.32)];
-        function tc2(ch,o){o=o||{};return new TableCell2({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType2.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign2.CENTER});}
-        var dt2Table=new Table2({width:{size:100,type:WidthType2.PERCENTAGE},borders:H.TBLB,rows:[
-          new TableRow2({children:[tc2(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[0]}),tc2(H.p("분뇨발생\n유량(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[1]}),tc2(H.p("직접이송",{center:true,bold:true,size:H.SZ_HDR}),{cs:2,w:w2[2]+w2[3]}),tc2(H.p("방류부하량\n(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w2[4]})]}),
-          new TableRow2({children:[tc2(H.p("직접이송\n유량비",{center:true,bold:true,size:H.SZ_HDR}),{w:w2[2]}),tc2(H.p("처리농도\n(mg/L)",{center:true,bold:true,size:H.SZ_HDR}),{w:w2[3]})]}),
-          new TableRow2({children:[tc2(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w2[0]}),tc2(H.p(F.f3(r.분뇨발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w2[1]}),tc2(H.p(F.f3(coef2.BOD),{center:true,size:H.SZ_TBL}),{w:w2[2]}),tc2(H.p(String(eB2),{center:true,size:H.SZ_TBL}),{w:w2[3]}),tc2(H.p(F.f3(dt2.방류부하량.BOD),{center:true,size:H.SZ_TBL}),{w:w2[4]})]}),
-          new TableRow2({children:[tc2(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w2[0]}),tc2(H.p(F.f3(coef2.TP),{center:true,size:H.SZ_TBL}),{w:w2[2]}),tc2(H.p(String(eT2),{center:true,size:H.SZ_TBL}),{w:w2[3]}),tc2(H.p(F.f3(dt2.방류부하량.TP),{center:true,size:H.SZ_TBL}),{w:w2[4]})]})
-        ]});
-        els.push(H.tableTitle("분뇨의 직접이송에 따른 방류부하량 산정 ("+r.buildingNo+"동 "+r.floorNo+"층 "+useLabel(r)+")"));
-        els.push(dt2Table);
-        els.push(H.blank());
-      });
-    }
+    directBizRows.forEach(function(r){
+      detailRows.push({구분:r.buildingNo+"동 "+r.floorNo+"층 "+useLabel(r),오수:r.오수발생유량||0,분뇨:r.분뇨발생유량||0,직이:r.직접이송결과.직접이송유량||0,dtBOD:r.직접이송결과.방류부하량.BOD||0,dtTP:r.직접이송결과.방류부하량.TP||0});
+    });
+    var detDataRows=detailRows.map(function(d){return[d.구분,F.f3(d.오수),F.f3(d.분뇨),F.f3(d.직이),F.f3(d.dtBOD),F.f3(d.dtTP)];});
+    detDataRows.push(["합  계",F.f3(detailRows.reduce(function(s,d){return s+d.오수;},0)),F.f3(detailRows.reduce(function(s,d){return s+d.분뇨;},0)),F.f3(detailRows.reduce(function(s,d){return s+d.직이;},0)),F.f3(totalDtBOD),F.f3(totalDtTP)]);
+    els.push(H.tableTitle("분뇨 직접이송 동·층·용도별 산정"));
+    els.push(H.simpleTable(
+      ["구분","오수발생량\n(㎥/일)","분뇨발생유량\n(㎥/일)","직접이송유량\n(㎥/일)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)"],
+      detDataRows,[20,16,16,16,16,16]
+    ));
+    els.push(H.blank());
   }
 
-  // ── 개별 배출부하량
+  // ── ② 개별 배출부하량
   els.push(H.heading4("② 개별 배출부하량"));
 
-  // 공공하수처리시설
-  function buildPubTable(rows,isHH,hhData){
-    var Table3=docx.Table,TableRow3=docx.TableRow,TableCell3=docx.TableCell;
-    var WidthType3=docx.WidthType,VerticalAlign3=docx.VerticalAlign;
-    var W3=9638;
-    var w3=[Math.round(W3*0.12),Math.round(W3*0.22),Math.round(W3*0.20),Math.round(W3*0.20),Math.round(W3*0.26)];
-    function tc3(ch,o){o=o||{};return new TableCell3({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType3.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign3.CENTER});}
-    var dataRows3=[];
-    if(isHH&&hhData){
-      var pn=hhData.처리장정보?hhData.처리장정보.name:"-";
-      var eB=hhData.처리장정보?hhData.처리장정보.efflBOD:"-";
-      var eT=hhData.처리장정보?hhData.처리장정보.efflTP:"-";
-      dataRows3.push(
-        new TableRow3({children:[tc3(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(pn,{center:true,size:H.SZ_TBL}),{rs:2,w:w3[1]}),tc3(H.p(F.f3(hhData.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w3[2]}),tc3(H.p(String(eB),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]}),
-        new TableRow3({children:[tc3(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(String(eT),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]})
-      );
-    }
-    rows.forEach(function(r){
-      var pn2=r.처리장정보?r.처리장정보.name:(r.plantName||"-");
-      var eB2=r.처리장정보?r.처리장정보.efflBOD:"-";
-      var eT2=r.처리장정보?r.처리장정보.efflTP:"-";
-      dataRows3.push(
-        new TableRow3({children:[tc3(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(pn2,{center:true,size:H.SZ_TBL}),{rs:2,w:w3[1]}),tc3(H.p(F.f3(r.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w3[2]}),tc3(H.p(String(eB2),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f3(r.배출부하량?r.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]}),
-        new TableRow3({children:[tc3(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w3[0]}),tc3(H.p(String(eT2),{center:true,size:H.SZ_TBL}),{w:w3[3]}),tc3(H.p(F.f3(r.배출부하량?r.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w3[4]})]})
-      );
-    });
-    return new Table3({width:{size:100,type:WidthType3.PERCENTAGE},borders:H.TBLB,rows:[
-      new TableRow3({children:[tc3(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w3[0]}),tc3(H.p("처리시설명",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w3[1]}),tc3(H.p("오수발생량\n(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w3[2]}),tc3(H.p("처리농도\n(mg/L)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w3[3]}),tc3(H.p("개별배출\n부하량(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w3[4]})]}),
-      new TableRow3({children:[]}),
-    ].concat(dataRows3)});
-  }
-
-  // 개인하수처리시설 배출부하량 표
-  function buildIndTable(rows,isHH,hhData){
-    var Table4=docx.Table,TableRow4=docx.TableRow,TableCell4=docx.TableCell;
-    var WidthType4=docx.WidthType,VerticalAlign4=docx.VerticalAlign;
-    var W4=9638;
-    var w4=[Math.round(W4*0.12),Math.round(W4*0.22),Math.round(W4*0.20),Math.round(W4*0.20),Math.round(W4*0.26)];
-    function tc4(ch,o){o=o||{};return new TableCell4({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType4.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign4.CENTER});}
-    var dataRows4=[];
-    if(isHH&&hhData){
-      var std=hhData.개인처리기준&&hhData.개인처리기준.std||{BOD:20,TP:4};
-      dataRows4.push(
-        new TableRow4({children:[tc4(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w4[0]}),tc4(H.p("가정인구",{center:true,size:H.SZ_TBL}),{rs:2,w:w4[1]}),tc4(H.p(F.f3(hhData.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w4[2]}),tc4(H.p(String(std.BOD),{center:true,size:H.SZ_TBL}),{w:w4[3]}),tc4(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w4[4]})]}),
-        new TableRow4({children:[tc4(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w4[0]}),tc4(H.p(String(std.TP),{center:true,size:H.SZ_TBL}),{w:w4[3]}),tc4(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w4[4]})]})
-      );
-    }
-    rows.forEach(function(r){
-      var std2=r.개인처리기준&&r.개인처리기준.std||{BOD:20,TP:4};
-      var label=r.buildingNo+"동 "+r.floorNo+"층";
-      dataRows4.push(
-        new TableRow4({children:[tc4(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w4[0]}),tc4(H.p(label,{center:true,size:H.SZ_TBL}),{rs:2,w:w4[1]}),tc4(H.p(F.f3(r.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w4[2]}),tc4(H.p(String(std2.BOD),{center:true,size:H.SZ_TBL}),{w:w4[3]}),tc4(H.p(F.f3(r.배출부하량?r.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w4[4]})]}),
-        new TableRow4({children:[tc4(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w4[0]}),tc4(H.p(String(std2.TP),{center:true,size:H.SZ_TBL}),{w:w4[3]}),tc4(H.p(F.f3(r.배출부하량?r.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w4[4]})]})
-      );
-    });
-    return new Table4({width:{size:100,type:WidthType4.PERCENTAGE},borders:H.TBLB,rows:[
-      new TableRow4({children:[tc4(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w4[0]}),tc4(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w4[1]}),tc4(H.p("오수발생량\n(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w4[2]}),tc4(H.p("처리농도\n(mg/L)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w4[3]}),tc4(H.p("개별배출\n부하량(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w4[4]})]}),
-      new TableRow4({children:[]}),
-    ].concat(dataRows4)});
-  }
-
-  // 정화조 배출부하량 표
-  function buildSepTable(rows,isHH,hhData){
-    var Table5=docx.Table,TableRow5=docx.TableRow,TableCell5=docx.TableCell;
-    var WidthType5=docx.WidthType,VerticalAlign5=docx.VerticalAlign;
-    var W5=9638;
-    var w5=[Math.round(W5*0.12),Math.round(W5*0.22),Math.round(W5*0.20),Math.round(W5*0.20),Math.round(W5*0.26)];
-    function tc5(ch,o){o=o||{};return new TableCell5({children:Array.isArray(ch)?ch:[ch],columnSpan:o.cs||1,rowSpan:o.rs||1,width:o.w?{size:o.w,type:WidthType5.DXA}:undefined,borders:H.CELLB,verticalAlign:o.vAlign||VerticalAlign5.CENTER});}
-    var dataRows5=[];
-    if(isHH&&hhData){
-      dataRows5.push(
-        new TableRow5({children:[tc5(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w5[0]}),tc5(H.p("가정인구",{center:true,size:H.SZ_TBL}),{rs:2,w:w5[1]}),tc5(H.p(F.f3(hhData.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w5[2]}),tc5(H.p("BOD 25% 삭감",{center:true,size:H.SZ_TBL}),{w:w5[3]}),tc5(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w5[4]})]}),
-        new TableRow5({children:[tc5(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w5[0]}),tc5(H.p("원부하량 적용",{center:true,size:H.SZ_TBL}),{w:w5[3]}),tc5(H.p(F.f3(hhData.배출부하량?hhData.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w5[4]})]})
-      );
-    }
-    rows.forEach(function(r){
-      var label=r.buildingNo+"동 "+r.floorNo+"층";
-      dataRows5.push(
-        new TableRow5({children:[tc5(H.p("BOD",{center:true,size:H.SZ_TBL}),{w:w5[0]}),tc5(H.p(label,{center:true,size:H.SZ_TBL}),{rs:2,w:w5[1]}),tc5(H.p(F.f3(r.오수발생유량||0),{center:true,size:H.SZ_TBL}),{rs:2,w:w5[2]}),tc5(H.p("BOD 25% 삭감",{center:true,size:H.SZ_TBL}),{w:w5[3]}),tc5(H.p(F.f3(r.배출부하량?r.배출부하량.BOD:0),{center:true,size:H.SZ_TBL}),{w:w5[4]})]}),
-        new TableRow5({children:[tc5(H.p("T-P",{center:true,size:H.SZ_TBL}),{w:w5[0]}),tc5(H.p("원부하량 적용",{center:true,size:H.SZ_TBL}),{w:w5[3]}),tc5(H.p(F.f3(r.배출부하량?r.배출부하량.TP:0),{center:true,size:H.SZ_TBL}),{w:w5[4]})]})
-      );
-    });
-    return new Table5({width:{size:100,type:WidthType5.PERCENTAGE},borders:H.TBLB,rows:[
-      new TableRow5({children:[tc5(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w5[0]}),tc5(H.p("구분",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w5[1]}),tc5(H.p("오수발생량\n(㎥/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w5[2]}),tc5(H.p("처리방법",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w5[3]}),tc5(H.p("개별배출\n부하량(kg/일)",{center:true,bold:true,size:H.SZ_HDR}),{rs:2,w:w5[4]})]}),
-      new TableRow5({children:[]}),
-    ].concat(dataRows5)});
-  }
-
-  // 처리방식별 분류
   var hhM1=hh?(hh.처리장정보?"공공하수처리시설":(hh.개인처리기준?"개인하수처리시설":"정화조")):null;
   var pubBizRows=biz&&biz.rows?biz.rows.filter(function(r){return r.sewageMethod1==="공공하수처리시설";}):[];
   var indBizRows=biz&&biz.rows?biz.rows.filter(function(r){return r.sewageMethod1==="개인하수처리시설";}):[];
   var sepBizRows=biz&&biz.rows?biz.rows.filter(function(r){return r.sewageMethod1==="정화조";}):[];
-
   var isPubHH=hhM1==="공공하수처리시설";
   var isIndHH=hhM1==="개인하수처리시설";
   var isSepHH=hhM1==="정화조";
-
   var hasPub=(isPubHH&&hh)||pubBizRows.length>0;
   var hasInd=(isIndHH&&hh)||indBizRows.length>0;
   var hasSep=(isSepHH&&hh)||sepBizRows.length>0;
-
   var totalDischBOD=lifeData.합계&&lifeData.합계.배출부하량?lifeData.합계.배출부하량.BOD:0;
   var totalDischTP=lifeData.합계&&lifeData.합계.배출부하량?lifeData.합계.배출부하량.TP:0;
 
+  // 개별배출부하량 표 생성 (동/층/용도 행 방식)
+  function buildIndiTable(bizRows,isHH,hhData,method,title){
+    var indHdrs=["구분","오수발생량\n(㎥/일)","개별배출유량\n(㎥/일)","처리농도\nBOD(mg/L)","처리농도\nT-P(mg/L)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)"];
+    var indCols=[16];
+    var remNI=indHdrs.length-1;
+    var eRI=Math.floor(84/remNI);
+    var exRI=84-eRI*remNI;
+    for(var i=0;i<remNI;i++)indCols.push(i===remNI-1?eRI+exRI:eRI);
+    var indData=[];
+    function getBcong(r,isHHrow){
+      if(method==="공공하수처리시설")return isHHrow?(r.처리장정보?r.처리장정보.efflBOD:"-"):(r.처리장정보?r.처리장정보.efflBOD:"-");
+      if(method==="개인하수처리시설")return isHHrow?(r.개인처리기준&&r.개인처리기준.std?r.개인처리기준.std.BOD:"-"):(r.개인처리기준&&r.개인처리기준.std?r.개인처리기준.std.BOD:"-");
+      return "BOD 25%삭감";
+    }
+    function getTcong(r,isHHrow){
+      if(method==="공공하수처리시설")return isHHrow?(r.처리장정보?r.처리장정보.efflTP:"-"):(r.처리장정보?r.처리장정보.efflTP:"-");
+      if(method==="개인하수처리시설")return isHHrow?(r.개인처리기준&&r.개인처리기준.std?r.개인처리기준.std.TP:"-"):(r.개인처리기준&&r.개인처리기준.std?r.개인처리기준.std.TP:"-");
+      return "원부하량";
+    }
+    function getFlow(r){return method==="공공하수처리시설"?(r.관거이송량||r.오수발생유량||0):(r.잡배수발생유량||0);}
+    if(isHH&&hhData){
+      indData.push(["가정인구",F.f3(hhData.오수발생유량||0),F.f3(getFlow(hhData)),String(getBcong(hhData,true)),String(getTcong(hhData,true)),F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),F.f3(hhData.배출부하량?hhData.배출부하량.TP:0)]);
+    }
+    bizRows.forEach(function(r){
+      var label=r.buildingNo+"동 "+r.floorNo+"층 "+useLabel(r);
+      indData.push([label,F.f3(r.오수발생유량||0),F.f3(getFlow(r)),String(getBcong(r,false)),String(getTcong(r,false)),F.f3(r.배출부하량?r.배출부하량.BOD:0),F.f3(r.배출부하량?r.배출부하량.TP:0)]);
+    });
+    var sumSewage=(isHH&&hhData?hhData.오수발생유량||0:0)+bizRows.reduce(function(s,r){return s+(r.오수발생유량||0);},0);
+    var sumFlow=(isHH&&hhData?getFlow(hhData):0)+bizRows.reduce(function(s,r){return s+getFlow(r);},0);
+    var sumBOD=(isHH&&hhData?hhData.배출부하량?hhData.배출부하량.BOD:0:0)+bizRows.reduce(function(s,r){return s+(r.배출부하량?r.배출부하량.BOD:0);},0);
+    var sumTP=(isHH&&hhData?hhData.배출부하량?hhData.배출부하량.TP:0:0)+bizRows.reduce(function(s,r){return s+(r.배출부하량?r.배출부하량.TP:0);},0);
+    indData.push(["합  계",F.f3(sumSewage),F.f3(sumFlow),"-","-",F.f3(sumBOD),F.f3(sumTP)]);
+    var els2=[];
+    els2.push(H.tableTitle(title));
+    els2.push(H.simpleTable(indHdrs,indData,indCols));
+    els2.push(H.blank());
+    return els2;
+  }
+
   if(hasPub){
-    var pubDesc=isPubHH?"공공하수처리시설로 연결":"공공하수처리시설로 연결";
     els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 공공하수처리시설로 유입·처리되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("공공하수처리시설 연결 개별배출부하량 산정"));
-    els.push(buildPubTable(pubBizRows,isPubHH,isPubHH?hh:null));
-    els.push(H.blank());
+    els=els.concat(buildIndiTable(pubBizRows,isPubHH,isPubHH?hh:null,"공공하수처리시설","공공하수처리시설 연결 개별배출부하량 산정"));
   }
   if(hasInd){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 잡배수만 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("개인오수처리시설 개별배출부하량 산정"));
-    els.push(buildIndTable(indBizRows,isIndHH,isIndHH?hh:null));
-    els.push(H.blank());
+    els=els.concat(buildIndiTable(indBizRows,isIndHH,isIndHH?hh:null,"개인하수처리시설","개인오수처리시설 개별배출부하량 산정"));
   }
   if(hasSep){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 잡배수만 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
     els.push(H.blank());
-    els.push(H.tableTitle("정화조 처리 개별배출부하량 산정"));
-    els.push(buildSepTable(sepBizRows,isSepHH,isSepHH?hh:null));
-    els.push(H.blank());
+    els=els.concat(buildIndiTable(sepBizRows,isSepHH,isSepHH?hh:null,"정화조","정화조 처리 개별배출부하량 산정"));
   }
 
   return els;
