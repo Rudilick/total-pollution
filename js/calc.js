@@ -77,12 +77,12 @@ function _calcBizLoad(v,conc){
   };
 }
 
-function _calcDirectTransfer(오수발생유량, method1, fecesFacility){
+function _calcDirectTransfer(분뇨발생유량, method1, fecesFacility){
   const coef=CALC_CONSTS.DIRECT_TRANSFER_COEF[method1];
   if(!coef||!fecesFacility) return null;
   const linkedPlant=_getPlantInfo(fecesFacility.linkedPlant);
   if(!linkedPlant) return{직접이송유량:0,방류부하량:_zero(),처리장:fecesFacility.linkedPlant||"(미연결)",unitBasin:""};
-  const 직접이송유량=_r(오수발생유량*coef.flow*CALC_CONSTS.DIRECT_TRANSFER_RATIO);
+  const 직접이송유량=_r(분뇨발생유량*CALC_CONSTS.DIRECT_TRANSFER_RATIO);
   const 방류부하량={
     BOD:_r(직접이송유량*linkedPlant.efflBOD/1000),
     TN: _r(직접이송유량*(linkedPlant.efflTN||0)/1000),
@@ -91,7 +91,7 @@ function _calcDirectTransfer(오수발생유량, method1, fecesFacility){
   return{직접이송유량,방류부하량,처리장:linkedPlant.name,unitBasin:linkedPlant.unitBasin||""};
 }
 
-function _calcDischargeLoad(오수발생유량,발생부하량,method1,method2,method3,isWaterBuffer,plantInfo,fecesFacility){
+function _calcDischargeLoad(오수발생유량,발생부하량,method1,method2,method3,isWaterBuffer,plantInfo,fecesFacility,분뇨발생유량){
   if(method1==="공공하수처리시설"&&plantInfo){
     const 방류유량비=plantInfo.efflFlowRatio??1.0;
     const 관거이송량=_r(오수발생유량*방류유량비);
@@ -113,14 +113,17 @@ function _calcDischargeLoad(오수발생유량,발생부하량,method1,method2,m
   if(method1==="개인하수처리시설"){
     const isLarge=(method3!=="50톤미만");
     const std={BOD:(isWaterBuffer||isLarge)?10:20,TN:isLarge?20:40,TP:isLarge?2:4};
-    const 개별배출부하량={BOD:_r(오수발생유량*std.BOD/1000),TN:_r(오수발생유량*std.TN/1000),TP:_r(오수발생유량*std.TP/1000)};
-    const 직접이송결과=_calcDirectTransfer(오수발생유량,method1,fecesFacility);
-    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:오수발생유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과,개인처리기준:{grade:method2,capacity:method3,std,isWaterBuffer}};
+    const 잡배수유량=_r(오수발생유량-(분뇨발생유량||0));
+    const 개별배출부하량={BOD:_r(잡배수유량*std.BOD/1000),TN:_r(잡배수유량*std.TN/1000),TP:_r(잡배수유량*std.TP/1000)};
+    const 직접이송결과=_calcDirectTransfer(분뇨발생유량||0,method1,fecesFacility);
+    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:잡배수유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과,개인처리기준:{grade:method2,capacity:method3,std,isWaterBuffer}};
   }
   if(method1==="정화조"){
-    const 개별배출부하량={BOD:_r(발생부하량.BOD*(1-0.25)),TN:발생부하량.TN,TP:발생부하량.TP};
-    const 직접이송결과=_calcDirectTransfer(오수발생유량,method1,fecesFacility);
-    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:오수발생유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과};
+    const R=CALC_CONSTS.FECES_LOAD_RATIO;
+    const 잡배수발생부하량={BOD:_r((1-R.BOD)*발생부하량.BOD),TN:_r((1-R.TN)*발생부하량.TN),TP:_r((1-R.TP)*발생부하량.TP)};
+    const 개별배출부하량={BOD:_r(잡배수발생부하량.BOD*(1-0.25)),TN:잡배수발생부하량.TN,TP:잡배수발생부하량.TP};
+    const 직접이송결과=_calcDirectTransfer(분뇨발생유량||0,method1,fecesFacility);
+    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:_r(오수발생유량-(분뇨발생유량||0)),관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과};
   }
   return{배출부하량:{...발생부하량},방류부하량:_zero(),관거배출부하량:_zero(),관거이송량:오수발생유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과:null};
 }
@@ -144,7 +147,7 @@ function _calcHousehold(households, popUnit, urbanType, method1, method2, method
   const 발생부하량={BOD:_r(population*loadUnit.BOD/1000),TN:_r(population*loadUnit.TN/1000),TP:_r(population*loadUnit.TP/1000)};
   const 분뇨발생부하량={BOD:_r(R.BOD*발생부하량.BOD),TN:_r(R.TN*발생부하량.TN),TP:_r(R.TP*발생부하량.TP)};
   const 잡배수발생부하량={BOD:_r((1-R.BOD)*발생부하량.BOD),TN:_r((1-R.TN)*발생부하량.TN),TP:_r((1-R.TP)*발생부하량.TP)};
-  const dr=_calcDischargeLoad(오수발생유량,발생부하량,method1,method2,method3,isWaterBuffer,plantInfo,fecesFacility);
+  const dr=_calcDischargeLoad(오수발생유량,발생부하량,method1,method2,method3,isWaterBuffer,plantInfo,fecesFacility,분뇨발생유량);
   return{population,급수원단위,일평균급수량,분뇨발생유량,잡배수발생유량,오수발생유량,발생부하량,분뇨발생부하량,잡배수발생부하량,...dr};
 }
 
@@ -164,7 +167,7 @@ function _calcBusinessRows(buildings, urbanType, isWaterBuffer){
         if(오수발생유량<=0) continue;
         const flowDetail=_calcBizFlow(오수발생유량);
         const loadDetail=_calcBizLoad(오수발생유량,{BOD:factors.bod,TN:factors.tn,TP:factors.tp});
-        const dr=_calcDischargeLoad(오수발생유량,loadDetail.발생부하량,m1,m2,m3,isWaterBuffer,plantInfo,fecesFacility);
+        const dr=_calcDischargeLoad(오수발생유량,loadDetail.발생부하량,m1,m2,m3,isWaterBuffer,plantInfo,fecesFacility,flowDetail.분뇨발생유량);
         rows.push({
           buildingNo:bldg.buildingNo,floorNo:floor.floorNo,
           major:use.major,mid:use.mid,minor:use.minor||"",
