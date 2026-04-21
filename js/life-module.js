@@ -230,18 +230,22 @@ function createLifeModule(opts) {
           </select>`:""}
       </div>`;
     const gridClass = hasMinor ? "useRow" : "useRow noMinor";
+    const factorComment = (u.minor && LIFE_FACTOR_MAP?.[`${u.major}|${u.mid}|${u.minor}`]?.comment) || "";
     return `
-      <div class="${gridClass}" style="font-size:12px;">
-        <select style="font-size:12px;" onchange="window.__lifeOnMajorChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${majorOpts}</select>
-        <select style="font-size:12px;" onchange="window.__lifeOnMidChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${midOpts}</select>
-        ${minorHtml}
-        ${showInput?`<input type="text" inputmode="decimal" value="${u.inputValue??""}" placeholder="면적/인원"
-          style="font-size:12px;" oninput="window.__lifeOnValueChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)" />
-          <div class="unitCell" style="font-size:12px;">${ul}</div>`
-        :`<div class="unitCell" style="grid-column:span 2;color:#9ca3af;font-size:11px;">용도 선택 후 입력</div>`}
-        ${nsHtml}
-        <button type="button" class="miniBtnDanger" style="font-size:11px;" data-act="removeUseRow" data-b="${bIdx}" data-f="${fIdx}" data-u="${uIdx}">삭제</button>
-        <div class="calcHint" style="font-size:11px;" id="calc_${rootId}_${bIdx}_${fIdx}_${uIdx}"></div>
+      <div style="display:flex;flex-direction:column;">
+        <div class="${gridClass}" style="font-size:12px;">
+          <select style="font-size:12px;" onchange="window.__lifeOnMajorChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${majorOpts}</select>
+          <select style="font-size:12px;" onchange="window.__lifeOnMidChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${midOpts}</select>
+          ${minorHtml}
+          ${showInput?`<input type="text" inputmode="decimal" value="${u.inputValue??""}" placeholder="면적/인원"
+            style="font-size:12px;" oninput="window.__lifeOnValueChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)" />
+            <div class="unitCell" style="font-size:12px;">${ul}</div>`
+          :`<div class="unitCell" style="grid-column:span 2;color:#9ca3af;font-size:11px;">용도 선택 후 입력</div>`}
+          ${nsHtml}
+          <button type="button" class="miniBtnDanger" style="font-size:11px;" data-act="removeUseRow" data-b="${bIdx}" data-f="${fIdx}" data-u="${uIdx}">삭제</button>
+          <div class="calcHint" style="font-size:11px;" id="calc_${rootId}_${bIdx}_${fIdx}_${uIdx}"></div>
+        </div>
+        ${factorComment?`<div style="font-size:11px;color:#9ca3af;padding:1px 4px 3px 4px;">※ ${factorComment}</div>`:""}
       </div>`;
   }
 

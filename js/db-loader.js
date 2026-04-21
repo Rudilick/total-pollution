@@ -63,15 +63,17 @@ function applyExcelBuffer(buf, sourceLabel) {
     const major = String(row[1]??"").trim(), mid = String(row[2]??"").trim();
     let minor = String(row[3]??"").trim();
     const unit = String(row[4]??"").trim();
+    const comment = String(row[6]??"").trim();
     const sewage=parseFloat(row[7])||0, bod=parseFloat(row[8])||0;
     const tn=parseFloat(row[9])||0, tp=parseFloat(row[10])||0;
-    // 열11: 건축물용도 표기내용, 열12: 비고 표기내용 (사용자가 엑셀에 직접 입력)
-    const buildingUse=String(row[11]??"").trim();
-    const buildingNote=String(row[12]??"").trim();
+    // 열11: V 표시 시 buildingUse=중분류, buildingNote=소분류
+    const vFlag=String(row[11]??"").trim().toUpperCase()==="V";
+    const buildingUse=vFlag?mid:"";
+    const buildingNote=vFlag?minor:"";
     if (["-","–","—"].includes(minor.replace(/\s/g,""))) minor="";
     if (!major||!mid) continue;
     lifeRows.push([major,mid,minor,unit]);
-    LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit,buildingUse,buildingNote};
+    LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit,buildingUse,buildingNote,comment};
   }
   LIFE_USE_DB = _buildLifeDB(lifeRows);
 
