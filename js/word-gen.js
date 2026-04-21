@@ -705,8 +705,11 @@ function buildChapter2(docx,data){
   var multiBuilding=buildings.length>1;
 
   // 건축개요 표 생성
-  var bldgHeaderCols=multiBuilding?["동","층","용도","면적(㎡)"]:["층","용도","면적(㎡)"];
-  var bldgColRatios=multiBuilding?[20,15,40,25]:[20,55,25];
+  var flrSet2={};
+  buildings.forEach(function(b){(b.floors||[]).forEach(function(f){if((f.uses||[]).some(function(u){return (parseFloat(String(u.inputValue||"").replace(/,/g,""))||0)>0;}))flrSet2[f.floorNo]=1;});});
+  var multiFloor2=Object.keys(flrSet2).length>1;
+  var bldgHeaderCols=multiBuilding?(multiFloor2?["동","층","용도","면적(㎡)"]:["동","용도","면적(㎡)"]):(multiFloor2?["층","용도","면적(㎡)"]:["용도","면적(㎡)"]);
+  var bldgColRatios=multiBuilding?(multiFloor2?[15,12,48,25]:[20,55,25]):(multiFloor2?[20,55,25]:[60,40]);
   var bldgRows=[];
   var grandTotal=0;
 
@@ -719,8 +722,9 @@ function buildChapter2(docx,data){
             floor.uses.forEach(function(use){
               var area=parseFloat(String(use.inputValue||"").replace(/,/g,""))||0;
               if(area>0){
-                var row=multiBuilding?[bldg.buildingNo+"동",floor.floorNo+"층",useLabel(use),area.toFixed(2)]:
-                                      [floor.floorNo+"층",useLabel(use),area.toFixed(2)];
+                var row=multiBuilding
+                  ?(multiFloor2?[bldg.buildingNo+"동",floor.floorNo+"층",useLabel(use),area.toFixed(2)]:[bldg.buildingNo+"동",useLabel(use),area.toFixed(2)])
+                  :(multiFloor2?[floor.floorNo+"층",useLabel(use),area.toFixed(2)]:[useLabel(use),area.toFixed(2)]);
                 bldgRows.push(row);
                 bldgTotal+=area;
                 grandTotal+=area;
@@ -731,22 +735,30 @@ function buildChapter2(docx,data){
       }
       // 다동인 경우 동별 소계 행
       if(multiBuilding&&bldgTotal>0){
-        bldgRows.push([bldg.buildingNo+"동 소계","","",bldgTotal.toFixed(2)]);
+        var subRow=[bldg.buildingNo+"동 소계"];
+        if(multiFloor2)subRow.push("");
+        subRow.push("",bldgTotal.toFixed(2));
+        bldgRows.push(subRow);
       }
     });
     // 합계 행
-    if(multiBuilding){
-      bldgRows.push(["합  계","","",grandTotal.toFixed(2)]);
-    } else {
-      bldgRows.push(["합  계","",grandTotal.toFixed(2)]);
-    }
+    var totRow=["합  계"];
+    if(multiBuilding)totRow.push("");
+    if(multiFloor2)totRow.push("");
+    totRow.push(grandTotal.toFixed(2));
+    bldgRows.push(totRow);
   } else {
     // 데이터 없으면 빈 양식
-    if(multiBuilding){
-      bldgRows=[["①동","1층","",""],["①동 소계","","",""],["합  계","","",""]];
-    } else {
-      bldgRows=[["1층","",""],["합  계","",""]];
-    }
+    var emptyRow=[];
+    if(multiBuilding)emptyRow.push("①동");
+    if(multiFloor2)emptyRow.push("1층");
+    emptyRow.push("","");
+    bldgRows=[emptyRow];
+    var sumEmpty=["합  계"];
+    if(multiBuilding)sumEmpty.push("");
+    if(multiFloor2)sumEmpty.push("");
+    sumEmpty.push("");
+    bldgRows.push(sumEmpty);
   }
 
   // 소계/합계 행은 첫 셀들을 병합(simpleTable로는 병합 어려우니 일반 표로)
@@ -810,15 +822,17 @@ function buildMergedFloorTable(H,headers,rows,colRatios){
 }
 
 // ── 동/층 이중 병합 테이블 헬퍼 ─────────────────────────────────
-// rows: [dong, floor, use, ...data]. 가정인구·합계 행은 col0=span3로 처리
-function buildDongFloorTable(H,headers,rows,colRatios){
+// prefixCols: 3=동+층+용도, 2=동+용도 or 층+용도, 1=용도만
+// 특수행(가정인구·합  계): row[0]이 키, row[1..prefixCols-1]은 빈 채움값
+function buildDongFloorTable(H,headers,rows,colRatios,prefixCols){
+  prefixCols=prefixCols||3;
   var Table=H.Table,TableRow=H.TableRow,TableCell=H.TableCell;
   var WidthType=H.WidthType,VerticalAlign=H.VerticalAlign,PAGE_W=H.PAGE_W;
   var total=colRatios.reduce(function(a,b){return a+b;},0);
   var colWidths=colRatios.map(function(r){return total<=100?Math.round(PAGE_W*r/100):Math.round(r*PAGE_W/total);});
   var sumW=colWidths.reduce(function(a,b){return a+b;},0);
   if(sumW!==PAGE_W)colWidths[colWidths.length-1]+=PAGE_W-sumW;
-  var w012=colWidths[0]+colWidths[1]+colWidths[2];
+  var wPrefix=colWidths.slice(0,prefixCols).reduce(function(a,b){return a+b;},0);
   function mc(text,w,opts){
     opts=opts||{};
     return new TableCell({
@@ -832,16 +846,38 @@ function buildDongFloorTable(H,headers,rows,colRatios){
   var i=0;
   while(i<rows.length){
     var row=rows[i];
-    var dongVal=row[0];
-    if(SPECIAL[dongVal]){
-      var cells=[mc(dongVal,w012,{cs:3})];
-      for(var k=3;k<row.length;k++)cells.push(mc(row[k],colWidths[k]));
+    var key0=row[0];
+    // 특수행: prefixCols 열을 하나로 병합
+    if(SPECIAL[key0]){
+      var cells=[mc(key0,wPrefix,{cs:prefixCols})];
+      for(var k=prefixCols;k<row.length;k++)cells.push(mc(row[k],colWidths[k]));
       tblRows.push(new TableRow({children:cells}));
       i++;continue;
     }
-    // 동 그룹 끝 탐색
+    // prefixCols=1: 병합 없음 (용도만 있는 일반 행)
+    if(prefixCols<=1){
+      var cells=row.map(function(v,k){return mc(v,colWidths[k]);});
+      tblRows.push(new TableRow({children:cells}));
+      i++;continue;
+    }
+    // prefixCols=2: col0(동 또는 층) 단일 병합
+    if(prefixCols===2){
+      var grpEnd=i+1;
+      while(grpEnd<rows.length&&rows[grpEnd][0]===key0&&!SPECIAL[rows[grpEnd][0]])grpEnd++;
+      var grpSpan=grpEnd-i;
+      var cells=[mc(key0,colWidths[0],{rs:grpSpan})];
+      for(var k=1;k<rows[i].length;k++)cells.push(mc(rows[i][k],colWidths[k]));
+      tblRows.push(new TableRow({children:cells}));
+      for(var m=i+1;m<grpEnd;m++){
+        var rm=rows[m];var sc=[];
+        for(var k=1;k<rm.length;k++)sc.push(mc(rm[k],colWidths[k]));
+        tblRows.push(new TableRow({children:sc}));
+      }
+      i=grpEnd;continue;
+    }
+    // prefixCols=3: 동(col0)+층(col1) 이중 병합
     var dongEnd=i+1;
-    while(dongEnd<rows.length&&rows[dongEnd][0]===dongVal&&!SPECIAL[rows[dongEnd][0]])dongEnd++;
+    while(dongEnd<rows.length&&rows[dongEnd][0]===key0&&!SPECIAL[rows[dongEnd][0]])dongEnd++;
     var dongSpan=dongEnd-i;
     var jj=i;
     while(jj<dongEnd){
@@ -849,17 +885,14 @@ function buildDongFloorTable(H,headers,rows,colRatios){
       var floorEnd=jj+1;
       while(floorEnd<dongEnd&&rows[floorEnd][1]===floorVal)floorEnd++;
       var floorSpan=floorEnd-jj;
-      // 첫 행
       var frow=rows[jj];
       var cells=[];
-      if(jj===i)cells.push(mc(dongVal,colWidths[0],{rs:dongSpan}));
+      if(jj===i)cells.push(mc(key0,colWidths[0],{rs:dongSpan}));
       cells.push(mc(floorVal,colWidths[1],{rs:floorSpan}));
       for(var k=2;k<frow.length;k++)cells.push(mc(frow[k],colWidths[k]));
       tblRows.push(new TableRow({children:cells}));
-      // 이후 행
       for(var mm=jj+1;mm<floorEnd;mm++){
-        var mrow=rows[mm];
-        var sc=[];
+        var mrow=rows[mm];var sc=[];
         for(var k=2;k<mrow.length;k++)sc.push(mc(mrow[k],colWidths[k]));
         tblRows.push(new TableRow({children:sc}));
       }
@@ -919,27 +952,45 @@ function buildBizSewageTable(H,biz,phase){
   ));
   els.push(H.blank());
 
-  // 동/층/용도 통합 단일 표
-  var headers=["동","층","용도"];
+  // 동/층 show 여부 결정
+  var dngSet={},flrSet={};
+  biz.rows.forEach(function(r){dngSet[r.buildingNo]=1;flrSet[r.floorNo]=1;});
+  var showDong=Object.keys(dngSet).length>1;
+  var showFloor=Object.keys(flrSet).length>1;
+  var prefixCols=(showDong?1:0)+(showFloor?1:0)+1;
+
+  var headers=[];
+  if(showDong)headers.push("동");
+  if(showFloor)headers.push("층");
+  headers.push("용도");
   if(hasCommon){headers.push("건축연면적\n(㎡)","공용배분\n면적(㎡)","최종면적\n(㎡)");}
   else{headers.push("면적\n(㎡)");}
   headers.push("오수량원단위\n(L/㎡·일)","오수발생량\n(㎥/일)","분뇨발생량\n(㎥/일)","물사용량\n(㎥/일)","잡배수\n발생유량\n(㎥/일)");
   if(hasNote)headers.push("비고");
-  var colRatios=[7,5,13];
-  var remainN=headers.length-3;
-  var eachR=Math.floor(75/remainN);
-  var extraR=75-eachR*remainN;
+
+  var colRatios=[];
+  if(showDong)colRatios.push(7);
+  if(showFloor)colRatios.push(5);
+  colRatios.push(showDong||showFloor?13:18);
+  var prefixSum=colRatios.reduce(function(a,b){return a+b;},0);
+  var remainN=headers.length-prefixCols;
+  var eachR=Math.floor((100-prefixSum)/remainN);
+  var extraR=(100-prefixSum)-eachR*remainN;
   for(var i=0;i<remainN;i++)colRatios.push(i<extraR?eachR+1:eachR);
 
   var rows=biz.rows.map(function(r){
-    var row=[r.buildingNo+"동",r.floorNo+"층",useLabel(r)];
+    var row=[];
+    if(showDong)row.push(r.buildingNo+"동");
+    if(showFloor)row.push(r.floorNo+"층");
+    row.push(useLabel(r));
     if(hasCommon)row.push(F.area(r.전용면적||r.적용면적),F.area(r.공용배분||0),F.area(r.적용면적));
     else row.push(F.area(r.적용면적));
     row.push(r.오수발생원단위||"-",F.f3(r.오수발생유량||0),F.f3(r.분뇨발생유량||0),F.f3(r.사용유량||r.오수발생유량||0),F.f3(r.잡배수발생유량||0));
     if(hasNote)row.push(useBuildingNote(r));
     return row;
   });
-  var sumRow=["합  계","",""];
+  var sumRow=["합  계"];
+  for(var i=1;i<prefixCols;i++)sumRow.push("");
   if(hasCommon){sumRow.push(F.area(biz.rows.reduce(function(s,r){return s+(r.전용면적||r.적용면적||0);},0)),F.area(biz.rows.reduce(function(s,r){return s+(r.공용배분||0);},0)),F.area(biz.rows.reduce(function(s,r){return s+(r.적용면적||0);},0)));}
   else{sumRow.push(F.area(biz.rows.reduce(function(s,r){return s+(r.적용면적||0);},0)));}
   sumRow.push("-",F.f3(biz.rows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),F.f3(biz.rows.reduce(function(s,r){return s+(r.분뇨발생유량||0);},0)),F.f3(biz.rows.reduce(function(s,r){return s+(r.사용유량||r.오수발생유량||0);},0)),F.f3(biz.rows.reduce(function(s,r){return s+(r.잡배수발생유량||0);},0)));
@@ -947,7 +998,7 @@ function buildBizSewageTable(H,biz,phase){
   rows.push(sumRow);
 
   els.push(H.tableTitle(phaseLabel+" 영업인구 오수발생량"));
-  els.push(buildDongFloorTable(H,headers,rows,colRatios));
+  els.push(buildDongFloorTable(H,headers,rows,colRatios,prefixCols));
   els.push(H.blank());
   return els;
 }
@@ -983,23 +1034,40 @@ function buildLoadTable(H,lifeData,phase){
   // 영업인구 발생부하량 표 (동별 분리)
   if(biz&&biz.rows&&biz.rows.length){
     var hasNoteL=biz.rows.some(function(r){return !!useBuildingNote(r);});
-    var hdrs=["동","층","용도","오수발생량\n(㎥/일)","적용원단위\nBOD","적용원단위\nT-P","발생부하량\nBOD(kg/일)","발생부하량\nT-P(kg/일)"];
+    var dngSetL={},flrSetL={};
+    biz.rows.forEach(function(r){dngSetL[r.buildingNo]=1;flrSetL[r.floorNo]=1;});
+    var showDongL=Object.keys(dngSetL).length>1;
+    var showFloorL=Object.keys(flrSetL).length>1;
+    var pfxL=(showDongL?1:0)+(showFloorL?1:0)+1;
+    var hdrs=[];
+    if(showDongL)hdrs.push("동");
+    if(showFloorL)hdrs.push("층");
+    hdrs.push("용도","오수발생량\n(㎥/일)","적용원단위\nBOD","적용원단위\nT-P","발생부하량\nBOD(kg/일)","발생부하량\nT-P(kg/일)");
     if(hasNoteL)hdrs.push("비고");
-    var cols=[7,5,13];
-    var remN3=hdrs.length-3;
-    var eR3=Math.floor(75/remN3);
-    var exR3=75-eR3*remN3;
+    var cols=[];
+    if(showDongL)cols.push(7);
+    if(showFloorL)cols.push(5);
+    cols.push(showDongL||showFloorL?13:18);
+    var pfxSumL=cols.reduce(function(a,b){return a+b;},0);
+    var remN3=hdrs.length-pfxL;
+    var eR3=Math.floor((100-pfxSumL)/remN3);
+    var exR3=(100-pfxSumL)-eR3*remN3;
     for(var i=0;i<remN3;i++)cols.push(i<exR3?eR3+1:eR3);
     var dataRows=biz.rows.map(function(r){
-      var row=[r.buildingNo+"동",r.floorNo+"층",useLabel(r),F.f3(r.오수발생유량||0),r.BOD농도||"-",r.TP농도||"-",F.f3(r.발생부하량?r.발생부하량.BOD:0),F.f3(r.발생부하량?r.발생부하량.TP:0)];
+      var row=[];
+      if(showDongL)row.push(r.buildingNo+"동");
+      if(showFloorL)row.push(r.floorNo+"층");
+      row.push(useLabel(r),F.f3(r.오수발생유량||0),r.BOD농도||"-",r.TP농도||"-",F.f3(r.발생부하량?r.발생부하량.BOD:0),F.f3(r.발생부하량?r.발생부하량.TP:0));
       if(hasNoteL)row.push(useBuildingNote(r));
       return row;
     });
-    var sumR=["합  계","","",F.f3(biz.rows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),"","-",F.f3(biz.rows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.BOD:0);},0)),F.f3(biz.rows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.TP:0);},0))];
+    var sumR=["합  계"];
+    for(var i=1;i<pfxL;i++)sumR.push("");
+    sumR.push(F.f3(biz.rows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),"","-",F.f3(biz.rows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.BOD:0);},0)),F.f3(biz.rows.reduce(function(s,r){return s+(r.발생부하량?r.발생부하량.TP:0);},0)));
     if(hasNoteL)sumR.push("");
     dataRows.push(sumR);
     els.push(H.tableTitle(phaseLabel+" 영업인구 발생부하량"));
-    els.push(buildDongFloorTable(H,hdrs,dataRows,cols));
+    els.push(buildDongFloorTable(H,hdrs,dataRows,cols,pfxL));
     els.push(H.blank());
   }
   return els;
@@ -1065,20 +1133,44 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     els.push(H.blank());
 
     // 동/층/용도별 상세 표
-    var detailRows=[];
+    var dngDt={},flrDt={};
+    directBizRows.forEach(function(r){dngDt[r.buildingNo]=1;flrDt[r.floorNo]=1;});
+    var showDongDt=Object.keys(dngDt).length>1;
+    var showFloorDt=Object.keys(flrDt).length>1;
+    var pfxDt=(showDongDt?1:0)+(showFloorDt?1:0)+1;
+    var detHdrs=[];
+    if(showDongDt)detHdrs.push("동");
+    if(showFloorDt)detHdrs.push("층");
+    detHdrs.push("용도","오수발생량\n(㎥/일)","분뇨발생유량\n(㎥/일)","직접이송유량\n(㎥/일)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)");
+    var detCols=[];
+    if(showDongDt)detCols.push(10);
+    if(showFloorDt)detCols.push(8);
+    detCols.push(showDongDt||showFloorDt?14:20);
+    var pfxSumDt=detCols.reduce(function(a,b){return a+b;},0);
+    var remDt=detHdrs.length-pfxDt;
+    var eRDt=Math.floor((100-pfxSumDt)/remDt);
+    var exRDt=(100-pfxSumDt)-eRDt*remDt;
+    for(var i=0;i<remDt;i++)detCols.push(i<exRDt?eRDt+1:eRDt);
+    var detDataRows=[];
     if(hasDirectHH){
-      detailRows.push({dong:"가정인구",floor:"",use:"",오수:hh.오수발생유량||0,분뇨:hh.분뇨발생유량||0,직이:hh.직접이송결과.직접이송유량||0,dtBOD:hh.직접이송결과.방류부하량.BOD||0,dtTP:hh.직접이송결과.방류부하량.TP||0});
+      var hhDt=["가정인구"];
+      for(var i=1;i<pfxDt;i++)hhDt.push("");
+      hhDt.push(F.f3(hh.오수발생유량||0),F.f3(hh.분뇨발생유량||0),F.f3(hh.직접이송결과.직접이송유량||0),F.f3(hh.직접이송결과.방류부하량.BOD||0),F.f3(hh.직접이송결과.방류부하량.TP||0));
+      detDataRows.push(hhDt);
     }
     directBizRows.forEach(function(r){
-      detailRows.push({dong:r.buildingNo+"동",floor:r.floorNo+"층",use:useLabel(r),오수:r.오수발생유량||0,분뇨:r.분뇨발생유량||0,직이:r.직접이송결과.직접이송유량||0,dtBOD:r.직접이송결과.방류부하량.BOD||0,dtTP:r.직접이송결과.방류부하량.TP||0});
+      var row=[];
+      if(showDongDt)row.push(r.buildingNo+"동");
+      if(showFloorDt)row.push(r.floorNo+"층");
+      row.push(useLabel(r),F.f3(r.오수발생유량||0),F.f3(r.분뇨발생유량||0),F.f3(r.직접이송결과.직접이송유량||0),F.f3(r.직접이송결과.방류부하량.BOD||0),F.f3(r.직접이송결과.방류부하량.TP||0));
+      detDataRows.push(row);
     });
-    var detDataRows=detailRows.map(function(d){return[d.dong,d.floor,d.use,F.f3(d.오수),F.f3(d.분뇨),F.f3(d.직이),F.f3(d.dtBOD),F.f3(d.dtTP)];});
-    detDataRows.push(["합  계","","",F.f3(detailRows.reduce(function(s,d){return s+d.오수;},0)),F.f3(detailRows.reduce(function(s,d){return s+d.분뇨;},0)),F.f3(detailRows.reduce(function(s,d){return s+d.직이;},0)),F.f3(totalDtBOD),F.f3(totalDtTP)]);
+    var sumDt=["합  계"];
+    for(var i=1;i<pfxDt;i++)sumDt.push("");
+    sumDt.push(F.f3((hasDirectHH?hh.오수발생유량||0:0)+directBizRows.reduce(function(s,r){return s+(r.오수발생유량||0);},0)),F.f3((hasDirectHH?hh.분뇨발생유량||0:0)+directBizRows.reduce(function(s,r){return s+(r.분뇨발생유량||0);},0)),F.f3((hasDirectHH?hh.직접이송결과.직접이송유량||0:0)+directBizRows.reduce(function(s,r){return s+(r.직접이송결과.직접이송유량||0);},0)),F.f3(totalDtBOD),F.f3(totalDtTP));
+    detDataRows.push(sumDt);
     els.push(H.tableTitle("분뇨 직접이송 동·층·용도별"));
-    els.push(buildDongFloorTable(H,
-      ["동","층","용도","오수발생량\n(㎥/일)","분뇨발생유량\n(㎥/일)","직접이송유량\n(㎥/일)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)"],
-      detDataRows,[10,8,14,12,12,12,16,16]
-    ));
+    els.push(buildDongFloorTable(H,detHdrs,detDataRows,detCols,pfxDt));
     els.push(H.blank());
   }
 
@@ -1100,8 +1192,6 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
 
   // 개별배출부하량 표 생성 (동/층/용도 행 방식)
   function buildIndiTable(bizRows,isHH,hhData,method,title){
-    var indHdrs=["동","층","용도","오수발생량\n(㎥/일)","개별배출유량\n(㎥/일)","처리농도\nBOD(mg/L)","처리농도\nT-P(mg/L)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)"];
-    var indCols=[10,8,14,12,12,11,11,11,11];
     function getBcong(r){
       if(method==="공공하수처리시설")return r.처리장정보?String(r.처리장정보.efflBOD):"-";
       if(method==="개인하수처리시설")return r.개인처리기준&&r.개인처리기준.std?String(r.개인처리기준.std.BOD):"-";
@@ -1113,21 +1203,50 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
       return "원부하량";
     }
     function getFlow(r){return method==="공공하수처리시설"?(r.관거이송량||r.오수발생유량||0):(r.잡배수발생유량||0);}
+    // 동/층 show 여부 (biz 행 기준)
+    var dngI={},flrI={};
+    bizRows.forEach(function(r){dngI[r.buildingNo]=1;flrI[r.floorNo]=1;});
+    var showDongI=Object.keys(dngI).length>1;
+    var showFloorI=Object.keys(flrI).length>1;
+    var pfxI=(showDongI?1:0)+(showFloorI?1:0)+1;
+    var indHdrs=[];
+    if(showDongI)indHdrs.push("동");
+    if(showFloorI)indHdrs.push("층");
+    indHdrs.push("용도","오수발생량\n(㎥/일)","개별배출유량\n(㎥/일)","처리농도\nBOD(mg/L)","처리농도\nT-P(mg/L)","방류부하량\nBOD(kg/일)","방류부하량\nT-P(kg/일)");
+    var indCols=[];
+    if(showDongI)indCols.push(10);
+    if(showFloorI)indCols.push(8);
+    indCols.push(showDongI||showFloorI?14:20);
+    var pfxSumI=indCols.reduce(function(a,b){return a+b;},0);
+    var remI=indHdrs.length-pfxI;
+    var eRI=Math.floor((100-pfxSumI)/remI);
+    var exRI=(100-pfxSumI)-eRI*remI;
+    for(var i=0;i<remI;i++)indCols.push(i<exRI?eRI+1:eRI);
     var indData=[];
     if(isHH&&hhData){
-      indData.push(["가정인구","","",F.f3(hhData.오수발생유량||0),F.f3(getFlow(hhData)),getBcong(hhData),getTcong(hhData),F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),F.f3(hhData.배출부하량?hhData.배출부하량.TP:0)]);
+      var hhRow=["가정인구"];
+      for(var i=1;i<pfxI;i++)hhRow.push("");
+      hhRow.push(F.f3(hhData.오수발생유량||0),F.f3(getFlow(hhData)),getBcong(hhData),getTcong(hhData),F.f3(hhData.배출부하량?hhData.배출부하량.BOD:0),F.f3(hhData.배출부하량?hhData.배출부하량.TP:0));
+      indData.push(hhRow);
     }
     bizRows.forEach(function(r){
-      indData.push([r.buildingNo+"동",r.floorNo+"층",useLabel(r),F.f3(r.오수발생유량||0),F.f3(getFlow(r)),getBcong(r),getTcong(r),F.f3(r.배출부하량?r.배출부하량.BOD:0),F.f3(r.배출부하량?r.배출부하량.TP:0)]);
+      var row=[];
+      if(showDongI)row.push(r.buildingNo+"동");
+      if(showFloorI)row.push(r.floorNo+"층");
+      row.push(useLabel(r),F.f3(r.오수발생유량||0),F.f3(getFlow(r)),getBcong(r),getTcong(r),F.f3(r.배출부하량?r.배출부하량.BOD:0),F.f3(r.배출부하량?r.배출부하량.TP:0));
+      indData.push(row);
     });
     var sumSewage=(isHH&&hhData?hhData.오수발생유량||0:0)+bizRows.reduce(function(s,r){return s+(r.오수발생유량||0);},0);
     var sumFlow=(isHH&&hhData?getFlow(hhData):0)+bizRows.reduce(function(s,r){return s+getFlow(r);},0);
     var sumBOD=(isHH&&hhData?(hhData.배출부하량?hhData.배출부하량.BOD:0):0)+bizRows.reduce(function(s,r){return s+(r.배출부하량?r.배출부하량.BOD:0);},0);
     var sumTP=(isHH&&hhData?(hhData.배출부하량?hhData.배출부하량.TP:0):0)+bizRows.reduce(function(s,r){return s+(r.배출부하량?r.배출부하량.TP:0);},0);
-    indData.push(["합  계","","",F.f3(sumSewage),F.f3(sumFlow),"-","-",F.f3(sumBOD),F.f3(sumTP)]);
+    var sumRow=["합  계"];
+    for(var i=1;i<pfxI;i++)sumRow.push("");
+    sumRow.push(F.f3(sumSewage),F.f3(sumFlow),"-","-",F.f3(sumBOD),F.f3(sumTP));
+    indData.push(sumRow);
     var els2=[];
     els2.push(H.tableTitle(title));
-    els2.push(buildDongFloorTable(H,indHdrs,indData,indCols));
+    els2.push(buildDongFloorTable(H,indHdrs,indData,indCols,pfxI));
     els2.push(H.blank());
     return els2;
   }
