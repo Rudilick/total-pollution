@@ -22,7 +22,7 @@
     .container { max-width: 1800px; }
     .lifeTwoCol { display: flex; gap: 16px; }
     .lifeCol { flex: 1; min-width: 0; overflow: hidden; }
-    .lifeColHeader { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+    .lifeColHeader { position: relative; display: flex; align-items: center; justify-content: center; padding: 6px 0; margin-bottom: 10px; }
     .lifeColTitle { font-size: 18px; font-weight: 900; color: #111827; }
     .lifeTop { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
     .inlineUnitRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -210,7 +210,7 @@
             <div class="lifeCol">
               <div class="lifeColHeader">
                 <div class="landColTitle" style="text-align: center;">사업전</div>
-                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;">
+                <label style="position:absolute;right:0;display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap;">
                   <input id="beforeNoSource" type="checkbox" />사업전 오염원 없음
                 </label>
               </div>
