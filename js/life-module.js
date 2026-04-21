@@ -75,13 +75,13 @@ function createLifeModule(opts) {
       const narrowSelStyle = "font-size:12px;flex:0 0 calc(180%/9);min-width:0;";
       html += `<select style="${narrowSelStyle}"
           onchange="window.__lifeOnMethod2Change('${rootId}','${idPrefix}',this.value)">
+          <option value="일반처리" ${m2==="일반처리"||!m2?"selected":""}>일반처리</option>
           <option value="고도처리" ${m2==="고도처리"?"selected":""}>고도처리</option>
-          <option value="일반처리" ${m2==="일반처리"?"selected":""}>일반처리</option>
         </select>
         <select style="${narrowSelStyle}"
           onchange="window.__lifeOnMethod3Change('${rootId}','${idPrefix}',this.value)">
-          <option value="50톤이상" ${m3==="50톤이상"||!m3?"selected":""}>50톤 이상</option>
-          <option value="50톤미만" ${m3==="50톤미만"?"selected":""}>50톤 미만</option>
+          <option value="50톤미만" ${m3==="50톤미만"||!m3?"selected":""}>50톤 미만</option>
+          <option value="50톤이상" ${m3==="50톤이상"?"selected":""}>50톤 이상</option>
         </select>
         ${_renderFecesDrop(rootId, idPrefix, m4, sigun)}`;
     } else if (m1 === "정화조") {
