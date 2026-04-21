@@ -32,8 +32,9 @@ function createLifeModule(opts) {
 
   function _getFilteredPlants() {
     const sigun = document.getElementById("sigunSelect")?.value || "";
+    if (!sigun) return [];
     const db = typeof SEWAGE_PLANT_DB !== "undefined" ? SEWAGE_PLANT_DB : [];
-    return sigun ? db.filter(p => p.sigun === sigun) : db;
+    return db.filter(p => p.sigun === sigun);
   }
 
   function _renderFecesDrop(rootId, idPrefix, m4, sigun) {
