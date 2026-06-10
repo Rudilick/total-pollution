@@ -102,10 +102,15 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   _drawLegend(ctx, canvas.width, canvas.height, _EX.LEG_H, legendItems);
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
+  // 도면별 토지이용 레이어 범례 (변경 전·후 레이어 전체)
+  const layerLegend = [...new Set([...lsFrom, ...lsTo])]
+    .map(l => ({ color: layerColor(l), label: l }));
+
   return {
     title:      `${seqNum}차 변경 도면 비교 — ${sFrom.label} → ${sTo.label}`,
     subtitle:   `변경률: ${pr.changePct.toFixed(3)} %  ·  변경 면적: ${_fmtArea(pr.changeArea)} ㎡`,
     imgDataURL: canvas.toDataURL('image/png'),
+    layerLegend,
     chunks,
     chunkType: 'change',
   };
@@ -168,11 +173,16 @@ function _makeIncreaseSection(result, sFirst, sLast) {
   ]);
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
+  // 도면별 토지이용 레이어 범례 (최초·최종 레이어 전체)
+  const layerLegend = [...new Set([...lsFirst, ...lsLast])]
+    .map(l => ({ color: layerColor(l), label: l }));
+
   const totalArea = chunks.reduce((s, c) => s + c.area, 0);
   return {
     title:      `사업부지 증가 분석 — ${sFirst.label} → ${sLast.label}`,
     subtitle:   `증가율: ${result.increasePct.toFixed(3)} %  ·  증가 면적: ${_fmtArea(totalArea)} ㎡`,
     imgDataURL: canvas.toDataURL('image/png'),
+    layerLegend,
     chunks,
     chunkType: 'increase',
   };
@@ -361,6 +371,7 @@ function _openPrintWindow(sections) {
         </div>
         <div class="sec-sub">${sec.subtitle}</div>
         <img class="map-img" src="${sec.imgDataURL}" alt="${sec.title}">
+        ${_layerLegendHtml(sec.layerLegend)}
         <div class="tbl-title">일람표</div>
         ${_chunkTableHtml(sec.chunks, sec.chunkType)}
       </div>`;
@@ -398,7 +409,18 @@ function _openPrintWindow(sections) {
   /* ── 도면 이미지 ── */
   .map-img{
     width:100%;max-width:100%;
-    border:1px solid #ccc;display:block;margin-bottom:14px;
+    border:1px solid #ccc;display:block;margin-bottom:8px;
+  }
+  /* ── 도면 범례 ── */
+  .layer-legend{
+    display:flex;flex-wrap:wrap;gap:6px 16px;
+    background:#f6f9fc;border:1px solid #ddd;border-radius:6px;
+    padding:8px 12px;margin-bottom:14px;
+  }
+  .lgd-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;}
+  .lgd-swatch{
+    display:inline-block;width:14px;height:14px;
+    border:1px solid #888;border-radius:2px;flex-shrink:0;
   }
   /* ── 일람표 ── */
   .tbl-title{
@@ -412,6 +434,10 @@ function _openPrintWindow(sections) {
   }
   td{padding:6px 10px;border:1px solid #ddd;text-align:center;}
   td.left{text-align:left;}
+  .tbl-dot{
+    display:inline-block;width:8px;height:8px;border-radius:2px;
+    margin-right:5px;vertical-align:middle;
+  }
   tr:nth-child(even) td{background:#f6f9fc;}
   .total-row td{background:#ddeeff;font-weight:800;}
   .empty-note{color:#888;font-size:12px;padding:6px 0;}
@@ -445,15 +471,25 @@ ${bodyHtml}
   win.document.close();
 }
 
+/** 도면별 토지이용 레이어 범례 HTML */
+function _layerLegendHtml(items) {
+  if (!items?.length) return '';
+  const chips = items.map(it =>
+    `<span class="lgd-item"><span class="lgd-swatch" style="background:${it.color}"></span>${it.label}</span>`
+  ).join('');
+  return `<div class="layer-legend">${chips}</div>`;
+}
+
 function _chunkTableHtml(chunks, type) {
   if (!chunks?.length) return '<p class="empty-note">변경/증가 구역 없음</p>';
   const isChange = type === 'change';
   const thead = isChange
     ? '<tr><th style="width:60px">번호</th><th>변경 전 용도</th><th>변경 후 용도</th><th style="width:130px">면적 (㎡)</th></tr>'
     : '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">면적 (㎡)</th></tr>';
+  const dot = color => `<span class="tbl-dot" style="background:${color}"></span>`;
   const rows = chunks.map(c => isChange
-    ? `<tr><td>${c.num}</td><td class="left">${c.from}</td><td class="left">${c.to}</td><td>${_fmtArea(c.area)}</td></tr>`
-    : `<tr><td>${c.num}</td><td class="left">증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
+    ? `<tr><td>${c.num}</td><td class="left">${dot(layerColor(c.from))}${c.from}</td><td class="left">${dot(layerColor(c.to))}${c.to}</td><td>${_fmtArea(c.area)}</td></tr>`
+    : `<tr><td>${c.num}</td><td class="left">${dot(_EX.incrStroke)}증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
   ).join('');
   const total = chunks.reduce((s, c) => s + c.area, 0);
   const tfoot = isChange
