@@ -3,19 +3,48 @@
  * DOM 렌더링, 슬롯 관리, 썸네일, 결과 표시
  */
 
-// 레이어별 고정 색상 팔레트
+// 레이어명에 매칭되지 않을 때 쓰는 고정 색상 폴백 팔레트
 const LAYER_COLORS = [
   '#185fa5','#3b6d11','#a32d2d','#633806',
   '#6d3b9e','#0284c7','#b45309','#0d9488',
   '#64748b','#be185d','#1d4ed8','#15803d',
 ];
+
+// 레이어명에 특정 키워드가 포함되면 해당 색상 계열(톤)에서 배정
+// 우선순위 순서대로 검사 — '기타'는 가장 마지막(예: '기타녹지'는 녹지 계열)
+const LAYER_COLOR_TONES = [
+  { keywords: ['녹지'],        colors: ['#1b5e20','#2e7d32','#388e3c','#43a047','#558b2f','#66bb6a'] }, // 초록
+  { keywords: ['도로'],        colors: ['#455a64','#546e7a','#616161','#757575','#78909c','#9e9e9e'] }, // 회색
+  { keywords: ['건축','건물'],  colors: ['#bf360c','#d84315','#e65100','#ef6c00','#f57c00','#fb8c00'] }, // 주황
+  { keywords: ['주차'],        colors: ['#0d47a1','#1565c0','#1976d2','#1e88e5','#2196f3','#0277bd'] }, // 파란색
+  { keywords: ['대지','부지'],  colors: ['#795548','#8d6e63','#a1887f','#6d4c41','#bcaaa4','#a1796a'] }, // 베이지·갈색
+  { keywords: ['공원','운동'],  colors: ['#9ccc65','#aed581','#c0ca33','#8bc34a','#cddc39','#7cb342'] }, // 연두색
+  { keywords: ['기타'],        colors: ['#f9a825','#fbc02d','#fdd835','#f57f17','#ffb300','#ffca28'] }, // 노랑
+];
+
 const _layerColorCache = {};
-let   _colorIdx = 0;
+const _toneUsedIdx = {};
+let   _fallbackIdx = 0;
+
 function layerColor(name) {
-  if (!_layerColorCache[name]) {
-    _layerColorCache[name] = LAYER_COLORS[_colorIdx++ % LAYER_COLORS.length];
+  if (_layerColorCache[name]) return _layerColorCache[name];
+
+  const tone = LAYER_COLOR_TONES.find(t => t.keywords.some(k => name.includes(k)));
+  let color;
+  if (tone) {
+    const key = tone.keywords[0];
+    const used = _toneUsedIdx[key] || (_toneUsedIdx[key] = new Set());
+    let avail = tone.colors.map((_, i) => i).filter(i => !used.has(i));
+    if (!avail.length) { used.clear(); avail = tone.colors.map((_, i) => i); }
+    const idx = avail[Math.floor(Math.random() * avail.length)];
+    used.add(idx);
+    color = tone.colors[idx];
+  } else {
+    color = LAYER_COLORS[_fallbackIdx++ % LAYER_COLORS.length];
   }
-  return _layerColorCache[name];
+
+  _layerColorCache[name] = color;
+  return color;
 }
 
 // ── 슬롯 상태 ───────────────────────────────────────────────
@@ -42,36 +71,18 @@ function removeSlot(id) {
   renderSlotsWrap();
 }
 
-// ── 모든 로드된 슬롯의 공유 bbox ────────────────────────────
-function _getSharedBbox() {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  slots.forEach(s => {
-    if (!s.data) return;
-    Object.values(s.data.layers).forEach(rings => {
-      rings.forEach(ring => ring.forEach(([x, y]) => {
-        if (x < minX) minX = x; if (y < minY) minY = y;
-        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-      }));
-    });
-  });
-  return isFinite(minX) ? { minX, minY, maxX, maxY } : null;
-}
-
 // ── 슬롯 렌더링 ─────────────────────────────────────────────
 function renderSlotsWrap() {
   const wrap = document.getElementById('slots-wrap');
   if (!wrap) return;
   wrap.innerHTML = '';
 
-  // 로드된 슬롯 전체를 아우르는 공유 bbox (썸네일 동일 축척)
-  const sharedBbox = _getSharedBbox();
-
   slots.forEach((slot, idx) => {
     if (idx > 0) wrap.appendChild(_makeArrow());
 
     const col = document.createElement('div');
     col.className = 'slot-col';
-    col.appendChild(_makeSlotEl(slot, idx, sharedBbox));
+    col.appendChild(_makeSlotEl(slot, idx));
 
     // 삭제 버튼 (3개 이상일 때)
     if (slots.length > 2) {
@@ -106,7 +117,7 @@ function _makeArrow() {
   return div;
 }
 
-function _makeSlotEl(slot, idx, sharedBbox) {
+function _makeSlotEl(slot, idx) {
   const el = document.createElement('div');
   el.className = 'slot' + (slot.data ? ' loaded' : '');
 
@@ -126,7 +137,7 @@ function _makeSlotEl(slot, idx, sharedBbox) {
     canvas.className = 'thumb-canvas';
     canvas.width  = 148;
     canvas.height = 88;
-    setTimeout(() => drawThumbnail(canvas, slot.data, sharedBbox), 0);
+    setTimeout(() => drawThumbnail(canvas, slot.data), 0);
     inner.appendChild(canvas);
   } else {
     const num = document.createElement('div');
@@ -198,16 +209,15 @@ async function handleFileSelect(slot, file) {
 }
 
 // ── 썸네일 캔버스 ────────────────────────────────────────────
-// sharedBbox: 전체 슬롯 공유 bbox → 모든 썸네일이 동일 축척으로 표시
-function drawThumbnail(canvas, data, sharedBbox) {
+// 도면 자체의 bbox를 기준으로 타일 안에 꽉 차게 중앙 정렬
+function drawThumbnail(canvas, data) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const allLayers = Object.keys(data.layers);
   if (!allLayers.length) return;
 
-  // 공유 bbox 우선, 없으면 이 슬롯 단독 bbox
-  const bbox = sharedBbox || getDataBBox(data, allLayers);
+  const bbox = getDataBBox(data, allLayers);
   if (!bbox) return;
 
   const pad = 5;
@@ -229,7 +239,8 @@ function drawThumbnail(canvas, data, sharedBbox) {
     ctx.lineWidth   = 1;
 
     for (const ring of (data.layers[layer] || [])) {
-      if (ring.length < 2) continue;
+      // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
+      if (ring.length < 2 || shoelace(ring) < 1e-6) continue;
       ctx.beginPath();
       ctx.moveTo(tx(ring[0][0]), ty(ring[0][1]));
       for (let k = 1; k < ring.length; k++) ctx.lineTo(tx(ring[k][0]), ty(ring[k][1]));

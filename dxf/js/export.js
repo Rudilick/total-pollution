@@ -131,9 +131,9 @@ function _makeIncreaseSection(result, sFirst, sLast) {
     if (rFirst.length && rLast.length) {
       const a = polygonClipping.union(...rFirst.map(r => [r]));
       const b = polygonClipping.union(...rLast.map(r => [r]));
-      incrPolys = polygonClipping.difference(b, a) || [];
+      incrPolys = cleanMultiPoly(polygonClipping.difference(b, a));
     } else if (rLast.length) {
-      incrPolys = polygonClipping.union(...rLast.map(r => [r])) || [];
+      incrPolys = cleanMultiPoly(polygonClipping.union(...rLast.map(r => [r])));
     }
   } catch (_) { incrPolys = []; }
 
@@ -202,7 +202,8 @@ function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
   if (!rings?.length) return;
   ctx.save();
   rings.forEach(ring => {
-    if (ring.length < 2) return;
+    // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
+    if (ring.length < 2 || shoelace(ring) < 1e-6) return;
     ctx.beginPath();
     ctx.moveTo(tfn.x(ring[0][0]), tfn.y(ring[0][1]));
     for (let i = 1; i < ring.length; i++) ctx.lineTo(tfn.x(ring[i][0]), tfn.y(ring[i][1]));
@@ -279,10 +280,14 @@ function _centroid(ring) {
 function _makeMapTransform(rings, CW, CH, pad, legH) {
   const mapH = CH - legH;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  rings.forEach(ring => ring.forEach(([x, y]) => {
-    if (x < minX) minX = x; if (y < minY) minY = y;
-    if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-  }));
+  rings.forEach(ring => {
+    // 면적이 0인 퇴화(점/선) 링은 동떨어진 잔재 도형일 수 있으므로 bbox 계산에서 제외
+    if (shoelace(ring) < 1e-6) return;
+    ring.forEach(([x, y]) => {
+      if (x < minX) minX = x; if (y < minY) minY = y;
+      if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    });
+  });
   if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 100; }
   const dw = maxX - minX || 1, dh = maxY - minY || 1;
   const scale = Math.min((CW - pad * 2) / dw, (mapH - pad * 2) / dh);

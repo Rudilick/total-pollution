@@ -82,6 +82,44 @@ function unionRings(rings) {
 }
 
 /**
+ * 링의 둘레 길이 계산
+ * @param {Array} ring
+ * @returns {number}
+ */
+function _ringPerimeter(ring) {
+  let p = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[i + 1];
+    p += Math.hypot(x2 - x1, y2 - y1);
+  }
+  return p;
+}
+
+/**
+ * polygon-clipping 결과에서 부동소수점 오차로 생긴 미세 슬리버(스파이크) 폴리곤 제거
+ * - 면적이 너무 작은 폴리곤뿐 아니라, 길고 가는 "바늘" 모양(둘레 대비 면적이 매우 작은 폴리곤)도 제거
+ * @param {Array} multiPoly - polygon-clipping 결과 (MultiPolygon)
+ * @param {number} minArea - 이보다 외곽선 면적이 작은 폴리곤은 제거 (㎡)
+ * @param {number} minWidth - 평균 폭이 이보다 얇은 폴리곤은 제거 (m)
+ * @returns {Array}
+ */
+const MIN_SLIVER_AREA  = 0.01; // ㎡ — 이보다 작은 결과 폴리곤은 부동소수점 잔여물로 간주해 제거
+const MIN_SLIVER_WIDTH = 0.05; // m  — 평균 폭(면적/둘레*2)이 이보다 얇으면 스파이크로 간주해 제거
+
+function cleanMultiPoly(multiPoly, minArea = MIN_SLIVER_AREA, minWidth = MIN_SLIVER_WIDTH) {
+  if (!multiPoly) return [];
+  return multiPoly.filter(poly => {
+    const ring = poly?.[0];
+    if (!ring?.length) return false;
+    const area = shoelace(ring);
+    if (area < minArea) return false;
+    const perim = _ringPerimeter(ring);
+    return perim === 0 || (area / perim) >= minWidth / 2;
+  });
+}
+
+/**
  * 두 링 배열의 교집합 면적 (polygon-clipping 사용)
  * @param {Array[]} ringsA
  * @param {Array[]} ringsB
@@ -92,8 +130,8 @@ function intersectionArea(ringsA, ringsB) {
   try {
     const a = polygonClipping.union(...ringsA.map(r => [r]));
     const b = polygonClipping.union(...ringsB.map(r => [r]));
-    const inter = polygonClipping.intersection(a, b);
-    return { area: multiPolyArea(inter), polys: inter || [] };
+    const inter = cleanMultiPoly(polygonClipping.intersection(a, b));
+    return { area: multiPolyArea(inter), polys: inter };
   } catch (e) {
     return { area: 0, polys: [] };
   }
@@ -111,7 +149,7 @@ function newAreaOnly(ringsA, ringsB) {
   try {
     const a = polygonClipping.union(...ringsA.map(r => [r]));
     const b = polygonClipping.union(...ringsB.map(r => [r]));
-    const diff = polygonClipping.difference(b, a);
+    const diff = cleanMultiPoly(polygonClipping.difference(b, a));
     return multiPolyArea(diff);
   } catch (e) {
     return 0;
@@ -127,12 +165,14 @@ function newAreaOnly(ringsA, ringsB) {
 function getDataBBox(data, layers) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   layers.forEach(l =>
-    (data.layers[l] || []).forEach(ring =>
+    (data.layers[l] || []).forEach(ring => {
+      // 면적이 0인 퇴화(점/선) 링은 동떨어진 잔재 도형일 수 있으므로 bbox 계산에서 제외
+      if (shoelace(ring) < 1e-6) return;
       ring.forEach(([x, y]) => {
         if (x < minX) minX = x; if (y < minY) minY = y;
         if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-      })
-    )
+      });
+    })
   );
   return isFinite(minX) ? { minX, minY, maxX, maxY } : null;
 }
