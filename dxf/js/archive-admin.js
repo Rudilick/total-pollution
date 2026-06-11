@@ -61,8 +61,49 @@ async function handleAdminFileSelect(slot, file) {
   }
 }
 
+// ── 도면 미리보기 패널 ───────────────────────────────────────
+let _selectedTileEl = null;
+let _previewSlotId  = null;
+
+function selectPreviewTile(el, data, label) {
+  if (_selectedTileEl) _selectedTileEl.classList.remove('selected');
+  el.classList.add('selected');
+  _selectedTileEl = el;
+  showPreview(data, label);
+}
+
+function showPreview(data, label) {
+  const canvas = document.getElementById('preview-canvas');
+  const empty  = document.getElementById('preview-empty');
+  const meta   = document.getElementById('preview-meta');
+  if (!canvas) return;
+
+  if (!data) {
+    canvas.style.display = 'none';
+    empty.style.display  = 'flex';
+    meta.textContent = '';
+    return;
+  }
+
+  const box = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = box.width;
+  canvas.height = box.height;
+  canvas.style.display = 'block';
+  empty.style.display  = 'none';
+  drawThumbnail(canvas, data);
+  meta.textContent = label || '';
+}
+
+function clearPreview() {
+  if (_selectedTileEl) _selectedTileEl.classList.remove('selected');
+  _selectedTileEl = null;
+  showPreview(null);
+}
+
 // 업로드 슬롯 DOM (ui.js의 _makeSlotEl과 동일한 마크업/스타일을 재사용하되,
-// 파일 선택 시 동작을 콜백으로 받음)
+// 파일 선택 시 동작을 콜백으로 받음). 타임라인 타일 크기로 축소,
+// 도면이 로드된 타일은 클릭 시 우측 미리보기 패널에 표시되고
+// 파일 교체는 별도의 "교체" 버튼으로 처리한다.
 function _makeUploadSlotEl(slot, idx, onFileSelect) {
   const el = document.createElement('div');
   el.className = 'slot' + (slot.data ? ' loaded' : '');
@@ -79,8 +120,8 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
   if (slot.data) {
     const canvas = document.createElement('canvas');
     canvas.className = 'thumb-canvas';
-    canvas.width = 148;
-    canvas.height = 88;
+    canvas.width = 96;
+    canvas.height = 56;
     setTimeout(() => drawThumbnail(canvas, slot.data), 0);
     inner.appendChild(canvas);
   } else {
@@ -112,7 +153,18 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
     el.appendChild(bottom);
   }
 
-  el.onclick = () => input.click();
+  if (slot.data) {
+    el.onclick = () => selectPreviewTile(el, slot.data, slot.file ? slot.file.name : slot.label);
+
+    const replaceBtn = document.createElement('button');
+    replaceBtn.type = 'button';
+    replaceBtn.className = 'tile-replace-btn';
+    replaceBtn.textContent = '교체';
+    replaceBtn.onclick = (e) => { e.stopPropagation(); input.click(); };
+    el.appendChild(replaceBtn);
+  } else {
+    el.onclick = () => input.click();
+  }
 
   el.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -148,10 +200,16 @@ function renderNewSlotsWrap() {
 
     const col = document.createElement('div');
     col.className = 'slot-col';
-    col.appendChild(_makeUploadSlotEl(slot, idx, async (s, file) => {
+    const tileEl = _makeUploadSlotEl(slot, idx, async (s, file) => {
       await handleAdminFileSelect(s, file);
+      _previewSlotId = s.id;
       renderNewSlotsWrap();
-    }));
+    });
+    col.appendChild(tileEl);
+
+    if (slot.data && slot.id === _previewSlotId) {
+      selectPreviewTile(tileEl, slot.data, slot.file ? slot.file.name : slot.label);
+    }
 
     if (adminSlots.length > 1) {
       const del = document.createElement('button');
@@ -229,6 +287,8 @@ async function submitNewProject() {
     document.getElementById('new-location').value = '';
     document.getElementById('new-year').value     = '';
     document.getElementById('new-notes').value    = '';
+    _previewSlotId = null;
+    clearPreview();
     initAdminSlots();
   } catch (e) {
     statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
@@ -277,9 +337,26 @@ function renderLookupResult(serialNo, project, drawings) {
 
     const info = document.createElement('div');
     info.className = 'stage-info';
-    info.innerHTML =
+
+    let dData = null;
+    try { dData = parseDXF(d.dxf_content); } catch (e) { /* 미리보기 불가 */ }
+
+    if (dData) {
+      const thumb = document.createElement('canvas');
+      thumb.className = 'stage-thumb';
+      thumb.width = 56;
+      thumb.height = 40;
+      setTimeout(() => drawThumbnail(thumb, dData), 0);
+      thumb.onclick = () =>
+        selectPreviewTile(thumb, dData, `${d.stage_index}: ${d.stage_label} — ${d.file_name}`);
+      info.appendChild(thumb);
+    }
+
+    const label = document.createElement('span');
+    label.innerHTML =
       `<span class="layer-dot" style="background:${layerColor(d.stage_label)}"></span>` +
       `${d.stage_index}: ${d.stage_label} — ${d.file_name}`;
+    info.appendChild(label);
 
     const del = document.createElement('button');
     del.className = 'btn-danger';
@@ -293,7 +370,7 @@ function renderLookupResult(serialNo, project, drawings) {
   resultEl.appendChild(list);
 
   const addWrap = document.createElement('div');
-  addWrap.className = 'slots-wrap';
+  addWrap.className = 'slots-wrap timeline-wrap';
   addWrap.id = 'stage-add-wrap';
   resultEl.appendChild(addWrap);
   _renderStageSlot();
@@ -317,10 +394,16 @@ function _renderStageSlot() {
 
   const col = document.createElement('div');
   col.className = 'slot-col';
-  col.appendChild(_makeUploadSlotEl(_stageSlot, _stageDrawingsCount, async (slot, file) => {
+  const tileEl = _makeUploadSlotEl(_stageSlot, _stageDrawingsCount, async (slot, file) => {
     await handleAdminFileSelect(slot, file);
+    _previewSlotId = slot.id;
     _renderStageSlot();
-  }));
+  });
+  col.appendChild(tileEl);
+
+  if (_stageSlot.data && _stageSlot.id === _previewSlotId) {
+    selectPreviewTile(tileEl, _stageSlot.data, _stageSlot.file ? _stageSlot.file.name : _stageSlot.label);
+  }
   wrap.appendChild(col);
 }
 
