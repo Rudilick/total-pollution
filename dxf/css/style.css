@@ -211,7 +211,8 @@ body {
   margin-bottom: 12px;
 }
 .archive-search-row input[type="text"] {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 10px 12px;
   font-size: 13px;
   font-family: var(--font);
@@ -223,10 +224,11 @@ body {
 .archive-search-row input[type="text"]:focus { border-color: var(--blue-mid); }
 
 .archive-search-btn {
+  flex: none;
   width: auto;
   padding: 10px 22px;
   margin-top: 0;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .archive-card {
