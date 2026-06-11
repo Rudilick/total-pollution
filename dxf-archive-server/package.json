@@ -1,0 +1,17 @@
+{
+  "name": "dxf-archive-server",
+  "version": "1.0.0",
+  "description": "도면 아카이브 API 서버 (일련번호별 단계별 DXF 보관)",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

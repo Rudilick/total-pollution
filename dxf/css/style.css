@@ -196,6 +196,116 @@ body {
 /* ── border info ── */
 .border-info { font-size: 12px; color: var(--gray-600); margin-top: 10px; min-height: 18px; }
 
+/* ── 도면 아카이브 ── */
+.archive-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.archive-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.archive-search-row input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color .2s;
+}
+.archive-search-row input[type="text"]:focus { border-color: var(--blue-mid); }
+
+.archive-search-btn {
+  width: auto;
+  padding: 10px 22px;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.archive-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.archive-card:hover { background: var(--blue-light); border-color: var(--blue-mid); }
+
+.archive-card-title { font-size: 13px; font-weight: 600; color: #111; }
+.archive-card-name { font-weight: 400; color: var(--gray-600); margin-left: 6px; }
+.archive-card-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+.archive-empty {
+  font-size: 12px;
+  color: var(--gray-400);
+  padding: 10px 2px;
+}
+
+/* ── 관리자 폼 ── */
+.admin-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color .2s;
+}
+.admin-input:focus { border-color: var(--blue-mid); }
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (max-width: 640px) {
+  .admin-form-grid { grid-template-columns: 1fr; }
+}
+
+.stage-list { margin: 12px 0; }
+.stage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.stage-item .stage-info { display: flex; align-items: center; gap: 8px; }
+
+.btn-danger {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--red);
+  background: #fff;
+  color: var(--red);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.btn-danger:hover { background: var(--red); color: #fff; }
+
+.status-ok  { color: var(--green-dark); font-size: 13px; padding: 10px 2px; }
+.status-err { color: var(--red-dark);   font-size: 13px; padding: 10px 2px; }
+
 /* ── run button ── */
 .run-btn {
   width: 100%;

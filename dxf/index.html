@@ -15,6 +15,21 @@
     </header>
 
     <section class="section">
+      <div class="section-title archive-toggle" onclick="toggleArchiveSection()">
+        도면 아카이브에서 불러오기 <span class="chevron" id="archive-chevron">▼</span>
+      </div>
+      <div id="archive-body" style="display:none">
+        <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다.</p>
+        <div class="archive-search-row">
+          <input type="text" id="archive-query" placeholder="일련번호 또는 사업명 검색"
+                 onkeydown="if(event.key==='Enter') onArchiveSearch()">
+          <button class="run-btn archive-search-btn" onclick="onArchiveSearch()">검색</button>
+        </div>
+        <div id="archive-results"></div>
+      </div>
+    </section>
+
+    <section class="section">
       <div class="section-title">도면 단계별 업로드</div>
       <p class="section-hint">최초 도면부터 순서대로 업로드하세요. 외곽 레이어(둘레 / BORDER / FRAME)가 포함된 DXF 파일을 사용하면 자동으로 좌표 정합이 적용됩니다.</p>
       <div class="slots-wrap" id="slots-wrap"></div>
@@ -44,6 +59,8 @@
   <script src="js/geometry.js"></script>
   <script src="js/analyzer.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/archive-config.js"></script>
+  <script src="js/archive.js"></script>
   <script src="js/export.js"></script>
   <script src="js/main.js"></script>
 </body>
