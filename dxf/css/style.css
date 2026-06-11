@@ -475,12 +475,12 @@ tr:last-child td { border-bottom: none; }
 }
 
 /* ── 관리자 2단 레이아웃 (입력 / 미리보기) ── */
-.admin-app { max-width: 1320px; }
+.admin-app { max-width: 1800px; }
 
 .admin-layout {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 28px;
+  grid-template-columns: minmax(460px, 620px) 1fr;
+  gap: 24px;
   align-items: start;
 }
 .admin-main { min-width: 0; }
@@ -518,6 +518,7 @@ tr:last-child td { border-bottom: none; }
 
 /* ── 타임라인 업로드 타일 (관리자 슬롯 축소판) ── */
 .timeline-wrap .slot,
+.timeline-wrap .slot-inner,
 .timeline-wrap .add-btn { width: 96px; }
 .timeline-wrap .slot-inner,
 .timeline-wrap .add-btn { height: 76px; padding: 6px; gap: 4px; }

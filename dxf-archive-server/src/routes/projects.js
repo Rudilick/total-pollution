@@ -17,6 +17,8 @@ router.get('/projects', async (req, res, next) => {
            LEFT JOIN drawings d ON d.serial_no = p.serial_no
           WHERE p.serial_no ILIKE $1 || '%'
              OR p.project_name ILIKE '%' || $1 || '%'
+             OR p.operator_name ILIKE '%' || $1 || '%'
+             OR p.location ILIKE '%' || $1 || '%'
           GROUP BY p.serial_no
           ORDER BY p.updated_at DESC`,
         [q]

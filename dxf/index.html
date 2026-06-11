@@ -11,20 +11,19 @@
     <header class="app-header">
       <div class="header-top">
         <a class="back-link" href="../index.html">← 홈으로</a>
-        <a class="back-link" href="archive-admin.html">도면 아카이브 관리자 →</a>
+        <a class="back-link" href="archive-admin.html" onclick="return enterArchiveAdmin(event)">도면 아카이브 관리자 →</a>
       </div>
       <h1>토지이용계획 변경 분석기</h1>
       <p class="app-desc">DXF 도면을 단계별로 업로드하여 토지이용계획 변경률과 사업부지 증가율을 산출합니다.</p>
     </header>
 
     <section class="section">
-      <div class="section-title archive-toggle" onclick="toggleArchiveSection()">
-        도면 아카이브에서 불러오기 <span class="chevron" id="archive-chevron">▼</span>
-      </div>
-      <div id="archive-body" style="display:none">
+      <div class="section-title">기존 협의자료 불러오기</div>
+      <div id="archive-body">
         <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다.</p>
         <div class="archive-search-row">
           <input type="text" id="archive-query" placeholder="일련번호 또는 사업명 검색"
+                 oninput="onArchiveSearch()"
                  onkeydown="if(event.key==='Enter') onArchiveSearch()">
           <button class="run-btn archive-search-btn" onclick="onArchiveSearch()">검색</button>
         </div>

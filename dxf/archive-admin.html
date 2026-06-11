@@ -17,15 +17,6 @@
     <div class="admin-layout">
       <div class="admin-main">
         <section class="section">
-          <div class="section-title">관리자 토큰</div>
-          <div class="archive-search-row">
-            <input type="text" id="admin-token" class="admin-input" placeholder="관리자 토큰 입력">
-            <button class="run-btn archive-search-btn" onclick="saveAdminToken()">저장</button>
-          </div>
-          <div id="token-status" class="archive-empty"></div>
-        </section>
-
-        <section class="section">
           <div class="section-title">신규 프로젝트 등록</div>
           <p class="section-hint">최초 도면부터 순서대로 단계별 DXF를 업로드하세요. (1번째 슬롯 = 최초도면)</p>
           <div class="admin-form-grid">
@@ -43,11 +34,14 @@
 
         <section class="section">
           <div class="section-title">기존 프로젝트에 단계 추가 / 정정</div>
+          <p class="section-hint">일련번호, 사업명, 사업자명 등으로 검색하세요.</p>
           <div class="archive-search-row">
-            <input type="text" id="lookup-serial" class="admin-input" placeholder="일련번호 입력"
-                   onkeydown="if(event.key==='Enter') lookupProject()">
-            <button class="run-btn archive-search-btn" onclick="lookupProject()">조회</button>
+            <input type="text" id="lookup-serial" class="admin-input" placeholder="일련번호, 사업명, 사업자명 검색"
+                   oninput="onLookupSearch(false)"
+                   onkeydown="if(event.key==='Enter') onLookupSearch(true)">
+            <button class="run-btn archive-search-btn" onclick="onLookupSearch(true)">조회</button>
           </div>
+          <div id="lookup-results"></div>
           <div id="lookup-result"></div>
         </section>
       </div>

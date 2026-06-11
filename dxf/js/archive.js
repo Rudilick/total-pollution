@@ -3,16 +3,29 @@
  * 도면 아카이브 검색 및 슬롯 자동 채움
  */
 
-let _archiveOpen = false;
+// ── 관리자 페이지 진입 인증 ──────────────────────────────────
+function enterArchiveAdmin(e) {
+  if (e) e.preventDefault();
 
-function toggleArchiveSection() {
-  _archiveOpen = !_archiveOpen;
-  const body = document.getElementById('archive-body');
-  const chev = document.getElementById('archive-chevron');
-  if (!body || !chev) return;
-  body.style.display = _archiveOpen ? 'block' : 'none';
-  chev.classList.toggle('open', _archiveOpen);
+  if (localStorage.getItem('archiveAdminToken') === ARCHIVE_ADMIN_KEY) {
+    location.href = 'archive-admin.html';
+    return false;
+  }
+
+  const input = prompt('관리자 인증키를 입력하세요.');
+  if (input === null) return false;
+
+  if (input.trim() === ARCHIVE_ADMIN_KEY) {
+    localStorage.setItem('archiveAdminToken', input.trim());
+    location.href = 'archive-admin.html';
+  } else {
+    alert('인증키가 올바르지 않습니다.');
+  }
+  return false;
 }
+
+// ── 검색 (입력할 때마다 즉시 검색) ───────────────────────────
+let _archiveSearchSeq = 0;
 
 async function onArchiveSearch() {
   const input = document.getElementById('archive-query');
@@ -20,14 +33,22 @@ async function onArchiveSearch() {
   if (!input || !resultsEl) return;
 
   const q = input.value.trim();
+  const seq = ++_archiveSearchSeq;
+
+  if (!q) {
+    resultsEl.innerHTML = '';
+    return;
+  }
   resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
 
   try {
     const res = await fetch(`${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}`);
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
+    if (seq !== _archiveSearchSeq) return; // 이후 입력으로 인한 최신 요청이 아니면 무시
     renderArchiveResults(projects);
   } catch (e) {
+    if (seq !== _archiveSearchSeq) return;
     resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
   }
 }

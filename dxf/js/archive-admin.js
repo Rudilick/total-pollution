@@ -13,15 +13,6 @@ function _adminFetch(path, opts = {}) {
   return fetch(`${ARCHIVE_API_BASE}${path}`, Object.assign({}, opts, { headers }));
 }
 
-function saveAdminToken() {
-  const val = document.getElementById('admin-token').value.trim();
-  localStorage.setItem('archiveAdminToken', val);
-  const status = document.getElementById('token-status');
-  status.innerHTML = val
-    ? '<span class="status-ok">토큰이 저장되었습니다.</span>'
-    : '<span class="status-err">토큰을 입력하세요.</span>';
-}
-
 // ── 신규 프로젝트 등록용 슬롯 ────────────────────────────────
 let adminSlots = [];
 let _adminSlotId = 0;
@@ -300,8 +291,10 @@ let _stageSerialNo = null;
 let _stageDrawingsCount = 0;
 let _stageSlot = null;
 
-async function lookupProject() {
-  const serialNo = document.getElementById('lookup-serial').value.trim();
+async function lookupProject(serialNoArg) {
+  const serialNo = serialNoArg !== undefined
+    ? serialNoArg
+    : document.getElementById('lookup-serial').value.trim();
   const resultEl = document.getElementById('lookup-result');
   if (!serialNo) return;
   resultEl.innerHTML = '<p class="archive-empty">조회 중...</p>';
@@ -314,6 +307,77 @@ async function lookupProject() {
   } catch (e) {
     resultEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
+}
+
+// ── 단계 추가/정정 대상 검색 (입력할 때마다 즉시 검색) ───────
+let _lookupSearchSeq = 0;
+
+async function onLookupSearch(forceLookup) {
+  const input = document.getElementById('lookup-serial');
+  const resultsEl = document.getElementById('lookup-results');
+  const q = input.value.trim();
+  const seq = ++_lookupSearchSeq;
+
+  document.getElementById('lookup-result').innerHTML = '';
+  if (!q) {
+    resultsEl.innerHTML = '';
+    return;
+  }
+  resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
+
+  try {
+    const res = await fetch(`${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error('서버 응답 오류');
+    const { projects } = await res.json();
+    if (seq !== _lookupSearchSeq) return; // 이후 입력으로 인한 최신 요청이 아니면 무시
+
+    if (forceLookup) {
+      const exact = projects.find(p => p.serial_no === q);
+      if (exact) {
+        resultsEl.innerHTML = '';
+        await lookupProject(exact.serial_no);
+        return;
+      }
+    }
+    renderLookupSearchResults(projects);
+  } catch (e) {
+    if (seq !== _lookupSearchSeq) return;
+    resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
+  }
+}
+
+function renderLookupSearchResults(projects) {
+  const resultsEl = document.getElementById('lookup-results');
+  resultsEl.innerHTML = '';
+
+  if (!projects.length) {
+    resultsEl.innerHTML = '<p class="archive-empty">검색 결과가 없습니다.</p>';
+    return;
+  }
+
+  projects.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'archive-card';
+
+    const metaParts = [];
+    if (p.operator_name)  metaParts.push(p.operator_name);
+    if (p.location)       metaParts.push(p.location);
+    if (p.first_eia_year) metaParts.push(`${p.first_eia_year}년`);
+
+    card.innerHTML =
+      `<div class="archive-card-main">
+         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name}</span></div>
+         <div class="archive-card-meta">${metaParts.join(' · ') || '&nbsp;'}</div>
+       </div>
+       <div class="pill pill-nc">${p.stage_count}단계</div>`;
+
+    card.onclick = () => {
+      document.getElementById('lookup-serial').value = p.serial_no;
+      resultsEl.innerHTML = '';
+      lookupProject(p.serial_no);
+    };
+    resultsEl.appendChild(card);
+  });
 }
 
 function renderLookupResult(serialNo, project, drawings) {
@@ -446,10 +510,27 @@ async function deleteStage(serialNo, stageIndex) {
   }
 }
 
+// ── 진입 인증 ────────────────────────────────────────────────
+function _ensureAdminAuth() {
+  let token = localStorage.getItem('archiveAdminToken');
+  while (token !== ARCHIVE_ADMIN_KEY) {
+    const input = prompt('관리자 인증키를 입력하세요.');
+    if (input === null) {
+      location.href = 'index.html';
+      return false;
+    }
+    token = input.trim();
+    if (token === ARCHIVE_ADMIN_KEY) {
+      localStorage.setItem('archiveAdminToken', token);
+    } else {
+      alert('인증키가 올바르지 않습니다.');
+    }
+  }
+  return true;
+}
+
 // ── 초기화 ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  const tokenInput = document.getElementById('admin-token');
-  const saved = localStorage.getItem('archiveAdminToken');
-  if (saved) tokenInput.value = saved;
+  if (!_ensureAdminAuth()) return;
   initAdminSlots();
 });
