@@ -157,6 +157,37 @@ function newAreaOnly(ringsA, ringsB) {
 }
 
 /**
+ * 구멍(hole) 하나를 외곽 링에 "키홀(틈새)" 기법으로 합쳐 단일 폐곡선으로 만든다.
+ * 외곽 링의 한 점에서 구멍 시작점까지 폭 0인 틈을 내고 구멍을 한 바퀴 돈 뒤 같은 틈으로
+ * 돌아오는 식 — 이 프로젝트의 모든 함수가 "구멍 없는 단순 링" 하나만 다루도록 짜여 있어서
+ * (면적 합산, 교집합, 미리보기 그리기, 내보내기 등) 구멍이 있는 폴리곤을 새로 지원하는 대신
+ * 이 방식으로 항상 단순 링으로 바꿔서 기존 코드를 그대로 쓸 수 있게 한다.
+ * @param {Array} outerRing
+ * @param {Array} holeRing
+ * @returns {Array}
+ */
+function _keyholeMerge(outerRing, holeRing) {
+  const holeStart = holeRing[0];
+  let bestIdx = 0, bestDist = Infinity;
+  for (let i = 0; i < outerRing.length - 1; i++) {
+    const dx = outerRing[i][0] - holeStart[0], dy = outerRing[i][1] - holeStart[1];
+    const d = dx * dx + dy * dy;
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+  return [
+    ...outerRing.slice(0, bestIdx + 1),
+    ...holeRing,
+    ...outerRing.slice(bestIdx),
+  ];
+}
+/** polygon-clipping의 한 Polygon(외곽+구멍들)을 구멍 없는 단일 링 하나로 합친다 */
+function mergePolygonHoles(poly) {
+  let merged = poly[0];
+  for (let h = 1; h < poly.length; h++) merged = _keyholeMerge(merged, poly[h]);
+  return merged;
+}
+
+/**
  * 그려진 순서(나중 것이 위) 기준으로, 각 도형에서 다른 도형에 덮이지 않고
  * 실제로 "눈에 보이는" 부분만 남긴다 (페인터 알고리즘을 뒤에서부터 적용).
  * 해치가 서로 겹치는 경우, 겹친 영역은 맨 위에 그려진 도형 쪽에만 남는다.
@@ -176,7 +207,8 @@ function resolveVisibleRings(ringsInDrawOrder) {
       catch (e) { visible = [[ring]]; }
     }
     visible.forEach(poly => {
-      if (poly[0] && poly[0].length >= 3) result[i].push(poly[0]);
+      if (!poly[0] || poly[0].length < 3) return;
+      result[i].push(poly.length > 1 ? mergePolygonHoles(poly) : poly[0]);
     });
     if (!stack.length) {
       stack = [[ring]];

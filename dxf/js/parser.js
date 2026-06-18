@@ -144,8 +144,17 @@ function parseDXF(text) {
   }
 
   const colors = {};
-  // HATCH끼리 겹치는 영역은 맨 위(나중에 그려진) 색상에만 남긴다
-  const visibleHatchRings = resolveVisibleRings(hatchDrawOrder.map(e => e.ring));
+  // HATCH끼리 겹치는 영역은 "위에 보이는" 색상에만 남긴다.
+  // 그려진 순서(파일상 순서)는 실제 화면 표시 순서와 다를 수 있다 — 예를 들어 큰 배경
+  // 해치를 작은 구역들보다 나중에 그리고 "맨 뒤로 보내기"를 적용하는 경우가 흔하다.
+  // 그래서 파일 순서 대신 "면적이 작은 도형이 큰 배경 위에 그려진 구체적인 구역"이라는
+  // 더 안정적인 가정을 쓴다 — 면적이 작은 것부터 위에 있는 것으로 처리한다.
+  const sortedByAreaDesc = hatchDrawOrder
+    .map((e, idx) => ({ ...e, idx, area: shoelace(e.ring) }))
+    .sort((a, b) => b.area - a.area);
+  const visibleSorted = resolveVisibleRings(sortedByAreaDesc.map(e => e.ring));
+  const visibleHatchRings = new Array(hatchDrawOrder.length);
+  sortedByAreaDesc.forEach((e, sortedIdx) => { visibleHatchRings[e.idx] = visibleSorted[sortedIdx]; });
   hatchDrawOrder.forEach((entity, idx) => {
     const visParts = visibleHatchRings[idx];
     if (!visParts.length) return;
