@@ -203,6 +203,20 @@ body {
 /* ── border info ── */
 .border-info { font-size: 12px; color: var(--gray-600); margin-top: 10px; min-height: 18px; }
 
+/* ── 색상 범례 입력 ── */
+.legend-wrap { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.legend-slot { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; }
+.legend-slot-title { font-size: 12px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+.legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.legend-row:last-child { margin-bottom: 0; }
+.legend-swatch { width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--border-md); flex-shrink: 0; }
+.legend-row input[type="text"] {
+  flex: 1; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border-md); border-radius: 6px;
+}
+.legend-row input[type="text"]:disabled { background: var(--gray-50); color: var(--gray-400); }
+.legend-row .legend-exclude { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--gray-600); white-space: nowrap; }
+.legend-incomplete { color: var(--red-dark); font-size: 12px; margin-top: 4px; }
+
 /* ── 도면 아카이브 ── */
 .archive-toggle {
   cursor: pointer;

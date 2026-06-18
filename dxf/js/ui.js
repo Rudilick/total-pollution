@@ -52,7 +52,18 @@ let slots = [];
 let _slotId = 0;
 
 function _newSlot(label) {
-  return { id: ++_slotId, label, data: null, file: null };
+  return { id: ++_slotId, label, data: null, file: null, rawData: null, legend: [] };
+}
+
+// ── 색상 범례: 업로드/아카이브 로드 어디서든 이 함수 하나로 슬롯을 채운다 ──
+function _initSlotFromParsed(slot, rawParsed) {
+  slot.rawData = rawParsed;
+  slot.legend = getDistinctColors(rawParsed).map(colorKey => ({ colorKey, label: '', exclude: false }));
+  slot.data = applyColorLegend(rawParsed, slot.legend);
+}
+function _recomputeSlotData(slot) {
+  if (!slot.rawData) return;
+  slot.data = applyColorLegend(slot.rawData, slot.legend);
 }
 
 function initSlots() {
@@ -108,6 +119,84 @@ function renderSlotsWrap() {
 
   updateRunBtn();
   _renderBorderInfo();
+  _renderLegendWrap();
+}
+
+// ── 색상 범례 입력 (슬롯별: 색상 칩 + 용도명 입력 + 제외 체크) ──────
+function _renderLegendWrap() {
+  const wrap = document.getElementById('legend-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  slots.filter(s => s.rawData).forEach(slot => {
+    const box = document.createElement('div');
+    box.className = 'legend-slot';
+
+    const title = document.createElement('div');
+    title.className = 'legend-slot-title';
+    title.textContent = `${slot.label} — 색상별 용도 입력`;
+    box.appendChild(title);
+
+    if (!slot.legend.length) {
+      const p = document.createElement('p');
+      p.style.cssText = 'font-size:12px;color:var(--gray-400);';
+      p.textContent = '도면에서 색이 있는 도형을 찾지 못했습니다.';
+      box.appendChild(p);
+    }
+
+    slot.legend.forEach(row => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'legend-row';
+
+      const swatch = document.createElement('div');
+      swatch.className = 'legend-swatch';
+      swatch.style.background = row.colorKey;
+      rowEl.appendChild(swatch);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '용도명 입력 (예: 주거용지)';
+      input.value = row.label;
+      input.disabled = row.exclude;
+      input.oninput = (e) => {
+        row.label = e.target.value;
+        _recomputeSlotData(slot);
+        updateRunBtn();
+      };
+      rowEl.appendChild(input);
+
+      const exWrap = document.createElement('label');
+      exWrap.className = 'legend-exclude';
+      const exChk = document.createElement('input');
+      exChk.type = 'checkbox';
+      exChk.checked = row.exclude;
+      exChk.onchange = (e) => {
+        row.exclude = e.target.checked;
+        input.disabled = row.exclude;
+        _recomputeSlotData(slot);
+        updateRunBtn();
+      };
+      exWrap.appendChild(exChk);
+      exWrap.appendChild(document.createTextNode('제외(둘레)'));
+      rowEl.appendChild(exWrap);
+
+      box.appendChild(rowEl);
+    });
+
+    if (!_isSlotLegendComplete(slot)) {
+      const warn = document.createElement('div');
+      warn.className = 'legend-incomplete';
+      warn.textContent = '모든 색상에 용도명을 입력하거나 "제외"로 체크해야 분석할 수 있습니다.';
+      box.appendChild(warn);
+    }
+
+    wrap.appendChild(box);
+  });
+}
+
+function _isSlotLegendComplete(slot) {
+  if (!slot.rawData) return false;
+  return slot.legend.every(row => row.exclude || String(row.label || '').trim());
 }
 
 function _makeArrow() {
@@ -137,7 +226,7 @@ function _makeSlotEl(slot, idx) {
     canvas.className = 'thumb-canvas';
     canvas.width  = 148;
     canvas.height = 88;
-    setTimeout(() => drawThumbnail(canvas, slot.data), 0);
+    setTimeout(() => drawThumbnail(canvas, slot.rawData), 0);
     inner.appendChild(canvas);
   } else {
     const num = document.createElement('div');
@@ -200,7 +289,7 @@ function _makeSlotEl(slot, idx) {
 async function handleFileSelect(slot, file) {
   try {
     const text = await file.text();
-    slot.data  = parseDXF(text);
+    _initSlotFromParsed(slot, parseDXF(text));
     slot.file  = file;
     renderSlotsWrap();
   } catch (e) {
@@ -232,13 +321,13 @@ function drawThumbnail(canvas, data) {
   const tx = x => (x - bbox.minX) * scale + ox;
   const ty = y => canvas.height - ((y - bbox.minY) * scale + oy);
 
-  for (const layer of allLayers) {
-    const col = layerColor(layer);
+  // 레이어가 아니라 도면에 실제로 쓰인 색상 그대로 그린다 (추측 색이 아님)
+  for (const col of Object.keys(data.colors || {})) {
     ctx.fillStyle   = col + '50';
     ctx.strokeStyle = col;
     ctx.lineWidth   = 1;
 
-    for (const ring of (data.layers[layer] || [])) {
+    for (const ring of (data.colors[col] || [])) {
       // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
       if (ring.length < 2 || shoelace(ring) < 1e-6) continue;
       ctx.beginPath();
@@ -255,11 +344,13 @@ function drawThumbnail(canvas, data) {
 function updateRunBtn() {
   const btn = document.getElementById('run-btn');
   if (!btn) return;
-  const loaded = slots.filter(s => s.data).length;
-  btn.disabled = loaded < 2;
+  const loadedSlots = slots.filter(s => s.data);
+  const loaded = loadedSlots.length;
+  const allLegendsDone = loadedSlots.every(_isSlotLegendComplete);
+  btn.disabled = loaded < 2 || !allLegendsDone;
   btn.textContent = loaded < 2
     ? `분석 실행 (도면 ${loaded}/2 이상 업로드 필요)`
-    : '분석 실행';
+    : (!allLegendsDone ? '분석 실행 (색상별 용도명을 입력하세요)' : '분석 실행');
 }
 
 // ── 정합 방식 표시 ───────────────────────────────────────────

@@ -33,9 +33,10 @@
 
     <section class="section">
       <div class="section-title">도면 단계별 업로드</div>
-      <p class="section-hint">최초 도면부터 순서대로 업로드하세요. 외곽 레이어(둘레 / BORDER / FRAME)가 포함된 DXF 파일을 사용하면 자동으로 좌표 정합이 적용됩니다.</p>
+      <p class="section-hint">최초 도면부터 순서대로 업로드하세요. 레이어는 보지 않고 색상만 봅니다 — 업로드하면 도면에 쓰인 색상이 자동으로 검출되고, 색상마다 용도명을 입력하면 됩니다. 도면 테두리(외곽선) 색상은 "제외(둘레)"로 체크하세요.</p>
       <div class="slots-wrap" id="slots-wrap"></div>
       <div class="border-info" id="border-info"></div>
+      <div class="legend-wrap" id="legend-wrap"></div>
     </section>
 
     <button class="run-btn" id="run-btn" onclick="runAll()" disabled>분석 실행</button>
