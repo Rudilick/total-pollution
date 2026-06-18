@@ -93,10 +93,10 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
     } catch (e) { return rings; }
   }
 
-  // 변경 전 레이어
-  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 1, 1, 1, tfn));
-  // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만)
-  lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 1, 1, 1, tfn));
+  // 변경 전 레이어 (연하게 — 변경 구역 강조가 도드라져 보이도록 투명도를 살짝 둔다)
+  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 0.14, 0.45, 1, tfn));
+  // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만 / 중간 농도)
+  lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 0.28, 0.80, 1, tfn));
 
   // 변경 폴리곤 강조 + 넘버링
   const chunks = [];
