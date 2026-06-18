@@ -76,10 +76,27 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   const ctx    = canvas.getContext('2d');
   _fillBg(ctx, canvas.width, canvas.height);
 
-  // 변경 전 레이어 (연하게)
-  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 0.14, 0.45, 1, tfn));
-  // 변경 후 레이어 (중간 농도)
-  lsTo.forEach(l => _drawRings(ctx, tTo[l], layerColor(l), 0.28, 0.80, 1, tfn));
+  // 변경 후 레이어를 최초 도면 전체 윤곽으로 잘라낸다 — 이 비교 도면은 "기존 부지 안에서
+  // 용도가 바뀐 부분"만 보면 되고, 부지 자체가 늘어난(증가) 부분은 증가 분석 도면에서
+  // 따로 다루므로 여기서는 안 보이게 뺀다.
+  const fromUnion = (() => {
+    try { return polygonClipping.union(...lsFrom.flatMap(l => tFrom[l]).map(r => [r])); }
+    catch (e) { return null; }
+  })();
+  function _clipToFrom(rings) {
+    if (!fromUnion || !rings.length) return rings;
+    try {
+      const u = polygonClipping.union(...rings.map(r => [r]));
+      return cleanMultiPoly(polygonClipping.intersection(u, fromUnion))
+        .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+        .filter(r => r && r.length >= 3);
+    } catch (e) { return rings; }
+  }
+
+  // 변경 전 레이어
+  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 1, 1, 1, tfn));
+  // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만)
+  lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 1, 1, 1, tfn));
 
   // 변경 폴리곤 강조 + 넘버링
   const chunks = [];
@@ -94,14 +111,6 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
       chunkN++;
     });
   });
-
-  // 범례
-  const legendItems = [
-    { color: '#aaa',          label: `변경 전 (${sFrom.label})` },
-    { color: layerColor(lsTo[0] || '?'), label: `변경 후 (${sTo.label})` },
-    { color: _EX.chgStroke,   label: '변경 구역' },
-  ];
-  _drawLegend(ctx, canvas.width, canvas.height, _EX.LEG_H, legendItems);
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
   // 도면별 토지이용 레이어 범례 (변경 전·후 레이어 전체)
