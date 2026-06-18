@@ -157,6 +157,38 @@ function newAreaOnly(ringsA, ringsB) {
 }
 
 /**
+ * 그려진 순서(나중 것이 위) 기준으로, 각 도형에서 다른 도형에 덮이지 않고
+ * 실제로 "눈에 보이는" 부분만 남긴다 (페인터 알고리즘을 뒤에서부터 적용).
+ * 해치가 서로 겹치는 경우, 겹친 영역은 맨 위에 그려진 도형 쪽에만 남는다.
+ * @param {Array[]} ringsInDrawOrder - 그려진 순서대로(인덱스가 클수록 나중 = 위)
+ * @returns {Array[][]} 입력과 같은 길이. 각 원본 ring이 가려지지 않고 남은 부분(0~여러 조각)
+ */
+function resolveVisibleRings(ringsInDrawOrder) {
+  const result = ringsInDrawOrder.map(() => []);
+  let stack = []; // 지금까지(뒤에서부터) 처리한, 즉 "이보다 위에 있는" 모든 도형의 합집합
+  for (let i = ringsInDrawOrder.length - 1; i >= 0; i--) {
+    const ring = ringsInDrawOrder[i];
+    let visible;
+    if (!stack.length) {
+      visible = [[ring]];
+    } else {
+      try { visible = cleanMultiPoly(polygonClipping.difference([ring], stack)); }
+      catch (e) { visible = [[ring]]; }
+    }
+    visible.forEach(poly => {
+      if (poly[0] && poly[0].length >= 3) result[i].push(poly[0]);
+    });
+    if (!stack.length) {
+      stack = [[ring]];
+    } else {
+      try { stack = cleanMultiPoly(polygonClipping.union(stack, [ring])) || stack; }
+      catch (e) { stack = stack.concat([[ring]]); }
+    }
+  }
+  return result;
+}
+
+/**
  * 도면 전체 바운딩박스 계산 (썸네일 렌더링용)
  * @param {{ layers: Object }} data
  * @param {string[]} layers

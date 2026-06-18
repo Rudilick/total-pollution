@@ -97,17 +97,26 @@ function parseDXF(text) {
 
   const layerDefaultAci = _parseLayerDefaultColors(pairs);
   const layers = {};
-  const colors = {};
+  // 색상 분석을 위해 그려진 순서(=나중 것이 위)대로 HATCH만 따로 모아둔다.
+  // HATCH는 실제로 칠해진 영역이라 서로 겹치면 위에 그려진 색이 그 자리의 진짜 토지이용이지만,
+  // LWPOLYLINE은(특히 도면 테두리처럼 다른 도형을 통째로 둘러싸는 경우가 많아) 그냥 칠 없는
+  // 경계선으로 보고 겹침 처리를 하지 않는다 — 안 그러면 테두리가 안의 용도들을 다 가려버린다.
+  const hatchDrawOrder = [];
+  const polyEntries = [];
   let inEntities = false;
   let i = 0;
 
-  function _addRing(layer, ring, colorIdx, trueColor) {
+  function _addPoly(layer, ring, colorIdx, trueColor) {
     if (ring.length < 3) return;
     if (!layers[layer]) layers[layer] = [];
     layers[layer].push(ring);
-    const hex = _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci);
-    if (!colors[hex]) colors[hex] = [];
-    colors[hex].push(ring);
+    polyEntries.push({ ring, hex: _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci) });
+  }
+  function _addHatch(layer, ring, colorIdx, trueColor) {
+    if (ring.length < 3) return;
+    if (!layers[layer]) layers[layer] = [];
+    layers[layer].push(ring);
+    hatchDrawOrder.push({ ring, hex: _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci) });
   }
 
   while (i < pairs.length) {
@@ -125,17 +134,32 @@ function parseDXF(text) {
     } else if (inEntities && code === '0' && val === 'LWPOLYLINE') {
       const res = _parseLWPolyline(pairs, i + 1);
       i = res.nextIdx;
-      _addRing(res.layer, res.ring, res.colorIdx, res.trueColor);
+      _addPoly(res.layer, res.ring, res.colorIdx, res.trueColor);
     } else if (inEntities && code === '0' && val === 'HATCH') {
       const res = _parseHatch(pairs, i + 1);
       i = res.nextIdx;
       for (const { layer, ring, colorIdx, trueColor } of res.rings) {
-        _addRing(layer, ring, colorIdx, trueColor);
+        _addHatch(layer, ring, colorIdx, trueColor);
       }
     } else {
       i++;
     }
   }
+
+  const colors = {};
+  // LWPOLYLINE은 겹침 처리 없이 그대로
+  polyEntries.forEach(entity => {
+    if (!colors[entity.hex]) colors[entity.hex] = [];
+    colors[entity.hex].push(entity.ring);
+  });
+  // HATCH끼리 겹치는 영역은 맨 위(나중에 그려진) 색상에만 남긴다
+  const visibleHatchRings = resolveVisibleRings(hatchDrawOrder.map(e => e.ring));
+  hatchDrawOrder.forEach((entity, idx) => {
+    const visParts = visibleHatchRings[idx];
+    if (!visParts.length) return;
+    if (!colors[entity.hex]) colors[entity.hex] = [];
+    colors[entity.hex].push(...visParts);
+  });
 
   return { layers, colors };
 }
