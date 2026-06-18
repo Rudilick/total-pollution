@@ -86,6 +86,20 @@ var BIZ_TYPE_WRAP={
 };
 function wrapBizType(t){return BIZ_TYPE_WRAP[t]||t;}
 
+// ── 서술 문장 표준화 (phrase bank) ──────────────────────────────
+// 처리방식별 개별배출부하량 서술문: 전반부(처리방식 설명)만 다르고
+// 후반부("개별배출부하량은 BOD …kg/일, T-P …kg/일로 산정되었다")는 동일해야 하는데
+// 예전엔 세 군데에 따로 적혀 있어서 어미가 갈라지기 쉬웠다. 한 곳에서만 만들도록 통합.
+var TREATMENT_METHOD_CLAUSE={
+  "공공하수처리시설":"공공하수처리시설로 유입·처리되는",
+  "개인하수처리시설":"개별오수처리시설에서 잡배수만 처리 후 방류되는",
+  "정화조":"정화조에서 잡배수만 처리 후 방류되는"
+};
+function indiDischargeDesc(method,totalBOD,totalTP){
+  var clause=TREATMENT_METHOD_CLAUSE[method]||"";
+  return "◦ 사업부지 내 건물에서 발생하는 오수는 "+clause+" 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalBOD)+"kg/일, T-P "+F.f3(totalTP)+"kg/일로 산정되었다.";
+}
+
 // 표지 줄바꿈
 var COVER_MAX_PX=660;
 var FONT_PTS=[20,18,16,14,12];
@@ -431,8 +445,12 @@ function buildChapter1(docx,data){
   // ★ 수정3: 사업의 종류 줄바꿈 적용
   var bizTypeWrapped=wrapBizType(data.bizType||"");
 
+  // docx.js는 columnWidths를 안 주면 "행 중 가장 많은 셀(cs 합산 X, 단순 개수)"로 전체 열 개수를 추정한다.
+  // 이 표는 모든 행이 8개 그리드 칸(W1,W2,U×6)으로 나뉘지만 colSpan으로 합쳐진 셀이 많아 실제 칸 수보다
+  // 적게 추정되어 표가 깨질 수 있으므로, 정확한 칸 수(8)를 명시한다.
+  var mainTableColumnWidths=[1157,2120,1060,1060,1060,1060,1060,1061];
   var mainTable=new Table({
-    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,
+    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,columnWidths:mainTableColumnWidths,
     rows:[
       new TableRow({height:{value:ROW_H},children:[cell(pp("사 업 명"),{cs:2,wPct:W1+W2}),cell(pp(data.projectName||""),{cs:6,wPct:RIGHT})]}),
       new TableRow({height:{value:ROW_H},children:[cell(pp("소 재 지"),{cs:2,wPct:W1+W2}),cell(pp(data.projectLocation||""),{cs:6,wPct:RIGHT})]}),
@@ -560,8 +578,11 @@ function buildChapter1(docx,data){
   var cap=data.afterCapacity||"";
   var capVal=cap?cap:"-";
   var ROW=400;
+  // 모든 행이 6개 그리드 칸으로 나뉘도록 작성되어 있지만(직접 합산해서 검증함),
+  // colSpan으로 합쳐진 셀이 많아 docx.js가 칸 수를 5개로 잘못 추정할 수 있어 명시한다.
+  var jeogamColumnWidths=[1607,1607,1606,1606,1606,1606];
   var jeogamTable=new Table2({
-    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,
+    width:{size:100,type:WidthType.PERCENTAGE},borders:H.TBLB,columnWidths:jeogamColumnWidths,
     rows:[
       new TableRow2({height:{value:ROW},children:[cell2(p2("오수처리계획",true),{rs:15,wPct:15}),cell2(p2(mPub+" 공공",true),{rs:4,wPct:17}),cell2(p2("처리시설명",true),{cs:2,wPct:30}),cell2(p2(iP?pn2:"",true),{cs:2,wPct:43})]}),
       new TableRow2({height:{value:ROW},children:[cell2(p2("시설용량",true),{cs:2,wPct:30}),cell2(p2(iP?capVal:"",true),{wPct:23,borders:cb2({right:non2})}),cell2(p2("㎥/d"),{wPct:15,borders:cb2({left:non2})})]}),
@@ -1252,17 +1273,17 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
   }
 
   if(hasPub){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 공공하수처리시설로 유입·처리되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p(indiDischargeDesc("공공하수처리시설",totalDischBOD,totalDischTP),{size:H.SZ_SM}));
     els.push(H.blank());
     els=els.concat(buildIndiTable(pubBizRows,isPubHH,isPubHH?hh:null,"공공하수처리시설","공공하수처리시설 연결 개별배출부하량"));
   }
   if(hasInd){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 개별오수처리시설에서 잡배수만 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p(indiDischargeDesc("개인하수처리시설",totalDischBOD,totalDischTP),{size:H.SZ_SM}));
     els.push(H.blank());
     els=els.concat(buildIndiTable(indBizRows,isIndHH,isIndHH?hh:null,"개인하수처리시설","개인오수처리시설 개별배출부하량"));
   }
   if(hasSep){
-    els.push(H.p("◦ 사업부지 내 건물에서 발생하는 오수는 정화조에서 잡배수만 처리 후 방류되는 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalDischBOD)+"kg/일, T-P "+F.f3(totalDischTP)+"kg/일로 산정되었다.",{size:H.SZ_SM}));
+    els.push(H.p(indiDischargeDesc("정화조",totalDischBOD,totalDischTP),{size:H.SZ_SM}));
     els.push(H.blank());
     els=els.concat(buildIndiTable(sepBizRows,isSepHH,isSepHH?hh:null,"정화조","정화조 처리 개별배출부하량"));
   }
