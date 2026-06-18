@@ -198,24 +198,27 @@ function createLifeModule(opts) {
     return { unitType:found?.unitType||"", unitText:found?.unitText||"" };
   }
 
+  // 용도 검색창의 "현재 어디까지 들어갔는지"는 use 객체에 임시 필드(_scopePath)로 들고 다닌다.
+  // 동/층/용도 행이 추가·삭제돼도 use 객체 자체가 같이 이동하므로 인덱스가 어긋날 일이 없다.
+  function _useDisplayLabel(u){
+    if(u.major&&u.mid) return [u.major,u.mid,u.minor].filter(Boolean).join(" > ");
+    return "";
+  }
+  function _renderUseDropdownItems(items){
+    if(!items.length) return `<div class="useDropdownEmpty">일치하는 용도가 없습니다</div>`;
+    return items.map(it=>{
+      const pathEnc=encodeURIComponent(JSON.stringify(it.path));
+      const cls=it.isLeaf?"item leaf":"item branch";
+      const mark=it.isLeaf?"":"▸ ";
+      return `<div class="${cls}" data-path="${pathEnc}" data-leaf="${it.isLeaf?1:0}">${mark}${it.label}</div>`;
+    }).join("");
+  }
   function _renderUseRow(bIdx, fIdx, uIdx) {
     const u = state.buildings[bIdx].floors[fIdx].uses[uIdx];
-    const majorKeys = Object.keys(LIFE_USE_DB||{});
-    const majorOpts = [`<option value="" disabled ${u.major?"":"selected"} hidden>대분류</option>`,
-      ...majorKeys.map(k=>`<option value="${k}" ${u.major===k?"selected":""}>${k}</option>`)].join("");
-    const midKeys = u.major ? Object.keys(LIFE_USE_DB[u.major]||{}) : [];
-    const midOpts = [`<option value="" disabled ${u.mid?"":"selected"} hidden>중분류</option>`,
-      ...midKeys.map(k=>`<option value="${k}" ${u.mid===k?"selected":""}>${k}</option>`)].join("");
-    const midNode = (u.major&&u.mid)?(LIFE_USE_DB?.[u.major]?.[u.mid]||null):null;
-    const hasMinor = !!(midNode&&midNode.terminal===false&&(midNode.minors||[]).length>0);
-    const minorHtml = hasMinor ? `
-      <select style="font-size:12px;" onchange="window.__lifeOnMinorChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">
-        <option value="" disabled ${u.minor?"":"selected"} hidden>소분류</option>
-        ${(midNode.minors||[]).map(m=>`<option value="${m.name}" ${u.minor===m.name?"selected":""}>${m.name}</option>`).join("")}
-      </select>` : "";
-    let res = u.unitType ? {unitType:u.unitType,unitText:u.unitText}
-      : hasMinor&&u.minor ? _resolveUnitForMinor(u.major,u.mid,u.minor)
-      : u.mid ? _resolveUnitForMid(u.major,u.mid) : {unitType:"",unitText:""};
+    const dropId = `useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`;
+    const inputId = `useSearch_${rootId}_${bIdx}_${fIdx}_${uIdx}`;
+    const displayVal = _useDisplayLabel(u);
+    let res = u.unitType ? {unitType:u.unitType,unitText:u.unitText} : {unitType:"",unitText:""};
     const ul = res.unitText||(res.unitType==="area"?"㎡":res.unitType==="person"?"인":"");
     const showInput = !!res.unitType;
     const nsHtml = `
@@ -230,14 +233,18 @@ function createLifeModule(opts) {
           ${["기계실","전기실","부설주차장","캐노피","기타"].map(s=>`<option value="${s}" ${u.excludeReason===s?"selected":""}>${s}</option>`).join("")}
           </select>`:""}
       </div>`;
-    const gridClass = hasMinor ? "useRow" : "useRow noMinor";
     const factorComment = (u.minor && LIFE_FACTOR_MAP?.[`${u.major}|${u.mid}|${u.minor}`]?.comment) || "";
     return `
       <div style="display:flex;flex-direction:column;">
-        <div class="${gridClass}" style="font-size:12px;">
-          <select style="font-size:12px;" onchange="window.__lifeOnMajorChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${majorOpts}</select>
-          <select style="font-size:12px;" onchange="window.__lifeOnMidChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">${midOpts}</select>
-          ${minorHtml}
+        <div class="useRow" style="font-size:12px;">
+          <div class="useSearchWrap">
+            <input type="text" id="${inputId}" class="useSearchInput" autocomplete="off" value="${displayVal}"
+              placeholder="용도 검색 (예: 음식점, 단독주택)"
+              oninput="window.__lifeOnUseSearchInput('${rootId}',${bIdx},${fIdx},${uIdx},this.value)"
+              onfocus="window.__lifeOnUseSearchFocus('${rootId}',${bIdx},${fIdx},${uIdx})"
+              onblur="setTimeout(()=>window.__lifeOnUseSearchBlur('${rootId}',${bIdx},${fIdx},${uIdx}),120)" />
+            <div class="useDropdown" id="${dropId}"></div>
+          </div>
           ${showInput?`<input type="text" inputmode="decimal" value="${u.inputValue??""}" placeholder="면적/인원"
             style="font-size:12px;" oninput="window.__lifeOnValueChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)" />
             <div class="unitCell" style="font-size:12px;">${ul}</div>`
@@ -248,6 +255,70 @@ function createLifeModule(opts) {
         </div>
         ${factorComment?`<div style="font-size:11px;color:#9ca3af;padding:1px 4px 3px 4px;">※ ${factorComment}</div>`:""}
       </div>`;
+  }
+
+  function _openUseDropdown(bIdx,fIdx,uIdx,items){
+    const drop=document.getElementById(`useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!drop) return;
+    drop.innerHTML=_renderUseDropdownItems(items);
+    drop.classList.add("open");
+    drop.querySelectorAll(".item").forEach(el=>{
+      el.addEventListener("mousedown",(e)=>{
+        e.preventDefault(); // input의 blur보다 먼저 처리되도록
+        const path=JSON.parse(decodeURIComponent(el.dataset.path));
+        const isLeaf=el.dataset.leaf==="1";
+        onUsePick(bIdx,fIdx,uIdx,path,isLeaf);
+      });
+    });
+  }
+  function _closeUseDropdown(bIdx,fIdx,uIdx){
+    const drop=document.getElementById(`useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!drop) return;
+    drop.classList.remove("open"); drop.innerHTML="";
+  }
+  function onUseSearchBlur(bIdx,fIdx,uIdx){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    _closeUseDropdown(bIdx,fIdx,uIdx);
+    const inputEl=document.getElementById(`useSearch_${rootId}_${bIdx}_${fIdx}_${uIdx}`);
+    if(!inputEl) return;
+    // 선택을 끝내지 않고 포커스를 벗어나면, 입력칸을 마지막 확정 상태로 되돌린다
+    inputEl.value = u._scopePath&&u._scopePath.length ? u._scopePath.join(" > ")+" > " : _useDisplayLabel(u);
+  }
+  function onUseSearchFocus(bIdx,fIdx,uIdx){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    const scope=u._scopePath||[];
+    const items = scope.length ? getLifeUseChildren(scope) : getLifeUseChildren([]);
+    _openUseDropdown(bIdx,fIdx,uIdx,items);
+  }
+  function onUseSearchInput(bIdx,fIdx,uIdx,text){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    const q=String(text||"").trim();
+    const scope=u._scopePath||[];
+    let items;
+    if(!q){
+      items=getLifeUseChildren(scope);
+    } else if(scope.length){
+      items=getLifeUseChildren(scope).filter(it=>it.label.toLowerCase().includes(q.toLowerCase()));
+    } else {
+      items=(typeof searchLifeUse==="function")?searchLifeUse(q):[];
+    }
+    _openUseDropdown(bIdx,fIdx,uIdx,items);
+  }
+  function onUsePick(bIdx,fIdx,uIdx,path,isLeaf){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    if(!isLeaf){
+      // 분기 선택: 끝나지 않고 하위목록을 펼친다
+      u._scopePath=path;
+      const inputEl=document.getElementById(`useSearch_${rootId}_${bIdx}_${fIdx}_${uIdx}`);
+      if(inputEl){ inputEl.value=path.join(" > ")+" > "; inputEl.focus(); }
+      _openUseDropdown(bIdx,fIdx,uIdx,getLifeUseChildren(path));
+      return;
+    }
+    // 말단 선택: 확정
+    const major=path[0], mid=path[1], minor=path[2]||"";
+    const r = path.length===3 ? _resolveUnitForMinor(major,mid,minor) : _resolveUnitForMid(major,mid);
+    u.major=major; u.mid=mid; u.minor=minor; u.unitType=r.unitType; u.unitText=r.unitText;
+    delete u._scopePath;
+    _closeUseDropdown(bIdx,fIdx,uIdx);
+    render(); _refreshProof();
   }
 
   function computeFloorCalcs(floor) {
@@ -313,9 +384,6 @@ function createLifeModule(opts) {
   }
 
   function onCommonAreaChange(bIdx,fIdx,val){state.buildings[bIdx].floors[fIdx].commonArea=val;updateFloorCalcs(bIdx,fIdx);}
-  function onMajorChange(bIdx,fIdx,uIdx,val){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.major=val;u.mid="";u.minor="";u.unitType="";u.unitText="";render();_refreshProof();}
-  function onMidChange(bIdx,fIdx,uIdx,val){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.mid=val;u.minor="";const r=_resolveUnitForMid(u.major,val);u.unitType=r.unitType;u.unitText=r.unitText;render();_refreshProof();}
-  function onMinorChange(bIdx,fIdx,uIdx,val){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.minor=val;const r=_resolveUnitForMinor(u.major,u.mid,val);u.unitType=r.unitType;u.unitText=r.unitText;render();_refreshProof();}
   function onValueChange(bIdx,fIdx,uIdx,val){state.buildings[bIdx].floors[fIdx].uses[uIdx].inputValue=val;updateFloorCalcs(bIdx,fIdx);_refreshProof();}
   function onNonSewageChange(bIdx,fIdx,uIdx,checked){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.isNonSewage=checked;if(!checked)u.excludeReason="";render();_refreshProof();}
   function onExcludeReasonChange(bIdx,fIdx,uIdx,reason){state.buildings[bIdx].floors[fIdx].uses[uIdx].excludeReason=reason;}
@@ -346,14 +414,14 @@ function createLifeModule(opts) {
 
   return{state,render,addBuilding,addHousehold,removeHousehold,onHHCountChange,
     onCommonAreaChange,onMethod1Change,onMethod2Change,onMethod3Change,onMethod4Change,
-    onMajorChange,onMidChange,onMinorChange,onValueChange,onNonSewageChange,onExcludeReasonChange,
+    onUseSearchInput,onUseSearchFocus,onUseSearchBlur,onUsePick,onValueChange,onNonSewageChange,onExcludeReasonChange,
     bindHouseholdInput,hasAnyData};
 }
 
 window.__lifeModules={};
-window.__lifeOnMajorChange         = (id,b,f,u,v) => window.__lifeModules[id]?.onMajorChange(b,f,u,v);
-window.__lifeOnMidChange           = (id,b,f,u,v) => window.__lifeModules[id]?.onMidChange(b,f,u,v);
-window.__lifeOnMinorChange         = (id,b,f,u,v) => window.__lifeModules[id]?.onMinorChange(b,f,u,v);
+window.__lifeOnUseSearchInput      = (id,b,f,u,v) => window.__lifeModules[id]?.onUseSearchInput(b,f,u,v);
+window.__lifeOnUseSearchFocus      = (id,b,f,u)   => window.__lifeModules[id]?.onUseSearchFocus(b,f,u);
+window.__lifeOnUseSearchBlur       = (id,b,f,u)   => window.__lifeModules[id]?.onUseSearchBlur(b,f,u);
 window.__lifeOnValueChange         = (id,b,f,u,v) => window.__lifeModules[id]?.onValueChange(b,f,u,v);
 window.__lifeOnCommonAreaChange    = (id,b,f,v)   => window.__lifeModules[id]?.onCommonAreaChange(b,f,v);
 window.__lifeOnNonSewageChange     = (id,b,f,u,c) => window.__lifeModules[id]?.onNonSewageChange(b,f,u,c);

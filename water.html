@@ -13,6 +13,10 @@
     .locRow select{flex:0 0 auto;width:auto;min-width:115px;}
     .locRow input{flex:1;min-width:130px;}
     .overviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;align-items:start;}
+    .chunkFlow{grid-template-columns:1fr;max-width:760px;}
+    .chunkLocked{display:none;}
+    .chunkCard{animation:chunkIn .25s ease;}
+    @keyframes chunkIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
     .tabBarRow{display:flex;align-items:center;gap:12px;margin:12px 0 16px;flex-wrap:wrap;}
     .tabBarRow .tabBar{flex:1;margin:0;}
     .wordBtn{padding:10px 18px;border-radius:12px;background:#1a7f64;color:#fff;font-weight:1000;border:none;cursor:pointer;white-space:nowrap;box-shadow:var(--shadow);flex-shrink:0;}
@@ -36,9 +40,18 @@
     .floorBlock { background: #f9fafb; border-radius: 6px; padding: 8px; }
     .floorHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
     .floorTitle { font-size: 12px; font-weight: 700; color: #374151; }
-    .useRow { display: grid; grid-template-columns: auto auto auto 1fr auto auto auto; gap: 5px; align-items: center; font-size: 12px; }
-    .useRow.noMinor { grid-template-columns: auto auto 1fr auto auto auto; }
+    .useRow { display: grid; grid-template-columns: minmax(160px,1.4fr) 1fr auto auto auto; gap: 5px; align-items: center; font-size: 12px; }
     .useRow select, .useRow input { font-size: 12px; min-width: 0; }
+    .useSearchWrap { position: relative; min-width: 0; }
+    .useSearchInput { width: 100%; }
+    .useDropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 50; margin-top: 2px;
+      background: #fff; border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+      max-height: 240px; overflow-y: auto; }
+    .useDropdown.open { display: block; }
+    .useDropdown .item { padding: 6px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .useDropdown .item:hover { background: #f0fdf4; }
+    .useDropdown .item.branch { font-weight: 800; color: #1a7f64; }
+    .useDropdown .useDropdownEmpty { padding: 8px 10px; font-size: 12px; color: #9ca3af; }
     .unitCell { font-size: 12px; color: #374151; white-space: nowrap; }
     .calcHint { font-size: 11px; color: #6b7280; grid-column: 1 / -1; }
     .nsWrap { display: flex; align-items: center; gap: 4px; }
@@ -79,10 +92,10 @@
 
     <!-- TAB 1 -->
     <section id="tab-basic" class="tabPanel active" role="tabpanel">
-      <div class="overviewGrid">
+      <div class="overviewGrid chunkFlow">
 
-        <div class="formCard">
-          <div class="cardTitle">기본정보</div>
+        <div class="formCard chunkCard" data-chunk="1">
+          <div class="cardTitle">① 사업명 / 위치</div>
           <div class="row">
             <label class="title">사업명</label>
             <input id="projectName" placeholder="○○ 근린생활시설 증축공사" />
@@ -106,6 +119,10 @@
               <input id="projectLocationDetail" placeholder="000번지 일원" />
             </div>
           </div>
+        </div>
+
+        <div class="formCard chunkCard chunkLocked" data-chunk="2">
+          <div class="cardTitle">② 사업시행자 / 사업의 종류</div>
           <div class="row">
             <label class="title">사업시행자</label>
             <input id="ownerName" placeholder="(주)○○ / 남양주시장" />
@@ -120,8 +137,8 @@
           </div>
         </div>
 
-        <div class="formCard">
-          <div class="cardTitle">기간 / 용도지역 / 면적·도로</div>
+        <div class="formCard chunkCard chunkLocked" data-chunk="3">
+          <div class="cardTitle">③ 기간 / 용도지역</div>
           <div class="row-half">
             <div class="half"><label class="title">작성 년도</label><select id="yearSelect"></select></div>
             <div class="half"><label class="title">작성 월</label><select id="monthSelect"></select></div>
@@ -138,6 +155,10 @@
             </div>
             <div class="half"><label class="title">세부용도지역</label><select id="zoneSubSelect"></select></div>
           </div>
+        </div>
+
+        <div class="formCard chunkCard chunkLocked" data-chunk="4">
+          <div class="cardTitle">④ 면적 / 도로</div>
           <div class="row">
             <label class="title">면적 (㎡)</label>
             <div class="row-half" style="margin:6px 0 0;">
@@ -155,8 +176,8 @@
           </div>
         </div>
 
-        <div class="formCard">
-          <div class="cardTitle">환경현황</div>
+        <div class="formCard chunkCard chunkLocked" data-chunk="5">
+          <div class="cardTitle">⑤ 환경현황</div>
           <div class="envBox">
             <div class="envTitle">해당 여부</div>
             <div class="envGrid">
@@ -181,8 +202,8 @@
           </div>
         </div>
 
-        <div class="formCard">
-          <div class="cardTitle">검토서 정보</div>
+        <div class="formCard chunkCard chunkLocked" data-chunk="6">
+          <div class="cardTitle">⑥ 검토서 정보</div>
           <div class="row-half">
             <div class="half"><label class="title">검토서 작성자</label><input id="writerName" placeholder="예: 홍길동" /></div>
             <div class="half"><label class="title">연락처</label><input id="writerContact" placeholder="예: 010-0000-0000" /></div>

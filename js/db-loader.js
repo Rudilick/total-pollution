@@ -14,6 +14,7 @@ let SEWAGE_PLANT_DB    = [];
 let POPULATION_UNIT_DB = [];
 let SIDO_SIGUN_LIST    = [];
 let LIFE_USE_DB        = {};
+let LIFE_USE_FLAT_INDEX = []; // 건축물 용도 자동완성용: 모든 대/중/소분류 노드를 평탄화한 검색 인덱스
 let FECES_PLANT_DB     = [];   // [{ sigun, name, linkedPlant }]
 let UNIT_BASIN_LIST    = [];   // [{ sigun, basins:[] }]
 let DONG_RI_DB         = {};   // { sido: { sigun: { dong: [리,...] } } }
@@ -76,6 +77,7 @@ function applyExcelBuffer(buf, sourceLabel) {
     LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit,buildingUse,buildingNote,comment};
   }
   LIFE_USE_DB = _buildLifeDB(lifeRows);
+  LIFE_USE_FLAT_INDEX = _buildLifeUseFlatIndex(LIFE_USE_DB);
 
   // ── 시트2: 하수처리장 ─────────────────────────────────────
   // 열22: 단위유역 (새로 추가된 열)
@@ -222,6 +224,63 @@ function _buildLifeDB(rows){
   }
   return db;
 }
+// ── 건축물 용도 자동완성: 평탄화 인덱스 + 자식 조회 ───────────
+// 트리의 모든 노드(대분류/중분류/소분류)를 한 줄짜리 항목으로 펴서, 검색창에 뭘 치든
+// 깊이와 무관하게 바로 찾을 수 있게 한다. 분기(branch)는 클릭해도 끝나지 않고 하위목록을
+// 펼치기만 하며, 말단(leaf)만 최종 선택으로 끝난다.
+function _buildLifeUseFlatIndex(db){
+  const flat=[];
+  for(const major of Object.keys(db)){
+    flat.push({path:[major],label:major,fullLabel:major,isLeaf:false});
+    for(const mid of Object.keys(db[major])){
+      const node=db[major][mid];
+      const midPath=[major,mid], midFull=`${major} > ${mid}`;
+      if(node.terminal){
+        flat.push({path:midPath,label:mid,fullLabel:midFull,isLeaf:true,unitType:node.unitType,unitText:node.unitText});
+      } else {
+        flat.push({path:midPath,label:mid,fullLabel:midFull,isLeaf:false});
+        (node.minors||[]).forEach(m=>{
+          flat.push({path:[major,mid,m.name],label:m.name,fullLabel:`${midFull} > ${m.name}`,isLeaf:true,unitType:m.unitType,unitText:m.unitText});
+        });
+      }
+    }
+  }
+  return flat;
+}
+// path=[] → 최상위(대분류) 목록, path=[major] → 그 중분류 목록, path=[major,mid](비말단) → 소분류 목록
+function getLifeUseChildren(path){
+  path=path||[];
+  if(path.length===0){
+    return Object.keys(LIFE_USE_DB||{}).map(major=>({path:[major],label:major,isLeaf:false}));
+  }
+  if(path.length===1){
+    const major=path[0], midMap=(LIFE_USE_DB||{})[major]||{};
+    return Object.keys(midMap).map(mid=>{
+      const node=midMap[mid];
+      return node.terminal
+        ?{path:[major,mid],label:mid,isLeaf:true,unitType:node.unitType,unitText:node.unitText}
+        :{path:[major,mid],label:mid,isLeaf:false};
+    });
+  }
+  if(path.length===2){
+    const [major,mid]=path, node=(LIFE_USE_DB||{})[major]?.[mid];
+    if(!node||node.terminal) return [];
+    return (node.minors||[]).map(m=>({path:[major,mid,m.name],label:m.name,isLeaf:true,unitType:m.unitType,unitText:m.unitText}));
+  }
+  return [];
+}
+// 전체 평탄화 인덱스에서 부분일치 검색 (대소문자 무시, 공백 제거 비교)
+function searchLifeUse(query,limit){
+  limit=limit||15;
+  const q=String(query||"").trim().toLowerCase().replace(/\s/g,"");
+  if(!q) return [];
+  return (LIFE_USE_FLAT_INDEX||[])
+    .filter(it=>it.fullLabel.toLowerCase().replace(/\s/g,"").includes(q))
+    .slice(0,limit);
+}
+window.getLifeUseChildren=getLifeUseChildren;
+window.searchLifeUse=searchLifeUse;
+
 async function loadLifeExcelFile(file){ applyExcelBuffer(await file.arrayBuffer(),`(수동: ${file.name})`); }
 function resetLifeUseDB(){ loadExcelDB(DB_EXCEL_URL); }
 function bindLifeExcelUpload(){

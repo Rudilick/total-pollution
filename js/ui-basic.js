@@ -177,6 +177,41 @@ window.fillDongSelect=fillDongSelect;
 window.fillUnitBasinSelect=fillUnitBasinSelect;
 window.fillPlantSelects=function(){};
 
+// ── 사업개요 덩어리(청크) 순차 노출 ──────────────────────────
+// 누적형: 덩어리 N의 필수 필드가 채워지면 N+1을 보여주고, 한번 열린 덩어리는 다시 잠그지 않는다.
+const CHUNK_REQUIRED_FIELDS={
+  1:["projectName","sidoSelect","sigunSelect","dongSelect"],
+  2:["ownerName","bizTypeSelect"],
+  3:["yearSelect","monthSelect","startYearSelect","completeYearSelect","zoneMainSelect","zoneSubSelect"],
+  4:["areaTotalSite","areaBuildSite","areaGrossFloor"],
+  5:[],
+  6:["writerName","unitBasinSelect"]
+};
+function _isFieldFilled(id){
+  const el=document.getElementById(id);
+  if(!el) return false;
+  return !!String(el.value||"").trim();
+}
+function _isChunkComplete(n){
+  return (CHUNK_REQUIRED_FIELDS[n]||[]).every(_isFieldFilled);
+}
+function checkChunkProgress(){
+  const chunks=Array.from(document.querySelectorAll("#tab-basic .chunkCard"))
+    .sort((a,b)=>Number(a.dataset.chunk)-Number(b.dataset.chunk));
+  for(let i=0;i<chunks.length-1;i++){
+    if(!_isChunkComplete(Number(chunks[i].dataset.chunk))) break;
+    chunks[i+1].classList.remove("chunkLocked");
+  }
+}
+function initChunkFlow(){
+  const root=document.getElementById("tab-basic");
+  if(!root) return;
+  root.addEventListener("input",checkChunkProgress);
+  root.addEventListener("change",checkChunkProgress);
+  checkChunkProgress();
+}
+window.checkChunkProgress=checkChunkProgress;
+
 // ── 계산 실행 ────────────────────────────────────────────────
 function runAndGenerate(){
   if(typeof runCalc!=="function"){alert("calc.js 로드 오류");return;}
@@ -319,6 +354,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   fillYearMonthSelects();
   fillZoneSelects();
   fillBizTypeSelect();
+  initChunkFlow();
 
   bindLifeExcelUpload();
   bindBeforeNoSource();
@@ -334,6 +370,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(window.lifeBefore){window.lifeBefore.render();window.lifeBefore.bindHouseholdInput();}
     if(window.lifeAfter) {window.lifeAfter.render(); window.lifeAfter.bindHouseholdInput();}
     refreshBeforeProofVisibility();
+    checkChunkProgress();
   });
 
   renderLandList("landContainer_before","before");
