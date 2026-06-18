@@ -27,6 +27,12 @@ const _toneUsedIdx = {};
 let   _fallbackIdx = 0;
 
 function layerColor(name) {
+  // 이제는 해치 색상을 직접 읽으니 추측할 필요가 없다 — 범례에서 그 용도명에 실제로
+  // 쓰인 색(colorKey)을 그대로 쓴다. 못 찾을 때만(예전 레이어명 등) 아래 추측 로직으로.
+  if (typeof globalLegend !== 'undefined') {
+    const hit = globalLegend.find(r => r.label === name);
+    if (hit) return hit.colorKey;
+  }
   if (_layerColorCache[name]) return _layerColorCache[name];
 
   const tone = LAYER_COLOR_TONES.find(t => t.keywords.some(k => name.includes(k)));

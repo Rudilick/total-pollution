@@ -21,6 +21,8 @@ const _EX = {
   incrFill:   'rgba(25, 155, 75, 0.55)',
   incrStroke: '#0a7a3c',
   incrLabel:  '#0a7a3c',
+  // 증가 분석 도면의 기존 부지(용도 구분 없이 통일) 색
+  baseGray:   '#9a9a9a',
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -150,10 +152,10 @@ function _makeIncreaseSection(result, sFirst, sLast) {
   const ctx    = canvas.getContext('2d');
   _fillBg(ctx, canvas.width, canvas.height);
 
-  // 최초 도면 레이어 (base)
+  // 최초 도면 레이어 (base) — 용도 구분 없이 옅은 회색으로 통일 (이 도면은 증가 구역만 보면 됨)
   lsFirst.forEach(l => {
     const tr = (sFirst.data.layers[l] || []).map(r => applyTransform(r, T));
-    _drawRings(ctx, tr, layerColor(l), 0.22, 0.75, 1, tfn);
+    _drawRings(ctx, tr, _EX.baseGray, 0.35, 0.6, 1, tfn);
   });
 
   // 증가 구역 강조
@@ -168,22 +170,14 @@ function _makeIncreaseSection(result, sFirst, sLast) {
     chunkN++;
   });
 
-  _drawLegend(ctx, canvas.width, canvas.height, _EX.LEG_H, [
-    { color: '#777',         label: `최초 도면 (${sFirst.label})` },
-    { color: _EX.incrStroke, label: '증가 구역' },
-  ]);
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
-
-  // 도면별 토지이용 레이어 범례 (최초·최종 레이어 전체)
-  const layerLegend = [...new Set([...lsFirst, ...lsLast])]
-    .map(l => ({ color: layerColor(l), label: l }));
 
   const totalArea = chunks.reduce((s, c) => s + c.area, 0);
   return {
     title:      `사업부지 증가 분석 — ${sFirst.label} → ${sLast.label}`,
     subtitle:   `증가율: ${result.increasePct.toFixed(3)} %  ·  증가 면적: ${_fmtArea(totalArea)} ㎡`,
     imgDataURL: canvas.toDataURL('image/png'),
-    layerLegend,
+    layerLegend: [], // 이 도면은 기존 부지=회색, 증가 구역=초록 단 두 가지뿐이라 용도별 범례가 필요 없음
     chunks,
     chunkType: 'increase',
   };
