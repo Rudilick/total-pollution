@@ -149,9 +149,22 @@ function parseDXF(text) {
   // 해치를 작은 구역들보다 나중에 그리고 "맨 뒤로 보내기"를 적용하는 경우가 흔하다.
   // 그래서 파일 순서 대신 "면적이 작은 도형이 큰 배경 위에 그려진 구체적인 구역"이라는
   // 더 안정적인 가정을 쓴다 — 면적이 작은 것부터 위에 있는 것으로 처리한다.
+  // 단, 면적이 거의 같은(=같은 자리에 중복으로 겹쳐 그린) 경우엔 면적으로 우열을 가릴 수
+  // 없다 — 이때는 도면 전체에서 그 색이 차지하는 총면적이 더 작은 쪽(=배경색이 아니라
+  // 특정 용도로 좁게 쓰인 색)을 위로 본다. 파일에 그려진 순서는 실제 화면 표시 순서와
+  // 안 맞을 수 있어(DRAWORDER 테이블이 따로 없는 도면도 많음) 믿을 수 없다.
+  const AREA_TIE_TOLERANCE = 0.01; // 1% 이내 차이면 "거의 같은 면적"으로 본다
+  const totalAreaByHex = {};
+  hatchDrawOrder.forEach(e => { totalAreaByHex[e.hex] = (totalAreaByHex[e.hex] || 0) + shoelace(e.ring); });
   const sortedByAreaDesc = hatchDrawOrder
     .map((e, idx) => ({ ...e, idx, area: shoelace(e.ring) }))
-    .sort((a, b) => b.area - a.area);
+    .sort((a, b) => {
+      const maxArea = Math.max(a.area, b.area) || 1;
+      if (Math.abs(a.area - b.area) / maxArea < AREA_TIE_TOLERANCE) {
+        return totalAreaByHex[b.hex] - totalAreaByHex[a.hex]; // 도면 전체 총면적이 작은 색이 나중(=위)
+      }
+      return b.area - a.area;
+    });
   const visibleSorted = resolveVisibleRings(sortedByAreaDesc.map(e => e.ring));
   const visibleHatchRings = new Array(hatchDrawOrder.length);
   sortedByAreaDesc.forEach((e, sortedIdx) => { visibleHatchRings[e.idx] = visibleSorted[sortedIdx]; });
