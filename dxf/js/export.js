@@ -108,7 +108,8 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
 
   return {
     title:      `${seqNum}차 변경 도면 비교 — ${sFrom.label} → ${sTo.label}`,
-    subtitle:   `변경률: ${pr.changePct.toFixed(3)} %  ·  변경 면적: ${_fmtArea(pr.changeArea)} ㎡`,
+    subtitle:   `변경률: ${pr.changePct.toFixed(3)} %  ·  변경 면적: ${_fmtArea(pr.changeArea)} ㎡` +
+      (pr.excludedArea > 0.1 ? `  ·  제척된 면적: ${_fmtArea(pr.excludedArea)} ㎡` : ''),
     imgDataURL: canvas.toDataURL('image/png'),
     layerLegend,
     chunks,

@@ -53,8 +53,12 @@ function calcPairChange(dataA, dataB) {
   const changeArea = changes.reduce((s, c) => s + c.area, 0);
   const changePct = totalAreaA > 0 ? (changeArea / totalAreaA * 100) : 0;
 
+  // 제척된 면적: A(이전 단계) 전체에는 있었는데 B(다음 단계) 전체에는 아예 없어진 부분
+  // (매도·제척 등으로 부지에서 빠진 경우) — 분자(changeArea) 계산에는 포함되지 않는다.
+  const excludedArea = newAreaOnly(totalRingsB, totalRingsA);
+
   return {
-    changes, changeArea, changePct,
+    changes, changeArea, changePct, excludedArea,
     totalAreaA, totalAreaB,
     allLayers, lsA, lsB,
     alignTypeA: typeA, alignTypeB: typeB,

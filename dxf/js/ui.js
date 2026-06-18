@@ -460,7 +460,8 @@ function _renderPairs(pairResults) {
     meta.className = 'pair-meta';
     meta.textContent =
       `전 도면 면적: ${_fmtArea(r.totalAreaA)} ㎡  |  후 도면 면적: ${_fmtArea(r.totalAreaB)} ㎡` +
-      `  |  기준 면적(최초 도면): ${_fmtArea(r.areaFirst)} ㎡`;
+      `  |  기준 면적(최초 도면): ${_fmtArea(r.areaFirst)} ㎡` +
+      (r.excludedArea > 0.1 ? `  |  제척된 면적: ${_fmtArea(r.excludedArea)} ㎡` : '');
     detail.appendChild(meta);
 
     // 접기/펼치기
