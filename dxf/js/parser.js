@@ -5,6 +5,47 @@
 
 const BORDER_NAMES = ['둘레', 'BORDER', 'FRAME', 'OUTLINE', '도면한도리'];
 
+// ── 불지(bulge) → 호(arc) 보간 ───────────────────────────────────
+// LWPOLYLINE/HATCH 경계의 곡선 구간은 그룹코드 42(bulge)로 표현되는데, 지금까지는
+// 이걸 무시하고 양 끝점을 직선으로 그냥 이어버려서 곡선이 직선으로 잘려 보였다.
+// bulge = tan(포함각/4) 라는 DXF 정의를 그대로 써서 중심·반지름을 구하고, 그 호를
+// 여러 점으로 잘라(segments개) 끼워넣는다.
+function _bulgeArcPoints(p1, p2, bulge, segments) {
+  if (!bulge) return [];
+  const theta = Math.atan(bulge) * 4;
+  const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+  const c = Math.hypot(dx, dy);
+  if (c < 1e-9) return [];
+  const r = c / (2 * Math.abs(Math.sin(theta / 2)));
+  const chordAngle = Math.atan2(dy, dx);
+  const midX = (p1[0] + p2[0]) / 2, midY = (p1[1] + p2[1]) / 2;
+  const sign = bulge >= 0 ? 1 : -1; // 양수=반시계, 음수=시계 (DXF 정의)
+  const apothem = Math.sqrt(Math.max(r * r - (c / 2) * (c / 2), 0));
+  const perpAngle = chordAngle + sign * Math.PI / 2;
+  const cx = midX + apothem * Math.cos(perpAngle);
+  const cy = midY + apothem * Math.sin(perpAngle);
+  const startAngle = Math.atan2(p1[1] - cy, p1[0] - cx);
+  const n = Math.max(2, segments || 12);
+  const pts = [];
+  for (let k = 1; k < n; k++) {
+    const t = k / n;
+    const ang = startAngle + theta * t;
+    pts.push([cx + r * Math.cos(ang), cy + r * Math.sin(ang)]);
+  }
+  return pts;
+}
+/** vertices[i] → vertices[i+1] 구간의 불지값이 bulges[i]일 때, 곡선 구간에 보간점을 끼워넣는다 */
+function _applyBulges(vertices, bulges) {
+  if (!bulges.some(b => b)) return vertices;
+  const out = [];
+  for (let i = 0; i < vertices.length; i++) {
+    out.push(vertices[i]);
+    const next = vertices[i + 1];
+    if (next && bulges[i]) out.push(..._bulgeArcPoints(vertices[i], next, bulges[i]));
+  }
+  return out;
+}
+
 // ── 색상 변환 (ACI 색상 인덱스 / 트루컬러 → #rrggbb) ──────────────
 // 1~9는 AutoCAD 표준 기본색 그대로. 10~249는 표준표의 근사치(육안 구분용 –
 // 실제 도면은 보통 1~9 또는 트루컬러를 쓰므로 정확도보다 "항상 같은 인덱스는
@@ -182,7 +223,8 @@ function parseDXF(text) {
 function _parseLWPolyline(pairs, startIdx) {
   let layer = '0';
   let flags = 0;
-  let ring  = [];
+  let vertices = [];
+  let bulges = []; // bulges[i] = vertices[i]→vertices[i+1] 구간의 불지값
   let curX  = null;
   let colorIdx = null, trueColor = null;
   let i = startIdx;
@@ -196,18 +238,21 @@ function _parseLWPolyline(pairs, startIdx) {
     else if (code === '70') flags = parseInt(val) || 0;
     else if (code === '10') curX  = parseFloat(val);
     else if (code === '20' && curX !== null) {
-      ring.push([curX, parseFloat(val)]);
+      vertices.push([curX, parseFloat(val)]);
+      bulges.push(0);
       curX = null;
     }
+    else if (code === '42' && bulges.length) bulges[bulges.length - 1] = parseFloat(val) || 0;
     i++;
   }
 
-  // 닫힌 폴리라인: 첫 점 복사로 링 닫기
-  if ((flags & 1) && ring.length > 0) {
-    const [fx, fy] = ring[0];
-    const [lx, ly] = ring[ring.length - 1];
-    if (fx !== lx || fy !== ly) ring.push([fx, fy]);
+  // 닫힌 폴리라인: 첫 점 복사로 링 닫기 (마지막 점의 불지값이 이 닫는 구간에 그대로 적용됨)
+  if ((flags & 1) && vertices.length > 0) {
+    const [fx, fy] = vertices[0];
+    const [lx, ly] = vertices[vertices.length - 1];
+    if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
   }
+  const ring = _applyBulges(vertices, bulges);
 
   return { layer, ring, colorIdx, trueColor, nextIdx: i };
 }
@@ -264,7 +309,8 @@ function _parseHatch(pairs, startIdx) {
         if (code === '93') { vertCount = parseInt(val) || 0; i++; break; }
         i++;
       }
-      const ring = [];
+      const vertices = [];
+      const bulges = [];
       let curX = null;
       let vRead = 0;
       while (i < pairs.length && vRead < vertCount) {
@@ -272,16 +318,18 @@ function _parseHatch(pairs, startIdx) {
         if (code === '0') break;
         if (code === '10') curX = parseFloat(val);
         else if (code === '20' && curX !== null) {
-          ring.push([curX, parseFloat(val)]);
+          vertices.push([curX, parseFloat(val)]);
+          bulges.push(0);
           curX = null; vRead++;
-        } else if (code === '42') { /* bulge – 무시 */ }
+        } else if (code === '42' && bulges.length) bulges[bulges.length - 1] = parseFloat(val) || 0;
         i++;
       }
-      if (isClosed && ring.length > 0) {
-        const [fx, fy] = ring[0];
-        const [lx, ly] = ring[ring.length - 1];
-        if (fx !== lx || fy !== ly) ring.push([fx, fy]);
+      if (isClosed && vertices.length > 0) {
+        const [fx, fy] = vertices[0];
+        const [lx, ly] = vertices[vertices.length - 1];
+        if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
       }
+      const ring = _applyBulges(vertices, bulges);
       if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor });
     } else {
       // 엣지 경계 – 엣지 개수(93) 만큼 스킵
