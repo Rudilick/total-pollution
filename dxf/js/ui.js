@@ -52,18 +52,36 @@ let slots = [];
 let _slotId = 0;
 
 function _newSlot(label) {
-  return { id: ++_slotId, label, data: null, file: null, rawData: null, legend: [] };
+  return { id: ++_slotId, label, data: null, file: null, rawData: null };
 }
 
-// ── 색상 범례: 업로드/아카이브 로드 어디서든 이 함수 하나로 슬롯을 채운다 ──
+// ── 색상 범례: 도면마다 따로 두지 않고 전 도면 공통 1개만 쓴다 ──────
+// (같은 색이면 같은 용도일 거라는 가정 — 도면마다 같은 색을 두 번 입력하지 않아도 됨)
+let globalLegend = [];
+
 function _initSlotFromParsed(slot, rawParsed) {
   slot.rawData = rawParsed;
-  slot.legend = getDistinctColors(rawParsed).map(colorKey => ({ colorKey, label: '', exclude: false }));
-  slot.data = applyColorLegend(rawParsed, slot.legend);
+  _refreshGlobalLegend();
+}
+// 모든 슬롯의 distinct color를 합쳐 legend를 갱신(기존 입력값은 유지)하고,
+// 모든 슬롯의 slot.data를 새 legend로 다시 계산한다.
+function _refreshGlobalLegend() {
+  const seen = new Set();
+  const merged = [];
+  slots.filter(s => s.rawData).forEach(s => {
+    getDistinctColors(s.rawData).forEach(colorKey => {
+      if (seen.has(colorKey)) return;
+      seen.add(colorKey);
+      const existing = globalLegend.find(r => r.colorKey === colorKey);
+      merged.push(existing || { colorKey, label: '' });
+    });
+  });
+  globalLegend = merged;
+  slots.forEach(_recomputeSlotData);
 }
 function _recomputeSlotData(slot) {
-  if (!slot.rawData) return;
-  slot.data = applyColorLegend(slot.rawData, slot.legend);
+  if (!slot.rawData) { slot.data = null; return; }
+  slot.data = applyColorLegend(slot.rawData, globalLegend);
 }
 
 function initSlots() {
@@ -79,6 +97,7 @@ function addSlot() {
 function removeSlot(id) {
   if (slots.length <= 2) return;
   slots = slots.filter(s => s.id !== id);
+  _refreshGlobalLegend();
   renderSlotsWrap();
 }
 
@@ -122,81 +141,64 @@ function renderSlotsWrap() {
   _renderLegendWrap();
 }
 
-// ── 색상 범례 입력 (슬롯별: 색상 칩 + 용도명 입력 + 제외 체크) ──────
+// ── 색상 범례 입력 (모든 도면 공통: 색상 칩 + 용도명 입력 1세트) ────
 function _renderLegendWrap() {
   const wrap = document.getElementById('legend-wrap');
   if (!wrap) return;
   wrap.innerHTML = '';
 
-  slots.filter(s => s.rawData).forEach(slot => {
-    const box = document.createElement('div');
-    box.className = 'legend-slot';
+  if (!slots.some(s => s.rawData)) return;
 
-    const title = document.createElement('div');
-    title.className = 'legend-slot-title';
-    title.textContent = `${slot.label} — 색상별 용도 입력`;
-    box.appendChild(title);
+  const box = document.createElement('div');
+  box.className = 'legend-slot';
 
-    if (!slot.legend.length) {
-      const p = document.createElement('p');
-      p.style.cssText = 'font-size:12px;color:var(--gray-400);';
-      p.textContent = '도면에서 색이 있는 도형을 찾지 못했습니다.';
-      box.appendChild(p);
-    }
+  const title = document.createElement('div');
+  title.className = 'legend-slot-title';
+  title.textContent = '색상별 용도 입력 (모든 도면 공통)';
+  box.appendChild(title);
 
-    slot.legend.forEach(row => {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'legend-row';
+  if (!globalLegend.length) {
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:12px;color:var(--gray-400);';
+    p.textContent = '도면에서 해치(칠한 도형)를 찾지 못했습니다.';
+    box.appendChild(p);
+  }
 
-      const swatch = document.createElement('div');
-      swatch.className = 'legend-swatch';
-      swatch.style.background = row.colorKey;
-      rowEl.appendChild(swatch);
+  globalLegend.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'legend-row';
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = '용도명 입력 (예: 주거용지)';
-      input.value = row.label;
-      input.disabled = row.exclude;
-      input.oninput = (e) => {
-        row.label = e.target.value;
-        _recomputeSlotData(slot);
-        updateRunBtn();
-      };
-      rowEl.appendChild(input);
+    const swatch = document.createElement('div');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = row.colorKey;
+    rowEl.appendChild(swatch);
 
-      const exWrap = document.createElement('label');
-      exWrap.className = 'legend-exclude';
-      const exChk = document.createElement('input');
-      exChk.type = 'checkbox';
-      exChk.checked = row.exclude;
-      exChk.onchange = (e) => {
-        row.exclude = e.target.checked;
-        input.disabled = row.exclude;
-        _recomputeSlotData(slot);
-        updateRunBtn();
-      };
-      exWrap.appendChild(exChk);
-      exWrap.appendChild(document.createTextNode('제외(둘레)'));
-      rowEl.appendChild(exWrap);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '용도명 입력 (예: 주거용지)';
+    input.value = row.label;
+    input.oninput = (e) => {
+      row.label = e.target.value;
+      slots.forEach(_recomputeSlotData);
+      updateRunBtn();
+    };
+    rowEl.appendChild(input);
 
-      box.appendChild(rowEl);
-    });
-
-    if (!_isSlotLegendComplete(slot)) {
-      const warn = document.createElement('div');
-      warn.className = 'legend-incomplete';
-      warn.textContent = '모든 색상에 용도명을 입력하거나 "제외"로 체크해야 분석할 수 있습니다.';
-      box.appendChild(warn);
-    }
-
-    wrap.appendChild(box);
+    box.appendChild(rowEl);
   });
+
+  if (!_isLegendComplete()) {
+    const warn = document.createElement('div');
+    warn.className = 'legend-incomplete';
+    warn.textContent = '모든 색상에 용도명을 입력해야 분석할 수 있습니다.';
+    box.appendChild(warn);
+  }
+
+  wrap.appendChild(box);
 }
 
-function _isSlotLegendComplete(slot) {
-  if (!slot.rawData) return false;
-  return slot.legend.every(row => row.exclude || String(row.label || '').trim());
+function _isLegendComplete() {
+  return globalLegend.every(row => String(row.label || '').trim());
 }
 
 function _makeArrow() {
@@ -346,7 +348,7 @@ function updateRunBtn() {
   if (!btn) return;
   const loadedSlots = slots.filter(s => s.data);
   const loaded = loadedSlots.length;
-  const allLegendsDone = loadedSlots.every(_isSlotLegendComplete);
+  const allLegendsDone = _isLegendComplete();
   btn.disabled = loaded < 2 || !allLegendsDone;
   btn.textContent = loaded < 2
     ? `분석 실행 (도면 ${loaded}/2 이상 업로드 필요)`

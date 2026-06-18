@@ -97,20 +97,17 @@ function parseDXF(text) {
 
   const layerDefaultAci = _parseLayerDefaultColors(pairs);
   const layers = {};
-  // 색상 분석을 위해 그려진 순서(=나중 것이 위)대로 HATCH만 따로 모아둔다.
-  // HATCH는 실제로 칠해진 영역이라 서로 겹치면 위에 그려진 색이 그 자리의 진짜 토지이용이지만,
-  // LWPOLYLINE은(특히 도면 테두리처럼 다른 도형을 통째로 둘러싸는 경우가 많아) 그냥 칠 없는
-  // 경계선으로 보고 겹침 처리를 하지 않는다 — 안 그러면 테두리가 안의 용도들을 다 가려버린다.
+  // 색상/용도 분석은 HATCH만 본다 — LWPOLYLINE은 캐드에서 보통 테두리·경계선처럼
+  // 칠이 없는 별개 객체로 쓰이고, 범례에 끼면 "제외" 처리를 따로 해줘야 해서 번거롭다.
+  // (layers에는 그대로 넣어 다른 화면의 도면 미리보기는 영향받지 않게 한다.)
   const hatchDrawOrder = [];
-  const polyEntries = [];
   let inEntities = false;
   let i = 0;
 
-  function _addPoly(layer, ring, colorIdx, trueColor) {
+  function _addPoly(layer, ring) {
     if (ring.length < 3) return;
     if (!layers[layer]) layers[layer] = [];
     layers[layer].push(ring);
-    polyEntries.push({ ring, hex: _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci) });
   }
   function _addHatch(layer, ring, colorIdx, trueColor) {
     if (ring.length < 3) return;
@@ -134,7 +131,7 @@ function parseDXF(text) {
     } else if (inEntities && code === '0' && val === 'LWPOLYLINE') {
       const res = _parseLWPolyline(pairs, i + 1);
       i = res.nextIdx;
-      _addPoly(res.layer, res.ring, res.colorIdx, res.trueColor);
+      _addPoly(res.layer, res.ring);
     } else if (inEntities && code === '0' && val === 'HATCH') {
       const res = _parseHatch(pairs, i + 1);
       i = res.nextIdx;
@@ -147,11 +144,6 @@ function parseDXF(text) {
   }
 
   const colors = {};
-  // LWPOLYLINE은 겹침 처리 없이 그대로
-  polyEntries.forEach(entity => {
-    if (!colors[entity.hex]) colors[entity.hex] = [];
-    colors[entity.hex].push(entity.ring);
-  });
   // HATCH끼리 겹치는 영역은 맨 위(나중에 그려진) 색상에만 남긴다
   const visibleHatchRings = resolveVisibleRings(hatchDrawOrder.map(e => e.ring));
   hatchDrawOrder.forEach((entity, idx) => {
@@ -368,16 +360,14 @@ function getDistinctColors(parsedData) {
 /**
  * 사용자가 입력한 색상→용도명 매핑을 적용해 기존 analyzer.js가 기대하는
  * { layers: { [용도명]: ring[][] } } 모양으로 변환한다.
- * legendRows: [{ colorKey, label, exclude }]
- * exclude로 체크된 색상은 모두 '둘레'로 합쳐, 기존 detectBorderLayer가 그대로 동작하게 한다.
+ * legendRows: [{ colorKey, label }]
  */
 function applyColorLegend(parsedData, legendRows) {
   const layers = {};
   (legendRows || []).forEach(row => {
     const rings = (parsedData.colors || {})[row.colorKey] || [];
-    if (!rings.length) return;
-    const key = row.exclude ? '둘레' : String(row.label || '').trim();
-    if (!key) return;
+    const key = String(row.label || '').trim();
+    if (!rings.length || !key) return;
     if (!layers[key]) layers[key] = [];
     layers[key].push(...rings);
   });
