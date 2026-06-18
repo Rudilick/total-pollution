@@ -28,7 +28,11 @@ function computeTransform(bboxA, bboxB) {
  * @returns {Array}
  */
 function applyTransform(ring, t) {
-  return ring.map(([x, y]) => [x * t.scale + t.tx, y * t.scale + t.ty]);
+  const out = ring.map(([x, y]) => [x * t.scale + t.tx, y * t.scale + t.ty]);
+  // .map()은 새 배열을 만들어서 ring에 붙어있던 __origPoly(구멍 보존용 원본 폴리곤)가
+  // 사라진다 — 같이 변환해서 다시 붙여준다.
+  if (ring.__origPoly) out.__origPoly = ring.__origPoly.map(sub => applyTransform(sub, t));
+  return out;
 }
 
 /**
@@ -184,6 +188,11 @@ function _keyholeMerge(outerRing, holeRing) {
 function mergePolygonHoles(poly) {
   let merged = poly[0];
   for (let h = 1; h < poly.length; h++) merged = _keyholeMerge(merged, poly[h]);
+  // 면적 계산용으로는 이 단일 링(키홀로 합친 것)을 쓰지만, 그대로 그림으로 그리면 외곽↔구멍을
+  // 잇는 폭 0인 틈새가 직선처럼 보인다. 화면에 그릴 때는 원래의 [외곽, 구멍...] 형태를 써서
+  // (export.js의 _drawPoly처럼 서브패스+evenodd로) 그 틈새 선이 안 보이게 할 수 있도록,
+  // 원본 polygon을 같이 들고 다닌다.
+  if (poly.length > 1) merged.__origPoly = poly;
   return merged;
 }
 

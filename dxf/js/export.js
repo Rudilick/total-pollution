@@ -215,12 +215,18 @@ function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
     // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
     if (ring.length < 2 || shoelace(ring) < 1e-6) return;
     ctx.beginPath();
-    ctx.moveTo(tfn.x(ring[0][0]), tfn.y(ring[0][1]));
-    for (let i = 1; i < ring.length; i++) ctx.lineTo(tfn.x(ring[i][0]), tfn.y(ring[i][1]));
-    ctx.closePath();
+    // 구멍이 합쳐진 링은 외곽+구멍을 각각 별도 서브패스로 그려서(evenodd) 둘을 잇는
+    // 틈새 선이 보이지 않게 한다 (__origPoly가 그 원래 [외곽, 구멍...] 형태)
+    const subpaths = ring.__origPoly || [ring];
+    subpaths.forEach(sub => {
+      if (!sub.length) return;
+      ctx.moveTo(tfn.x(sub[0][0]), tfn.y(sub[0][1]));
+      for (let i = 1; i < sub.length; i++) ctx.lineTo(tfn.x(sub[i][0]), tfn.y(sub[i][1]));
+      ctx.closePath();
+    });
     ctx.globalAlpha = fillAlpha;
     ctx.fillStyle   = hexColor;
-    ctx.fill();
+    ctx.fill('evenodd');
     ctx.globalAlpha = strokeAlpha;
     ctx.strokeStyle = hexColor;
     ctx.lineWidth   = lw;

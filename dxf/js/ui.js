@@ -333,10 +333,16 @@ function drawThumbnail(canvas, data) {
       // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
       if (ring.length < 2 || shoelace(ring) < 1e-6) continue;
       ctx.beginPath();
-      ctx.moveTo(tx(ring[0][0]), ty(ring[0][1]));
-      for (let k = 1; k < ring.length; k++) ctx.lineTo(tx(ring[k][0]), ty(ring[k][1]));
-      ctx.closePath();
-      ctx.fill();
+      // 구멍이 합쳐진 링은 외곽+구멍을 각각 서브패스로 그려서(evenodd) 둘을 잇는 틈새 선이
+      // 안 보이게 한다 (__origPoly가 원래의 [외곽, 구멍...] 형태)
+      const subpaths = ring.__origPoly || [ring];
+      subpaths.forEach(sub => {
+        if (!sub.length) return;
+        ctx.moveTo(tx(sub[0][0]), ty(sub[0][1]));
+        for (let k = 1; k < sub.length; k++) ctx.lineTo(tx(sub[k][0]), ty(sub[k][1]));
+        ctx.closePath();
+      });
+      ctx.fill('evenodd');
       ctx.stroke();
     }
   }
