@@ -302,8 +302,12 @@ function _parseHatch(pairs, startIdx) {
       const [code, val] = pairs[i];
       if (code === '0') return { rings, nextIdx: i };
       if (code === '97') {
+        // 97(소스 경계 오브젝트 개수) 다음에는 그 개수만큼 330(핸들) 쌍이 온다.
+        // pairs 배열은 그룹코드-값 한 쌍이 이미 한 칸이므로, 97 자신(+1)과
+        // 330 칸 수(cnt)만 더하면 된다 — *2를 하면 다음 경로(92)를 건너뛰어
+        // 그 뒤 경로들이 통째로 깨진다(여러 경계 영역이 있는 HATCH에서 발생).
         const cnt = parseInt(val) || 0;
-        i += 1 + cnt * 2;
+        i += 1 + cnt;
         break;
       }
       if (code === '91' || code === '92') break; // 다음 경로
