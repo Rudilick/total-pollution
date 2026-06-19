@@ -108,9 +108,11 @@ function _ringPerimeter(ring) {
  * @param {number} minWidth - 평균 폭이 이보다 얇은 폴리곤은 제거 (m)
  * @returns {Array}
  */
-// 실제로 가늘고 뾰족하게 그려진 도형(예: 얇은 삼각형 꼭짓점)까지 결과에서 지워버리면 안 되므로,
-// 진짜 부동소수점 연산 잔여물(거의 0에 가까운 크기)만 걸러낼 만큼 아주 작게 잡는다.
-const MIN_SLIVER_AREA  = 1e-6; // ㎡
+// 실제로 가늘고 뾰족하게 그려진 도형(예: 얇은 삼각형 꼭짓점)까지 지워버리면 안 되므로 폭
+// 기준은 거의 0으로 두고, 면적 기준만 0.01㎥로 — 곡선(아크) 테셀레이션 차이로 생기는
+// 진짜 부동소수점 잡음(0.0001㎥ 이하)은 걸러내되, 사람이 실제로 그린 가장 작은 변화보다는
+// 충분히 낮게 잡는다.
+const MIN_SLIVER_AREA  = 0.01; // ㎡
 const MIN_SLIVER_WIDTH = 1e-4; // m
 
 function cleanMultiPoly(multiPoly, minArea = MIN_SLIVER_AREA, minWidth = MIN_SLIVER_WIDTH) {
