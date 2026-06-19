@@ -45,7 +45,10 @@ function exportReport(result, exportSlots) {
   // 증가율 섹션
   sections.push(_makeIncreaseSection(result, loaded[0], loaded[loaded.length - 1]));
 
-  _openPrintWindow(sections);
+  // 면적상세 섹션용 — 모든 차수의 변경/증가 항목을 한데 모음
+  const detailChunks = sections.flatMap(sec => sec.chunks);
+
+  _openPrintWindow(sections, detailChunks);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
       _drawPoly(ctx, poly, _EX.chgFill, _EX.chgStroke, 2.5, tfn);
       const [cx, cy] = _centroid(poly[0]);
       _drawLabel(ctx, tfn.x(cx), tfn.y(cy), chunkN, _EX.chgLabel);
-      chunks.push({ num: chunkN, from: ch.from, to: ch.to, area: shoelace(poly[0]) });
+      chunks.push({ num: chunkN, from: ch.from, to: ch.to, area: shoelace(poly[0]), poly, origin: `${seqNum}차 변경` });
       chunkN++;
     });
   });
@@ -175,7 +178,7 @@ function _makeIncreaseSection(result, sFirst, sLast) {
     _drawPoly(ctx, poly, _EX.incrFill, _EX.incrStroke, 2.5, tfn);
     const [cx, cy] = _centroid(poly[0]);
     _drawLabel(ctx, tfn.x(cx), tfn.y(cy), chunkN, _EX.incrLabel);
-    chunks.push({ num: chunkN, from: '현황', to: '증가', area: shoelace(poly[0]) });
+    chunks.push({ num: chunkN, from: '현황', to: '증가', area: shoelace(poly[0]), poly, origin: '증가' });
     chunkN++;
   });
 
@@ -256,6 +259,19 @@ function _drawPoly(ctx, poly, fillStyle, strokeStyle, lw, tfn) {
   ctx.lineWidth   = lw;
   ctx.stroke();
   ctx.restore();
+}
+
+/** 변경/증가 폴리곤 1개를 자신의 bbox에 맞춰 확대한 미니 카드 이미지 생성 (면적상세용) */
+function _makeDetailCardImage(poly, fillStyle, strokeStyle) {
+  const W = 360, H = 300, pad = 24;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  _fillBg(ctx, W, H);
+  if (!poly?.[0]?.length) return canvas.toDataURL('image/png');
+  const tfn = _makeMapTransform(poly, W, H, pad, 0);
+  _drawPoly(ctx, poly, fillStyle, strokeStyle, 2, tfn);
+  return canvas.toDataURL('image/png');
 }
 
 /** 번호 라벨 (원형 배지) */
@@ -363,7 +379,7 @@ function _drawScaleBar(ctx, W, H, legH) {
 // ─────────────────────────────────────────────────────────────────
 //  프린트 HTML 생성 & 팝업 열기
 // ─────────────────────────────────────────────────────────────────
-function _openPrintWindow(sections) {
+function _openPrintWindow(sections, detailChunks) {
   const now = new Date().toLocaleString('ko-KR', { hour12: false });
   let bodyHtml = `
     <div class="rpt-header">
@@ -386,6 +402,8 @@ function _openPrintWindow(sections) {
         ${_chunkTableHtml(sec.chunks, sec.chunkType)}
       </div>`;
   });
+
+  bodyHtml += _makeDetailGridSection(detailChunks, sections.length + 1);
 
   const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -451,11 +469,29 @@ function _openPrintWindow(sections) {
   tr:nth-child(even) td{background:#f6f9fc;}
   .total-row td{background:#ddeeff;font-weight:800;}
   .empty-note{color:#888;font-size:12px;padding:6px 0;}
+  /* ── 면적상세 그리드 ── */
+  .detail-grid{
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+    gap:14px;margin-top:10px;
+  }
+  .detail-card{
+    border:1px solid #ccc;border-radius:6px;padding:10px;
+    display:flex;flex-direction:column;align-items:center;
+    background:#fafafa;
+  }
+  .detail-img{
+    width:100%;max-height:200px;object-fit:contain;
+    border:1px solid #ddd;background:#f8f8f6;margin-bottom:8px;
+  }
+  .detail-origin{font-size:12px;font-weight:800;color:#185fa5;}
+  .detail-fromto{font-size:12px;color:#333;margin-top:2px;}
+  .detail-area{font-size:13px;font-weight:800;color:#111;margin-top:4px;}
   /* ── 인쇄 ── */
   @media print{
     @page{size:A4;margin:12mm 14mm;}
     body{padding:0;}
     .page-break{page-break-before:always;}
+    .detail-page{page-break-inside:avoid;}
     .print-btn{display:none!important;}
     /* 브라우저가 인쇄 시 배경색을 기본적으로 빼버려서, 범례 점/표 헤더 색이 PDF에서
        안 보이는 문제 방지 — 모든 요소에 배경색을 그대로 출력하도록 강제 */
@@ -509,6 +545,52 @@ function _chunkTableHtml(chunks, type) {
     ? `<tr class="total-row"><td colspan="3" style="text-align:right;font-weight:800;">합 계</td><td>${_fmtArea(total)}</td></tr>`
     : `<tr class="total-row"><td colspan="2" style="text-align:right;font-weight:800;">합 계</td><td>${_fmtArea(total)}</td></tr>`;
   return `<table><thead>${thead}</thead><tbody>${rows}${tfoot}</tbody></table>`;
+}
+
+/**
+ * 면적상세 섹션 HTML — 모든 차수의 변경/증가 항목을 합쳐, 각 조각을 bbox에 맞춰
+ * 확대한 카드를 A4 한 장당 2x2(4개)씩 나열한다.
+ */
+function _makeDetailGridSection(detailChunks, sectionNum) {
+  const valid = (detailChunks || []).filter(c => c.poly?.[0]?.length);
+  if (!valid.length) return '';
+
+  const cards = valid.map(c => {
+    const isIncr = c.origin === '증가';
+    const img = _makeDetailCardImage(
+      c.poly,
+      isIncr ? _EX.incrFill   : _EX.chgFill,
+      isIncr ? _EX.incrStroke : _EX.chgStroke
+    );
+    const fromToLabel = isIncr ? '증가 구역' : `${c.from} → ${c.to}`;
+    return `
+      <div class="detail-card">
+        <img class="detail-img" src="${img}" alt="${c.origin} #${c.num}">
+        <div class="detail-origin">${c.origin} #${c.num}</div>
+        <div class="detail-fromto">${fromToLabel}</div>
+        <div class="detail-area">${_fmtArea(c.area)} ㎡</div>
+      </div>`;
+  });
+
+  // 4장씩 묶어 페이지 구성 — 첫 페이지에는 섹션 헤딩을 같이 넣어 별도 페이지를 낭비하지 않는다.
+  let pagesHtml = '';
+  for (let i = 0; i < cards.length; i += 4) {
+    const group = cards.slice(i, i + 4).join('');
+    const headHtml = i === 0
+      ? `<div class="sec-head">
+           <span class="sec-num">${sectionNum}</span>
+           <span class="sec-title">면적상세</span>
+         </div>
+         <div class="sec-sub">전체 변경·증가 구역 개별 확대도 (총 ${valid.length}건)</div>`
+      : '';
+    pagesHtml += `
+      <div class="detail-page rpt-section page-break">
+        ${headHtml}
+        <div class="detail-grid">${group}</div>
+      </div>`;
+  }
+
+  return pagesHtml;
 }
 
 function _fmtArea(n) {
