@@ -124,6 +124,31 @@ function _parseLayerDefaultColors(pairs) {
 }
 
 /**
+ * SORTENTSTABLE(도면 순서 테이블) 파싱 → { [엔티티 핸들]: 정렬키(숫자) }
+ * 그룹코드 331(엔티티 핸들)/5(그 엔티티의 정렬용 핸들) 쌍이 반복된다.
+ * 정렬키가 작을수록 먼저(아래) 그려지고, 클수록 나중(위)에 그려진다.
+ */
+function _parseSortEntsTable(pairs) {
+  const map = {};
+  for (let i = 0; i < pairs.length; i++) {
+    const [code, val] = pairs[i];
+    if (code !== '0' || val !== 'SORTENTSTABLE') continue;
+    let j = i + 1;
+    let pendingHandle = null;
+    while (j < pairs.length && pairs[j][0] !== '0') {
+      const [c, v] = pairs[j];
+      if (c === '331') pendingHandle = v;
+      else if (c === '5' && pendingHandle != null) {
+        map[pendingHandle] = parseInt(v, 16) || 0;
+        pendingHandle = null;
+      }
+      j++;
+    }
+  }
+  return map;
+}
+
+/**
  * DXF 텍스트 → { layers: { [layerName]: ring[][] } }
  */
 function parseDXF(text) {
@@ -150,11 +175,11 @@ function parseDXF(text) {
     if (!layers[layer]) layers[layer] = [];
     layers[layer].push(ring);
   }
-  function _addHatch(layer, ring, colorIdx, trueColor) {
+  function _addHatch(layer, ring, colorIdx, trueColor, handle) {
     if (ring.length < 3) return;
     if (!layers[layer]) layers[layer] = [];
     layers[layer].push(ring);
-    hatchDrawOrder.push({ ring, hex: _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci) });
+    hatchDrawOrder.push({ ring, handle, hex: _resolveColorHex(colorIdx, trueColor, layer, layerDefaultAci) });
   }
 
   while (i < pairs.length) {
@@ -176,8 +201,8 @@ function parseDXF(text) {
     } else if (inEntities && code === '0' && val === 'HATCH') {
       const res = _parseHatch(pairs, i + 1);
       i = res.nextIdx;
-      for (const { layer, ring, colorIdx, trueColor } of res.rings) {
-        _addHatch(layer, ring, colorIdx, trueColor);
+      for (const { layer, ring, colorIdx, trueColor, handle } of res.rings) {
+        _addHatch(layer, ring, colorIdx, trueColor, handle);
       }
     } else {
       i++;
@@ -185,30 +210,36 @@ function parseDXF(text) {
   }
 
   const colors = {};
-  // HATCH끼리 겹치는 영역은 "위에 보이는" 색상에만 남긴다.
-  // 그려진 순서(파일상 순서)는 실제 화면 표시 순서와 다를 수 있다 — 예를 들어 큰 배경
-  // 해치를 작은 구역들보다 나중에 그리고 "맨 뒤로 보내기"를 적용하는 경우가 흔하다.
-  // 그래서 파일 순서 대신 "면적이 작은 도형이 큰 배경 위에 그려진 구체적인 구역"이라는
-  // 더 안정적인 가정을 쓴다 — 면적이 작은 것부터 위에 있는 것으로 처리한다.
-  // 단, 면적이 거의 같은(=같은 자리에 중복으로 겹쳐 그린) 경우엔 면적으로 우열을 가릴 수
-  // 없다 — 이때는 도면 전체에서 그 색이 차지하는 총면적이 더 작은 쪽(=배경색이 아니라
-  // 특정 용도로 좁게 쓰인 색)을 위로 본다. 파일에 그려진 순서는 실제 화면 표시 순서와
-  // 안 맞을 수 있어(DRAWORDER 테이블이 따로 없는 도면도 많음) 믿을 수 없다.
-  const AREA_TIE_TOLERANCE = 0.01; // 1% 이내 차이면 "거의 같은 면적"으로 본다
+  // HATCH끼리 겹치는 영역은 "실제로 위에 그려진" 색상에만 남긴다.
+  // ① 사용자가 SORTENTSTABLE(도면 순서 테이블)에 직접 순서를 지정해둔 엔티티끼리는
+  //    그 지정 순서가 절대 기준이다 — 방금 일부를 "맨 위로 가져오기" 등으로 의도적으로
+  //    조정한 경우라서 가장 신뢰할 수 있다.
+  // ② 테이블에 없는 엔티티의 핸들(생성 순서)은 화면 표시 순서와 무관할 수 있다 — 예를 들어
+  //    "전체 부지" 같은 배경용 큰 해치를 나중에 다시 그려도 화면에서는 여전히 배경으로 깔려야
+  //    하는 경우가 흔하다. 그래서 테이블에 없는 엔티티끼리는 "면적이 작은 쪽(=배경이 아니라
+  //    특정 용도로 좁게 쓰인 색)이 위" 휴리스틱을 쓴다.
+  // ③ 한쪽만 테이블에 있으면, 사용자가 막 손댄 그 엔티티가 우선한다(테이블에 있는 쪽이 위).
+  const AREA_TIE_TOLERANCE = 0.01;
   const totalAreaByHex = {};
   hatchDrawOrder.forEach(e => { totalAreaByHex[e.hex] = (totalAreaByHex[e.hex] || 0) + shoelace(e.ring); });
-  const sortedByAreaDesc = hatchDrawOrder
+  const sortKeyByHandle = _parseSortEntsTable(pairs);
+  function _compareHatchOrder(a, b) {
+    const aKey = a.handle != null ? sortKeyByHandle[a.handle] : undefined;
+    const bKey = b.handle != null ? sortKeyByHandle[b.handle] : undefined;
+    if (aKey !== undefined && bKey !== undefined) return aKey - bKey;
+    if (aKey !== undefined || bKey !== undefined) return aKey !== undefined ? 1 : -1;
+    const maxArea = Math.max(a.area, b.area) || 1;
+    if (Math.abs(a.area - b.area) / maxArea < AREA_TIE_TOLERANCE) {
+      return totalAreaByHex[b.hex] - totalAreaByHex[a.hex]; // 도면 전체 총면적이 작은 색이 나중(=위)
+    }
+    return b.area - a.area; // 면적 작은 쪽이 나중(=위)
+  }
+  const sortedByDrawOrder = hatchDrawOrder
     .map((e, idx) => ({ ...e, idx, area: shoelace(e.ring) }))
-    .sort((a, b) => {
-      const maxArea = Math.max(a.area, b.area) || 1;
-      if (Math.abs(a.area - b.area) / maxArea < AREA_TIE_TOLERANCE) {
-        return totalAreaByHex[b.hex] - totalAreaByHex[a.hex]; // 도면 전체 총면적이 작은 색이 나중(=위)
-      }
-      return b.area - a.area;
-    });
-  const visibleSorted = resolveVisibleRings(sortedByAreaDesc.map(e => e.ring));
+    .sort(_compareHatchOrder);
+  const visibleSorted = resolveVisibleRings(sortedByDrawOrder.map(e => e.ring));
   const visibleHatchRings = new Array(hatchDrawOrder.length);
-  sortedByAreaDesc.forEach((e, sortedIdx) => { visibleHatchRings[e.idx] = visibleSorted[sortedIdx]; });
+  sortedByDrawOrder.forEach((e, sortedIdx) => { visibleHatchRings[e.idx] = visibleSorted[sortedIdx]; });
   hatchDrawOrder.forEach((entity, idx) => {
     const visParts = visibleHatchRings[idx];
     if (!visParts.length) return;
@@ -261,15 +292,17 @@ function _parseLWPolyline(pairs, startIdx) {
 function _parseHatch(pairs, startIdx) {
   let layer  = '0';
   let colorIdx = null, trueColor = null;
+  let handle = null;
   let rings  = [];
   let i = startIdx;
 
-  // 레이어명·색상 수집 (AcDbEntity 섹션, 91번이 나오기 전까지)
+  // 레이어명·색상·핸들 수집 (AcDbEntity 섹션, 91번이 나오기 전까지)
   let pathCount = 0;
   while (i < pairs.length) {
     const [code, val] = pairs[i];
     if (code === '0') return { rings, nextIdx: i };
-    if (code === '8') layer = val;
+    if (code === '5') handle = val;
+    else if (code === '8') layer = val;
     else if (code === '62') colorIdx = parseInt(val, 10) || 0;
     else if (code === '420') trueColor = val;
     else if (code === '91') { pathCount = parseInt(val) || 0; i++; break; }
@@ -330,7 +363,7 @@ function _parseHatch(pairs, startIdx) {
         if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
       }
       const ring = _applyBulges(vertices, bulges);
-      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor });
+      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     } else {
       // 엣지 경계 – 엣지 개수(93) 만큼 스킵
       let edgeCount = 0;
@@ -355,7 +388,7 @@ function _parseHatch(pairs, startIdx) {
         }
         i++; skip++;
       }
-      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor });
+      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     }
 
     // 소스 경계 오브젝트 스킵 (97)

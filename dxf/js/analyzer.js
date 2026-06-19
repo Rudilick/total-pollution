@@ -46,7 +46,7 @@ function calcPairChange(dataA, dataB) {
     for (const lTo of lsB) {
       if (lFrom === lTo) continue;
       const { area, polys } = intersectionArea(ringsA[lFrom], ringsB[lTo]);
-      if (area > 0.1) changes.push({ from: lFrom, to: lTo, area, polys });
+      if (area > 0) changes.push({ from: lFrom, to: lTo, area, polys });
     }
   }
 
