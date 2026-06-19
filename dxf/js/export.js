@@ -457,6 +457,9 @@ function _openPrintWindow(sections) {
     body{padding:0;}
     .page-break{page-break-before:always;}
     .print-btn{display:none!important;}
+    /* 브라우저가 인쇄 시 배경색을 기본적으로 빼버려서, 범례 점/표 헤더 색이 PDF에서
+       안 보이는 문제 방지 — 모든 요소에 배경색을 그대로 출력하도록 강제 */
+    *{ print-color-adjust:exact!important; -webkit-print-color-adjust:exact!important; }
   }
   /* ── 고정 버튼 ── */
   .print-btn{
