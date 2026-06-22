@@ -20,8 +20,10 @@
           <div class="section-title">신규 프로젝트 등록</div>
           <p class="section-hint">최초 도면부터 순서대로 단계별 DXF를 업로드하세요. (1번째 슬롯 = 최초도면)</p>
           <div class="admin-form-grid">
-            <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)">
+            <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
+                   oninput="onNewSerialInput()">
             <input type="text"   id="new-name"     class="admin-input" placeholder="사업명">
+            <input type="text"   id="new-agency"   class="admin-input" placeholder="기관명 (협의기관)">
             <input type="text"   id="new-operator" class="admin-input" placeholder="사업자명">
             <input type="text"   id="new-location" class="admin-input" placeholder="위치">
             <input type="number" id="new-year"     class="admin-input" placeholder="최초 환경영향평가 연도">
@@ -44,6 +46,45 @@
           <div id="lookup-results"></div>
           <div id="lookup-result"></div>
         </section>
+
+        <section class="section">
+          <div class="section-title">환경영향평가 목록 업로드</div>
+          <p class="section-hint">유형별로 엑셀 업로드 시 해당 유형의 기존 데이터는 전체 교체됩니다. 다른 유형에는 영향을 주지 않습니다.</p>
+
+          <div class="eia-upload-grid">
+            <div class="eia-upload-block" data-type="전략환경영향평가">
+              <div class="eia-upload-title">전략환경영향평가</div>
+              <a href="assets/eia_list_template.xlsx" download class="eia-template-link">양식 다운로드</a>
+              <input type="file" accept=".xlsx" class="eia-file-input">
+              <button class="run-btn eia-upload-btn">업로드 (덮어쓰기)</button>
+              <div class="eia-upload-status"></div>
+            </div>
+
+            <div class="eia-upload-block" data-type="환경영향평가">
+              <div class="eia-upload-title">환경영향평가</div>
+              <a href="assets/eia_list_template.xlsx" download class="eia-template-link">양식 다운로드</a>
+              <input type="file" accept=".xlsx" class="eia-file-input">
+              <button class="run-btn eia-upload-btn">업로드 (덮어쓰기)</button>
+              <div class="eia-upload-status"></div>
+            </div>
+
+            <div class="eia-upload-block" data-type="소규모환경영향평가">
+              <div class="eia-upload-title">소규모환경영향평가</div>
+              <a href="assets/eia_list_template.xlsx" download class="eia-template-link">양식 다운로드</a>
+              <input type="file" accept=".xlsx" class="eia-file-input">
+              <button class="run-btn eia-upload-btn">업로드 (덮어쓰기)</button>
+              <div class="eia-upload-status"></div>
+            </div>
+
+            <div class="eia-upload-block" data-type="사전환경성검토">
+              <div class="eia-upload-title">사전환경성검토</div>
+              <a href="assets/eia_list_template.xlsx" download class="eia-template-link">양식 다운로드</a>
+              <input type="file" accept=".xlsx" class="eia-file-input">
+              <button class="run-btn eia-upload-btn">업로드 (덮어쓰기)</button>
+              <div class="eia-upload-status"></div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <aside class="admin-preview">
@@ -58,10 +99,12 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/parser.js"></script>
   <script src="js/geometry.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/archive-config.js"></script>
   <script src="js/archive-admin.js"></script>
+  <script src="js/eia-admin.js"></script>
 </body>
 </html>

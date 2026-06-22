@@ -65,23 +65,42 @@ function renderArchiveResults(projects) {
 
   projects.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'archive-card';
+    card.className = 'archive-card' + (p.has_drawings === false ? ' archive-card-nodrawing' : '');
 
     const metaParts = [];
+    if (p.agency_name)     metaParts.push(p.agency_name);
     if (p.operator_name)  metaParts.push(p.operator_name);
     if (p.location)       metaParts.push(p.location);
     if (p.first_eia_year) metaParts.push(`${p.first_eia_year}년`);
 
+    const badge = p.has_drawings === false
+      ? '<div class="pill pill-warn">도면 미등록</div>'
+      : `<div class="pill pill-nc">${p.stage_count}단계</div>`;
+
     card.innerHTML =
       `<div class="archive-card-main">
-         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name}</span></div>
+         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name || '(사업명 미확인)'}</span></div>
          <div class="archive-card-meta">${metaParts.join(' · ') || '&nbsp;'}</div>
        </div>
-       <div class="pill pill-nc">${p.stage_count}단계</div>`;
+       ${badge}`;
 
-    card.onclick = () => loadArchiveProject(p.serial_no);
+    card.onclick = () => {
+      if (p.has_drawings === false) {
+        showNoDrawingsMessage(p);
+      } else {
+        loadArchiveProject(p.serial_no);
+      }
+    };
     resultsEl.appendChild(card);
   });
+}
+
+function showNoDrawingsMessage(p) {
+  const resultsEl = document.getElementById('archive-results');
+  if (!resultsEl) return;
+  resultsEl.innerHTML =
+    `<p class="archive-empty">"${p.project_name || p.serial_no}" (${p.serial_no}) — ` +
+    `등록된 도면이 없습니다. 평가목록에만 등록된 사업입니다.</p>`;
 }
 
 function _archiveStageLabel(index) {

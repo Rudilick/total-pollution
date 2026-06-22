@@ -10,23 +10,53 @@ router.get('/projects', async (req, res, next) => {
 
     let result;
     if (q) {
+      // 도면이 이미 등록된 사업(projects)뿐 아니라, 아직 도면 없이 평가목록(eia_list)에만
+      // 있는 사업도 같이 검색되게 한다 — has_drawings로 클라이언트가 구분한다.
       result = await pool.query(
-        `SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
-                COUNT(d.id)::int AS stage_count
-           FROM projects p
-           LEFT JOIN drawings d ON d.serial_no = p.serial_no
-          WHERE p.serial_no ILIKE $1 || '%'
-             OR p.project_name ILIKE '%' || $1 || '%'
-             OR p.operator_name ILIKE '%' || $1 || '%'
-             OR p.location ILIKE '%' || $1 || '%'
-          GROUP BY p.serial_no
-          ORDER BY p.updated_at DESC`,
+        `SELECT serial_no, project_name, operator_name, location, first_eia_year, agency_name,
+                stage_count, has_drawings
+           FROM (
+             SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
+                    p.agency_name,
+                    COUNT(d.id)::int AS stage_count,
+                    TRUE AS has_drawings,
+                    p.updated_at AS sort_key
+               FROM projects p
+               LEFT JOIN drawings d ON d.serial_no = p.serial_no
+              WHERE p.serial_no ILIKE $1 || '%'
+                 OR p.project_name ILIKE '%' || $1 || '%'
+                 OR p.operator_name ILIKE '%' || $1 || '%'
+                 OR p.location ILIKE '%' || $1 || '%'
+              GROUP BY p.serial_no
+
+             UNION ALL
+
+             SELECT e.serial_no,
+                    MAX(e.project_name)  AS project_name,
+                    NULL                 AS operator_name,
+                    MAX(e.location)      AS location,
+                    NULL                 AS first_eia_year,
+                    MAX(e.agency_name)   AS agency_name,
+                    0                    AS stage_count,
+                    FALSE                AS has_drawings,
+                    MAX(e.uploaded_at)   AS sort_key
+               FROM eia_list e
+              WHERE NOT EXISTS (SELECT 1 FROM projects p WHERE p.serial_no = e.serial_no)
+                AND (
+                  e.serial_no ILIKE $1 || '%'
+                  OR e.project_name ILIKE '%' || $1 || '%'
+                  OR e.agency_name ILIKE '%' || $1 || '%'
+                  OR e.location ILIKE '%' || $1 || '%'
+                )
+              GROUP BY e.serial_no
+           ) combined
+          ORDER BY has_drawings DESC, sort_key DESC`,
         [q]
       );
     } else {
       result = await pool.query(
         `SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
-                COUNT(d.id)::int AS stage_count
+                p.agency_name, COUNT(d.id)::int AS stage_count, TRUE AS has_drawings
            FROM projects p
            LEFT JOIN drawings d ON d.serial_no = p.serial_no
           GROUP BY p.serial_no

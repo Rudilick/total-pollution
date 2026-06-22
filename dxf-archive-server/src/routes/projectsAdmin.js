@@ -6,11 +6,11 @@ const router = express.Router();
 router.use(adminAuth);
 
 // POST /api/projects
-// body: { serial_no, project_name, operator_name, location, first_eia_year, notes,
+// body: { serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
 //         drawings: [{ stage_label, file_name, dxf_content }, ...] }  (index 0 = 최초도면)
 router.post('/projects', async (req, res, next) => {
   const {
-    serial_no, project_name, operator_name, location, first_eia_year, notes, drawings,
+    serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name, drawings,
   } = req.body || {};
 
   if (!serial_no || !project_name) {
@@ -31,12 +31,12 @@ router.post('/projects', async (req, res, next) => {
     }
 
     const projResult = await client.query(
-      `INSERT INTO projects (serial_no, project_name, operator_name, location, first_eia_year, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING serial_no, project_name, operator_name, location, first_eia_year, notes,
+      `INSERT INTO projects (serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
                  created_at, updated_at`,
       [serial_no, project_name, operator_name || null, location || null,
-        first_eia_year || null, notes || null]
+        first_eia_year || null, notes || null, agency_name || null]
     );
 
     const insertedDrawings = [];

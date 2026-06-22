@@ -8,6 +8,7 @@ const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
 const projectsRoutes = require('./routes/projects');
 const projectsAdminRoutes = require('./routes/projectsAdmin');
+const eiaListRoutes = require('./routes/eiaList');
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api', healthRoutes);
 app.use('/api', authRoutes);
 app.use('/api', projectsRoutes);
 app.use('/api', projectsAdminRoutes);
+app.use('/api', eiaListRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

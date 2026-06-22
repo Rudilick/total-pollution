@@ -223,6 +223,37 @@ function renderNewSlotsWrap() {
   wrap.appendChild(addBtn);
 }
 
+// ── 신규 등록 시 일련번호 입력 -> 평가목록 기관명 자동완성 ───
+let _newSerialLookupSeq = 0;
+let _newSerialLookupTimer = null;
+
+function onNewSerialInput() {
+  clearTimeout(_newSerialLookupTimer);
+  _newSerialLookupTimer = setTimeout(_lookupAgencyForNewSerial, 350);
+}
+
+async function _lookupAgencyForNewSerial() {
+  const serialInput = document.getElementById('new-serial');
+  const agencyInput  = document.getElementById('new-agency');
+  if (!serialInput || !agencyInput) return;
+
+  const serialNo = serialInput.value.trim();
+  const seq = ++_newSerialLookupSeq;
+  if (!serialNo) return;
+
+  try {
+    const res = await fetch(`${ARCHIVE_API_BASE}/eia-list/by-serial/${encodeURIComponent(serialNo)}`);
+    if (seq !== _newSerialLookupSeq) return;
+    if (!res.ok) return; // 평가목록에 없으면 조용히 무시 — 직접 입력 가능
+    const { entry } = await res.json();
+    if (entry.agency_name && !agencyInput.value.trim()) {
+      agencyInput.value = entry.agency_name;
+    }
+  } catch (e) {
+    // 자동완성 실패는 조용히 무시 — 수동 입력 가능
+  }
+}
+
 // ── 신규 프로젝트 등록 제출 ──────────────────────────────────
 async function submitNewProject() {
   const statusEl = document.getElementById('new-project-status');
@@ -230,6 +261,7 @@ async function submitNewProject() {
 
   const serial_no     = document.getElementById('new-serial').value.trim();
   const project_name  = document.getElementById('new-name').value.trim();
+  const agency_name   = document.getElementById('new-agency').value.trim();
   const operator_name = document.getElementById('new-operator').value.trim();
   const location      = document.getElementById('new-location').value.trim();
   const yearVal       = document.getElementById('new-year').value.trim();
@@ -252,6 +284,7 @@ async function submitNewProject() {
 
   const body = {
     serial_no, project_name,
+    agency_name: agency_name || null,
     operator_name: operator_name || null,
     location: location || null,
     first_eia_year: yearVal ? Number(yearVal) : null,
@@ -274,6 +307,7 @@ async function submitNewProject() {
       `<p class="status-ok">등록 완료: ${data.project.serial_no} (${data.drawings.length}단계)</p>`;
     document.getElementById('new-serial').value   = '';
     document.getElementById('new-name').value     = '';
+    document.getElementById('new-agency').value   = '';
     document.getElementById('new-operator').value = '';
     document.getElementById('new-location').value = '';
     document.getElementById('new-year').value     = '';
@@ -331,15 +365,19 @@ async function onLookupSearch(forceLookup) {
     const { projects } = await res.json();
     if (seq !== _lookupSearchSeq) return; // 이후 입력으로 인한 최신 요청이 아니면 무시
 
+    // 도면 추가가 목적인 화면이라, 도면이 아직 없는(평가목록 전용) 항목은 클릭해도 할 게
+    // 없으므로 여기서는 제외한다.
+    const withDrawings = projects.filter(p => p.has_drawings !== false);
+
     if (forceLookup) {
-      const exact = projects.find(p => p.serial_no === q);
+      const exact = withDrawings.find(p => p.serial_no === q);
       if (exact) {
         resultsEl.innerHTML = '';
         await lookupProject(exact.serial_no);
         return;
       }
     }
-    renderLookupSearchResults(projects);
+    renderLookupSearchResults(withDrawings);
   } catch (e) {
     if (seq !== _lookupSearchSeq) return;
     resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
