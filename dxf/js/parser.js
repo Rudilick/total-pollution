@@ -293,10 +293,11 @@ function _parseHatch(pairs, startIdx) {
   let layer  = '0';
   let colorIdx = null, trueColor = null;
   let handle = null;
+  let isSolid = false; // 70(솔리드 채우기 여부) — 패턴 해치(질감용 등)는 토지이용 분석에서 제외
   let rings  = [];
   let i = startIdx;
 
-  // 레이어명·색상·핸들 수집 (AcDbEntity 섹션, 91번이 나오기 전까지)
+  // 레이어명·색상·핸들·솔리드 여부 수집 (AcDbEntity 섹션, 91번이 나오기 전까지)
   let pathCount = 0;
   while (i < pairs.length) {
     const [code, val] = pairs[i];
@@ -305,6 +306,7 @@ function _parseHatch(pairs, startIdx) {
     else if (code === '8') layer = val;
     else if (code === '62') colorIdx = parseInt(val, 10) || 0;
     else if (code === '420') trueColor = val;
+    else if (code === '70') isSolid = (val === '1');
     else if (code === '91') { pathCount = parseInt(val) || 0; i++; break; }
     i++;
   }
@@ -363,7 +365,7 @@ function _parseHatch(pairs, startIdx) {
         if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
       }
       const ring = _applyBulges(vertices, bulges);
-      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
+      if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     } else {
       // 엣지 경계 – 엣지 개수(93) 만큼 스킵
       let edgeCount = 0;
@@ -388,7 +390,7 @@ function _parseHatch(pairs, startIdx) {
         }
         i++; skip++;
       }
-      if (ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
+      if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     }
 
     // 소스 경계 오브젝트 스킵 (97)
