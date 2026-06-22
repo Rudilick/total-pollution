@@ -100,6 +100,15 @@ function addSlot() {
   renderSlotsWrap();
 }
 
+// 슬롯(단계) 자체는 그대로 두고, 업로드된 도면만 취소해서 다시 빈 칸으로 되돌린다.
+function clearSlot(slot) {
+  slot.data = null;
+  slot.rawData = null;
+  slot.file = null;
+  _refreshGlobalLegend();
+  renderSlotsWrap();
+}
+
 function removeSlot(id) {
   if (slots.length <= 2) return;
   slots = slots.filter(s => s.id !== id);
@@ -224,6 +233,16 @@ function _makeSlotEl(slot, idx) {
   input.accept = '.dxf';
   input.onchange = (e) => { if (e.target.files[0]) handleFileSelect(slot, e.target.files[0]); };
   el.appendChild(input);
+
+  if (slot.data) {
+    // 업로드 취소 — 슬롯(단계)은 남기고 도면만 빈 칸으로 되돌림
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'tile-replace-btn';
+    cancelBtn.textContent = '취소';
+    cancelBtn.onclick = (e) => { e.stopPropagation(); clearSlot(slot); };
+    el.appendChild(cancelBtn);
+  }
 
   const inner = document.createElement('div');
   inner.className = 'slot-inner';
