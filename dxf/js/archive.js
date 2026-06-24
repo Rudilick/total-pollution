@@ -120,7 +120,8 @@ async function loadArchiveProject(serialNo) {
 
     const newSlots = drawings.map(d => {
       const slot = _newSlot(d.stage_label);
-      _initSlotFromParsed(slot, parseDXF(d.dxf_content));
+      slot.dxfText = d.dxf_content;
+      _initSlotFromParsed(slot, parseDXF(d.dxf_content, { alwaysTopColors: _getAlwaysTopColors() }));
       slot.file = { name: d.file_name };
       return slot;
     });

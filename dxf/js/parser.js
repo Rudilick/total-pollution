@@ -171,8 +171,15 @@ function _parseSortEntsTable(pairs) {
 
 /**
  * DXF 텍스트 → { layers: { [layerName]: ring[][] } }
+ * @param {object} opts
+ * @param {Set<string>|string[]} opts.alwaysTopColors - 면적 비교와 무관하게 항상
+ *   다른 색 위에 그려진 것으로 취급할 색상(hex) 목록. 사용자가 범례에서 직접
+ *   지정한 값으로, SORTENTSTABLE보다도 우선한다(사용자의 명시적 의도이므로).
  */
-function parseDXF(text) {
+function parseDXF(text, opts) {
+  const alwaysTopColors = opts?.alwaysTopColors instanceof Set
+    ? opts.alwaysTopColors
+    : new Set(opts?.alwaysTopColors || []);
   const lines = text.split(/\r?\n/);
   // 그룹코드-값 쌍 배열 구성
   const pairs = [];
@@ -245,6 +252,11 @@ function parseDXF(text) {
   hatchDrawOrder.forEach(e => { totalAreaByHex[e.hex] = (totalAreaByHex[e.hex] || 0) + shoelace(e.ring); });
   const sortKeyByHandle = _parseSortEntsTable(pairs);
   function _compareHatchOrder(a, b) {
+    // 사용자가 범례에서 "항상 위에 표시"로 지정한 색은 면적/그리기순서와 무관하게
+    // 항상 위로 — 면적 기준 추측보다 사용자의 명시적 지정이 우선한다.
+    const aTop = alwaysTopColors.has(a.hex);
+    const bTop = alwaysTopColors.has(b.hex);
+    if (aTop !== bTop) return aTop ? 1 : -1;
     const aKey = a.handle != null ? sortKeyByHandle[a.handle] : undefined;
     const bKey = b.handle != null ? sortKeyByHandle[b.handle] : undefined;
     if (aKey !== undefined && bKey !== undefined) return aKey - bKey;

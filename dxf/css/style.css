@@ -214,6 +214,10 @@ body {
   flex: 1; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border-md); border-radius: 6px;
 }
 .legend-row input[type="text"]:disabled { background: var(--gray-50); color: var(--gray-400); }
+.legend-top-toggle {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--gray-600); white-space: nowrap; flex-shrink: 0; cursor: pointer;
+}
 .legend-incomplete { color: var(--red-dark); font-size: 12px; margin-top: 4px; }
 
 /* ── 도면 아카이브 ── */

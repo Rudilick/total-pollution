@@ -58,7 +58,7 @@ let slots = [];
 let _slotId = 0;
 
 function _newSlot(label) {
-  return { id: ++_slotId, label, data: null, file: null, rawData: null };
+  return { id: ++_slotId, label, data: null, file: null, rawData: null, dxfText: null };
 }
 
 // ── 색상 범례: 도면마다 따로 두지 않고 전 도면 공통 1개만 쓴다 ──────
@@ -88,6 +88,21 @@ function _refreshGlobalLegend() {
 function _recomputeSlotData(slot) {
   if (!slot.rawData) { slot.data = null; return; }
   slot.data = applyColorLegend(slot.rawData, globalLegend);
+}
+
+function _getAlwaysTopColors() {
+  return new Set(globalLegend.filter(r => r.alwaysTop).map(r => r.colorKey));
+}
+
+// "항상 위에 표시" 체크가 바뀌면, 겹침 우선순위가 도면 파싱 단계에서 정해지므로
+// 원본 텍스트가 남아있는 슬롯은 다시 파싱해야 한다.
+function _reparseAllSlots() {
+  const alwaysTopColors = _getAlwaysTopColors();
+  slots.forEach(slot => {
+    if (slot.dxfText) slot.rawData = parseDXF(slot.dxfText, { alwaysTopColors });
+  });
+  _refreshGlobalLegend();
+  renderSlotsWrap();
 }
 
 function initSlots() {
@@ -198,6 +213,21 @@ function _renderLegendWrap() {
       updateRunBtn();
     };
     rowEl.appendChild(input);
+
+    // 다른 색과 겹칠 때, 면적 추측 대신 이 색을 항상 위(눈에 보이는 쪽)로 둔다.
+    const topLabel = document.createElement('label');
+    topLabel.className = 'legend-top-toggle';
+    topLabel.title = '겹칠 때 면적과 무관하게 이 색을 항상 위에 표시';
+    const topCheck = document.createElement('input');
+    topCheck.type = 'checkbox';
+    topCheck.checked = !!row.alwaysTop;
+    topCheck.onchange = (e) => {
+      row.alwaysTop = e.target.checked;
+      _reparseAllSlots();
+    };
+    topLabel.appendChild(topCheck);
+    topLabel.appendChild(document.createTextNode('항상 위'));
+    rowEl.appendChild(topLabel);
 
     box.appendChild(rowEl);
   });
@@ -320,7 +350,8 @@ async function handleFileSelect(slot, file) {
   }
   try {
     const text = await file.text();
-    _initSlotFromParsed(slot, parseDXF(text));
+    slot.dxfText = text;
+    _initSlotFromParsed(slot, parseDXF(text, { alwaysTopColors: _getAlwaysTopColors() }));
     slot.file  = file;
     renderSlotsWrap();
   } catch (e) {
@@ -358,7 +389,19 @@ function drawThumbnail(canvas, data) {
     ctx.strokeStyle = col;
     ctx.lineWidth   = 1;
 
-    for (const ring of (data.colors[col] || [])) {
+    // 같은 색 조각끼리 먼저 하나로 합쳐서 그린다 — 안 그러면 같은 용도가 여러
+    // 조각으로 나뉘어 그려진 도면에서 조각 경계마다 선이 보인다.
+    const rawRings = data.colors[col] || [];
+    let merged;
+    try {
+      merged = cleanMultiPoly(polygonClipping.union(...rawRings.map(r => [r])))
+        .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+        .filter(r => r && r.length >= 3);
+    } catch (e) {
+      merged = rawRings;
+    }
+
+    for (const ring of merged) {
       // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
       if (ring.length < 2 || shoelace(ring) < 1e-6) continue;
       ctx.beginPath();

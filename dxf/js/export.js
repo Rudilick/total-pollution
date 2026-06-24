@@ -101,19 +101,22 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만 / 중간 농도)
   lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 0.28, 0.80, 1, tfn));
 
-  // 변경 폴리곤 강조 + 넘버링
+  // 변경 폴리곤 강조 + 넘버링 (라벨 위치는 먼저 모아서 겹침을 풀고 나중에 그린다)
   const chunks = [];
+  const labelPositions = [];
   let chunkN = 1;
   pr.changes.forEach(ch => {
     (ch.polys || []).forEach(poly => {
       if (!poly?.[0]?.length) return;
       _drawPoly(ctx, poly, _EX.chgFill, _EX.chgStroke, 2.5, tfn);
       const [cx, cy] = _centroid(poly[0]);
-      _drawLabel(ctx, tfn.x(cx), tfn.y(cy), chunkN, _EX.chgLabel);
+      labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.chgLabel });
       chunks.push({ num: chunkN, from: ch.from, to: ch.to, area: shoelace(poly[0]), poly, origin: `${seqNum}차 변경` });
       chunkN++;
     });
   });
+  _resolveLabelCollisions(labelPositions);
+  labelPositions.forEach(lp => _drawLabel(ctx, lp.x, lp.y, lp.num, lp.color));
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
   // 도면별 토지이용 레이어 범례 (변경 전·후 레이어 전체)
@@ -172,15 +175,18 @@ function _makeIncreaseSection(result, sFirst, sLast) {
 
   // 증가 구역 강조
   const chunks = [];
+  const labelPositions = [];
   let chunkN = 1;
   incrPolys.forEach(poly => {
     if (!poly?.[0]?.length) return;
     _drawPoly(ctx, poly, _EX.incrFill, _EX.incrStroke, 2.5, tfn);
     const [cx, cy] = _centroid(poly[0]);
-    _drawLabel(ctx, tfn.x(cx), tfn.y(cy), chunkN, _EX.incrLabel);
+    labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.incrLabel });
     chunks.push({ num: chunkN, from: '현황', to: '증가', area: shoelace(poly[0]), poly, origin: '증가' });
     chunkN++;
   });
+  _resolveLabelCollisions(labelPositions);
+  labelPositions.forEach(lp => _drawLabel(ctx, lp.x, lp.y, lp.num, lp.color));
 
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
@@ -214,11 +220,21 @@ function _fillBg(ctx, w, h) {
   ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 }
 
-/** 링 배열을 같은 색으로 채워 그리기 */
+/** 링 배열을 같은 색으로 채워 그리기 — 같은 색 조각끼리는 먼저 하나로 합쳐서
+ *  그린다. 안 그러면 원래 도면에서 같은 용도가 여러 조각으로 나뉘어 그려진 경우
+ *  (인접한 조각들끼리) 그 경계마다 쓸데없는 선이 그대로 보인다. */
 function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
   if (!rings?.length) return;
+  let merged;
+  try {
+    merged = cleanMultiPoly(polygonClipping.union(...rings.map(r => [r])))
+      .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+      .filter(r => r && r.length >= 3);
+  } catch (e) {
+    merged = rings; // 합치기 실패하면 기존처럼 개별로 그림(안전망)
+  }
   ctx.save();
-  rings.forEach(ring => {
+  merged.forEach(ring => {
     // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
     if (ring.length < 2 || shoelace(ring) < 1e-6) return;
     ctx.beginPath();
@@ -293,6 +309,38 @@ function _drawLabel(ctx, x, y, num, bgColor) {
   ctx.textBaseline   = 'middle';
   ctx.fillText(String(num), x, y + 0.5);
   ctx.restore();
+}
+
+/**
+ * 라벨(번호 배지)끼리 겹치면 서로 밀어내서 둘 다 보이게 한다.
+ * 변경 조각 2개의 중심점이 우연히 거의 같은 위치면, 나중에 그려진 배지가
+ * 먼저 것을 완전히 덮어버리는 문제를 막는다.
+ */
+function _resolveLabelCollisions(positions, minDist = 36) {
+  for (let iter = 0; iter < 40; iter++) {
+    let moved = false;
+    for (let a = 0; a < positions.length; a++) {
+      for (let b = a + 1; b < positions.length; b++) {
+        const pa = positions[a], pb = positions[b];
+        const dx = pb.x - pa.x, dy = pb.y - pa.y;
+        let dist = Math.hypot(dx, dy);
+        if (dist >= minDist) continue;
+        moved = true;
+        let ux, uy;
+        if (dist < 1e-6) {
+          const ang = (a * 137 + b * 53) % 360 * Math.PI / 180;
+          ux = Math.cos(ang); uy = Math.sin(ang);
+          dist = 0;
+        } else {
+          ux = dx / dist; uy = dy / dist;
+        }
+        const push = (minDist - dist) / 2;
+        pa.x -= ux * push; pa.y -= uy * push;
+        pb.x += ux * push; pb.y += uy * push;
+      }
+    }
+    if (!moved) break;
+  }
 }
 
 /** 폴리곤 외곽링 무게중심 */
