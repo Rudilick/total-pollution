@@ -77,6 +77,10 @@ async function _eiaHandleUpload(blockEl) {
     statusEl.innerHTML = '<p class="status-err">엑셀 파일을 선택하세요.</p>';
     return;
   }
+  if (typeof XLSX === 'undefined') {
+    statusEl.innerHTML = '<p class="status-err">필요한 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.</p>';
+    return;
+  }
 
   statusEl.innerHTML = '<p class="archive-empty">파싱 중...</p>';
 

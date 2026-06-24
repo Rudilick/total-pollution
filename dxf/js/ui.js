@@ -314,6 +314,10 @@ function _makeSlotEl(slot, idx) {
 
 // ── 파일 처리 ────────────────────────────────────────────────
 async function handleFileSelect(slot, file) {
+  if (typeof polygonClipping === 'undefined') {
+    alert('필요한 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+    return;
+  }
   try {
     const text = await file.text();
     _initSlotFromParsed(slot, parseDXF(text));
