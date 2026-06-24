@@ -170,16 +170,9 @@ function _parseSortEntsTable(pairs) {
 }
 
 /**
- * DXF 텍스트 → { layers: { [layerName]: ring[][] } }
- * @param {object} opts
- * @param {Set<string>|string[]} opts.alwaysTopColors - 면적 비교와 무관하게 항상
- *   다른 색 위에 그려진 것으로 취급할 색상(hex) 목록. 사용자가 범례에서 직접
- *   지정한 값으로, SORTENTSTABLE보다도 우선한다(사용자의 명시적 의도이므로).
+ * DXF 텍스트 → { layers: { [layerName]: ring[][] }, colors, ambiguousOverlaps }
  */
-function parseDXF(text, opts) {
-  const alwaysTopColors = opts?.alwaysTopColors instanceof Set
-    ? opts.alwaysTopColors
-    : new Set(opts?.alwaysTopColors || []);
+function parseDXF(text) {
   const lines = text.split(/\r?\n/);
   // 그룹코드-값 쌍 배열 구성
   const pairs = [];
@@ -238,37 +231,26 @@ function parseDXF(text, opts) {
   }
 
   const colors = {};
-  // HATCH끼리 겹치는 영역은 "실제로 위에 그려진" 색상에만 남긴다.
-  // ① 사용자가 SORTENTSTABLE(도면 순서 테이블)에 직접 순서를 지정해둔 엔티티끼리는
-  //    그 지정 순서가 절대 기준이다 — 방금 일부를 "맨 위로 가져오기" 등으로 의도적으로
-  //    조정한 경우라서 가장 신뢰할 수 있다.
-  // ② 테이블에 없는 엔티티의 핸들(생성 순서)은 화면 표시 순서와 무관할 수 있다 — 예를 들어
-  //    "전체 부지" 같은 배경용 큰 해치를 나중에 다시 그려도 화면에서는 여전히 배경으로 깔려야
-  //    하는 경우가 흔하다. 그래서 테이블에 없는 엔티티끼리는 "면적이 작은 쪽(=배경이 아니라
-  //    특정 용도로 좁게 쓰인 색)이 위" 휴리스틱을 쓴다.
-  // ③ 한쪽만 테이블에 있으면, 사용자가 막 손댄 그 엔티티가 우선한다(테이블에 있는 쪽이 위).
-  const AREA_TIE_TOLERANCE = 0.01;
-  const totalAreaByHex = {};
-  hatchDrawOrder.forEach(e => { totalAreaByHex[e.hex] = (totalAreaByHex[e.hex] || 0) + shoelace(e.ring); });
+  // HATCH끼리 겹치는 영역은 "실제로 위에 그려진" 색상에만 남긴다 — 단, 추측은 하지 않는다.
+  // 면적도 핸들(생성순서)도 실제 화면 표시 순서를 보장하지 않는다는 걸 실제 도면들로
+  // 직접 확인했다(같은 도면 안에서도 어느 쌍은 핸들이 작은 쪽이 위, 어느 쌍은 큰 쪽이
+  // 위였음) — 그래서 둘 다 쓰지 않는다.
+  // 신뢰할 수 있는 건 SORTENTSTABLE(도면 순서 테이블) 하나뿐이다 — 캐드가 사용자의
+  // "표시순서" 조작을 실제로 기록한 값이기 때문. 그게 없는, 색이 서로 다른 두 해치가
+  // 겹치는 경우는 "어느 게 위인지 알 수 없는 겹침"으로 따로 모아서(ambiguousOverlaps)
+  // 호출자가 사용자에게 확인을 요구할 수 있게 한다. (미리보기용 순서는 어쩔 수 없이
+  // 파일 순서를 쓰지만, 그건 정답이라고 주장하는 게 아니라 그릴 순서가 필요해서일 뿐이다.)
   const sortKeyByHandle = _parseSortEntsTable(pairs);
+  function _hasSortKey(e) { return e.handle != null && sortKeyByHandle[e.handle] !== undefined; }
   function _compareHatchOrder(a, b) {
-    // 사용자가 범례에서 "항상 위에 표시"로 지정한 색은 면적/그리기순서와 무관하게
-    // 항상 위로 — 면적 기준 추측보다 사용자의 명시적 지정이 우선한다.
-    const aTop = alwaysTopColors.has(a.hex);
-    const bTop = alwaysTopColors.has(b.hex);
-    if (aTop !== bTop) return aTop ? 1 : -1;
-    const aKey = a.handle != null ? sortKeyByHandle[a.handle] : undefined;
-    const bKey = b.handle != null ? sortKeyByHandle[b.handle] : undefined;
+    const aKey = _hasSortKey(a) ? sortKeyByHandle[a.handle] : undefined;
+    const bKey = _hasSortKey(b) ? sortKeyByHandle[b.handle] : undefined;
     if (aKey !== undefined && bKey !== undefined) return aKey - bKey;
     if (aKey !== undefined || bKey !== undefined) return aKey !== undefined ? 1 : -1;
-    const maxArea = Math.max(a.area, b.area) || 1;
-    if (Math.abs(a.area - b.area) / maxArea < AREA_TIE_TOLERANCE) {
-      return totalAreaByHex[b.hex] - totalAreaByHex[a.hex]; // 도면 전체 총면적이 작은 색이 나중(=위)
-    }
-    return b.area - a.area; // 면적 작은 쪽이 나중(=위)
+    return a.idx - b.idx; // 둘 다 없으면 파일 순서(미리보기용일 뿐, 정답 주장 아님)
   }
   const sortedByDrawOrder = hatchDrawOrder
-    .map((e, idx) => ({ ...e, idx, area: shoelace(e.ring) }))
+    .map((e, idx) => ({ ...e, idx }))
     .sort(_compareHatchOrder);
   const visibleSorted = resolveVisibleRings(sortedByDrawOrder.map(e => e.ring));
   const visibleHatchRings = new Array(hatchDrawOrder.length);
@@ -280,7 +262,26 @@ function parseDXF(text, opts) {
     colors[entity.hex].push(...visParts);
   });
 
-  return { layers, colors };
+  // 어느 게 위인지 알 수 없는(SORTENTSTABLE에 둘 다 없는) 서로 다른 색 해치끼리의
+  // 실제 겹침만 모은다 — 같은 색끼리 겹치는 건 어느 게 위든 결과가 같아 무관하다.
+  const ambiguousOverlaps = [];
+  const indexed = hatchDrawOrder.map((e, idx) => ({ ...e, idx }));
+  for (let a = 0; a < indexed.length; a++) {
+    if (_hasSortKey(indexed[a])) continue;
+    for (let b = a + 1; b < indexed.length; b++) {
+      if (indexed[a].hex === indexed[b].hex) continue;
+      if (_hasSortKey(indexed[b])) continue;
+      let inter;
+      try { inter = cleanMultiPoly(polygonClipping.intersection([indexed[a].ring], [indexed[b].ring])); }
+      catch (e) { continue; }
+      const area = inter.reduce((s, poly) => s + shoelace(poly[0]), 0);
+      if (area > 0.01) {
+        ambiguousOverlaps.push({ hexA: indexed[a].hex, hexB: indexed[b].hex, area, polys: inter });
+      }
+    }
+  }
+
+  return { layers, colors, ambiguousOverlaps };
 }
 
 /** LWPOLYLINE 한 개 파싱 */

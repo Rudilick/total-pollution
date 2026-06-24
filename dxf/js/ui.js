@@ -90,19 +90,11 @@ function _recomputeSlotData(slot) {
   slot.data = applyColorLegend(slot.rawData, globalLegend);
 }
 
-function _getAlwaysTopColors() {
-  return new Set(globalLegend.filter(r => r.alwaysTop).map(r => r.colorKey));
-}
-
-// "항상 위에 표시" 체크가 바뀌면, 겹침 우선순위가 도면 파싱 단계에서 정해지므로
-// 원본 텍스트가 남아있는 슬롯은 다시 파싱해야 한다.
-function _reparseAllSlots() {
-  const alwaysTopColors = _getAlwaysTopColors();
-  slots.forEach(slot => {
-    if (slot.dxfText) slot.rawData = parseDXF(slot.dxfText, { alwaysTopColors });
-  });
-  _refreshGlobalLegend();
-  renderSlotsWrap();
+// 어느 색이 위인지 캐드에 실제로 기록돼 있지 않은(SORTENTSTABLE 없는) 겹침이
+// 하나라도 있으면 분석을 막는다 — 추측해서 계산하면 안 보이는 색이 계산에 잡히는
+// 식으로 조용히 틀린 결과가 나올 수 있기 때문.
+function _hasAmbiguousOverlaps() {
+  return slots.some(s => s.rawData?.ambiguousOverlaps?.length > 0);
 }
 
 function initSlots() {
@@ -214,21 +206,6 @@ function _renderLegendWrap() {
     };
     rowEl.appendChild(input);
 
-    // 다른 색과 겹칠 때, 면적 추측 대신 이 색을 항상 위(눈에 보이는 쪽)로 둔다.
-    const topLabel = document.createElement('label');
-    topLabel.className = 'legend-top-toggle';
-    topLabel.title = '겹칠 때 면적과 무관하게 이 색을 항상 위에 표시';
-    const topCheck = document.createElement('input');
-    topCheck.type = 'checkbox';
-    topCheck.checked = !!row.alwaysTop;
-    topCheck.onchange = (e) => {
-      row.alwaysTop = e.target.checked;
-      _reparseAllSlots();
-    };
-    topLabel.appendChild(topCheck);
-    topLabel.appendChild(document.createTextNode('항상 위'));
-    rowEl.appendChild(topLabel);
-
     box.appendChild(rowEl);
   });
 
@@ -238,6 +215,60 @@ function _renderLegendWrap() {
     warn.textContent = '모든 색상에 용도명을 입력해야 분석할 수 있습니다.';
     box.appendChild(warn);
   }
+
+  wrap.appendChild(box);
+  _renderOverlapWarning(wrap);
+}
+
+// ── 겹침 확인 필요 — 캐드에 표시순서가 기록 안 된, 서로 다른 색끼리의 겹침 ──
+function _renderOverlapWarning(wrap) {
+  const slotsWithOverlap = slots.filter(s => s.rawData?.ambiguousOverlaps?.length > 0);
+  if (!slotsWithOverlap.length) return;
+
+  const box = document.createElement('div');
+  box.className = 'legend-slot overlap-warning-box';
+
+  const title = document.createElement('div');
+  title.className = 'legend-slot-title';
+  title.textContent = '겹침 확인 필요 — 어느 색이 위인지 알 수 없습니다';
+  box.appendChild(title);
+
+  const desc = document.createElement('p');
+  desc.className = 'overlap-warning-desc';
+  desc.textContent =
+    '캐드에 표시순서(SORTENTSTABLE)가 기록되지 않은 상태로 서로 다른 색 해치가 겹쳐 있습니다. ' +
+    '추측해서 계산하면 실제로는 안 보이는 색이 계산에 잡힐 수 있어, 아래 겹침을 모두 해결(겹치지 않게 ' +
+    '수정하거나 캐드에서 표시순서를 지정)한 뒤 다시 올려야 분석할 수 있습니다.';
+  box.appendChild(desc);
+
+  slotsWithOverlap.forEach(slot => {
+    const slotTitle = document.createElement('div');
+    slotTitle.className = 'overlap-slot-title';
+    slotTitle.textContent = `${slot.label} (${slot.file?.name || ''})`;
+    box.appendChild(slotTitle);
+
+    const labelOf = (hex) => {
+      const row = globalLegend.find(r => r.colorKey === hex);
+      return row?.label ? `${row.label}` : hex;
+    };
+
+    slot.rawData.ambiguousOverlaps
+      .slice()
+      .sort((a, b) => b.area - a.area)
+      .forEach(ov => {
+        const row = document.createElement('div');
+        row.className = 'overlap-row';
+        const swA = document.createElement('span'); swA.className = 'legend-swatch overlap-swatch'; swA.style.background = ov.hexA;
+        const swB = document.createElement('span'); swB.className = 'legend-swatch overlap-swatch'; swB.style.background = ov.hexB;
+        row.appendChild(swA);
+        row.appendChild(document.createTextNode(labelOf(ov.hexA)));
+        row.appendChild(document.createTextNode(' ↔ '));
+        row.appendChild(swB);
+        row.appendChild(document.createTextNode(labelOf(ov.hexB)));
+        row.appendChild(document.createTextNode(`  (${_fmtArea(ov.area)} ㎡)`));
+        box.appendChild(row);
+      });
+  });
 
   wrap.appendChild(box);
 }
@@ -351,7 +382,7 @@ async function handleFileSelect(slot, file) {
   try {
     const text = await file.text();
     slot.dxfText = text;
-    _initSlotFromParsed(slot, parseDXF(text, { alwaysTopColors: _getAlwaysTopColors() }));
+    _initSlotFromParsed(slot, parseDXF(text));
     slot.file  = file;
     renderSlotsWrap();
   } catch (e) {
@@ -427,10 +458,12 @@ function updateRunBtn() {
   const loadedSlots = slots.filter(s => s.data);
   const loaded = loadedSlots.length;
   const allLegendsDone = _isLegendComplete();
-  btn.disabled = loaded < 2 || !allLegendsDone;
+  const hasOverlap = _hasAmbiguousOverlaps();
+  btn.disabled = loaded < 2 || !allLegendsDone || hasOverlap;
   btn.textContent = loaded < 2
     ? `분석 실행 (도면 ${loaded}/2 이상 업로드 필요)`
-    : (!allLegendsDone ? '분석 실행 (색상별 용도명을 입력하세요)' : '분석 실행');
+    : (hasOverlap ? '분석 실행 (겹침을 먼저 해결하세요)'
+      : (!allLegendsDone ? '분석 실행 (색상별 용도명을 입력하세요)' : '분석 실행'));
 }
 
 // ── 정합 방식 표시 ───────────────────────────────────────────

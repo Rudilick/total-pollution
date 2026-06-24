@@ -214,11 +214,15 @@ body {
   flex: 1; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border-md); border-radius: 6px;
 }
 .legend-row input[type="text"]:disabled { background: var(--gray-50); color: var(--gray-400); }
-.legend-top-toggle {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: var(--gray-600); white-space: nowrap; flex-shrink: 0; cursor: pointer;
-}
 .legend-incomplete { color: var(--red-dark); font-size: 12px; margin-top: 4px; }
+
+/* ── 겹침 확인 필요 ── */
+.overlap-warning-box { border-color: var(--red-dark); margin-top: 12px; }
+.overlap-warning-box .legend-slot-title { color: var(--red-dark); }
+.overlap-warning-desc { font-size: 12px; color: var(--gray-600); margin-bottom: 10px; line-height: 1.5; }
+.overlap-slot-title { font-size: 12px; font-weight: 700; color: var(--gray-800); margin: 10px 0 4px; }
+.overlap-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gray-700); margin-bottom: 4px; }
+.overlap-swatch { width: 16px; height: 16px; border-radius: 4px; }
 
 /* ── 도면 아카이브 ── */
 .archive-toggle {
