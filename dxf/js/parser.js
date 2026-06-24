@@ -34,6 +34,27 @@ function _bulgeArcPoints(p1, p2, bulge, segments) {
   }
   return pts;
 }
+/**
+ * HATCH 엣지 경계의 "원호(타입2)" 엣지 — 중심/반지름/시작각/끝각(도)으로 호를 점들로 잘라낸다.
+ * (LWPOLYLINE의 bulge와는 정의 방식이 달라 별도 함수로 둔다: 여기는 중심점 기준 절대각.)
+ */
+function _arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw, segments) {
+  let startRad = startDeg * Math.PI / 180;
+  let endRad = endDeg * Math.PI / 180;
+  if (ccw) {
+    while (endRad <= startRad) endRad += Math.PI * 2;
+  } else {
+    while (endRad >= startRad) endRad -= Math.PI * 2;
+  }
+  const n = Math.max(2, segments || 24);
+  const pts = [];
+  for (let k = 0; k <= n; k++) {
+    const t = startRad + (endRad - startRad) * (k / n);
+    pts.push([cx + radius * Math.cos(t), cy + radius * Math.sin(t)]);
+  }
+  return pts;
+}
+
 /** vertices[i] → vertices[i+1] 구간의 불지값이 bulges[i]일 때, 곡선 구간에 보간점을 끼워넣는다 */
 function _applyBulges(vertices, bulges) {
   if (!bulges.some(b => b)) return vertices;
@@ -367,7 +388,10 @@ function _parseHatch(pairs, startIdx) {
       const ring = _applyBulges(vertices, bulges);
       if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     } else {
-      // 엣지 경계 – 엣지 개수(93) 만큼 스킵
+      // 엣지 경계 – 엣지 개수(93)만큼 정확히 읽는다. 라인/원호는 정확히 처리하고,
+      // 타원호·스플라인처럼 흔치 않은 엣지는 모양은 부정확할 수 있어도 각 엣지의
+      // 끝(다음 72 또는 97/0)까지만 정확히 건너뛰어 — 다음 경계 경로의 데이터를
+      // 같은 ring에 잘못 이어붙이는 일이 없게 한다(예전 버전의 버그).
       let edgeCount = 0;
       while (i < pairs.length) {
         const [code, val] = pairs[i];
@@ -375,20 +399,40 @@ function _parseHatch(pairs, startIdx) {
         if (code === '93') { edgeCount = parseInt(val) || 0; i++; break; }
         i++;
       }
-      // 엣지 데이터 스킵 (단순 라인만 간단 수집)
       const ring = [];
-      let curX = null;
-      let skip = 0;
-      while (i < pairs.length && skip < edgeCount * 20) {
-        const [code, val] = pairs[i];
-        if (code === '0') break;
-        if (code === '72' && skip > 0) skip++; // 엣지 경계 시작 시그널
-        if (code === '10') curX = parseFloat(val);
-        else if (code === '20' && curX !== null) {
-          ring.push([curX, parseFloat(val)]);
-          curX = null;
+      for (let e = 0; e < edgeCount; e++) {
+        if (i >= pairs.length || pairs[i][0] !== '72') break;
+        const edgeType = parseInt(pairs[i][1], 10) || 1;
+        i++; // 72 소비
+
+        if (edgeType === 1) {
+          // 직선: 10/20=시작점만 모은다 — 연속된 엣지의 시작점들이 이미 폐다각형을 이룬다.
+          let sx = null, sy = null;
+          while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') {
+            const [code, val] = pairs[i];
+            if (code === '10') sx = parseFloat(val);
+            else if (code === '20') sy = parseFloat(val);
+            i++;
+          }
+          if (sx !== null && sy !== null) ring.push([sx, sy]);
+        } else if (edgeType === 2) {
+          // 원호: 10/20=중심, 40=반지름, 50/51=시작/끝각(도), 73=반시계 여부
+          let cx = 0, cy = 0, radius = 0, startDeg = 0, endDeg = 0, ccw = true;
+          while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') {
+            const [code, val] = pairs[i];
+            if (code === '10') cx = parseFloat(val);
+            else if (code === '20') cy = parseFloat(val);
+            else if (code === '40') radius = parseFloat(val);
+            else if (code === '50') startDeg = parseFloat(val);
+            else if (code === '51') endDeg = parseFloat(val);
+            else if (code === '73') ccw = val === '1';
+            i++;
+          }
+          ring.push(..._arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw));
+        } else {
+          // 타원호/스플라인 등 — 다음 엣지 시작 전까지만 건너뛰어 동기화를 유지한다.
+          while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') i++;
         }
-        i++; skip++;
       }
       if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
     }
