@@ -403,7 +403,7 @@ function buildTocBlock(docx){
   return els;
 }
 
-// ── 제1장: 총괄 ──────────────────────────────────────────────────
+// ── 총괄 (장 번호 없음) ──────────────────────────────────────────
 function buildChapter1(docx,data){
   var H=makeH(docx);
   var Table=docx.Table,TableRow=docx.TableRow,TableCell=docx.TableCell;
@@ -617,7 +617,7 @@ function buildChapter1(docx,data){
     ]
   });
 
-  return H.chapterBox("제1장  총  괄").concat([
+  return H.chapterBox("총  괄").concat([
     H.heading1("1. 사업의 개요"),mainTable,
     H.blank(),
     H.heading1("2. 할당부하량"),allotTable,H.blank(),
@@ -627,14 +627,14 @@ function buildChapter1(docx,data){
 }
 
 
-// ── 제2장: 사업계획서 ────────────────────────────────────────────
+// ── 제1장: 사업의 개요 ───────────────────────────────────────────
 function buildChapter2(docx,data){
   var H=makeH(docx);
   var Table=docx.Table,TableRow=docx.TableRow,TableCell=docx.TableCell;
   var WidthType=docx.WidthType,VerticalAlign=docx.VerticalAlign;
   var els=[];
 
-  els=els.concat(H.chapterBox("제2장  사업계획서"));
+  els=els.concat(H.chapterBox("제1장  사업의 개요"));
   els.push(H.heading1("1. 계획의 배경 및 목적"));
   els.push(H.p("◦ 사업의 배경",{bold:true,size:H.SZ_SM}));
   els.push(H.inputBox("[ 사업의 배경을 입력하세요 ]\n예시) 본 사업지구는 ○○시 ○○면 ○○리 일원으로서..."));
@@ -794,7 +794,7 @@ function buildChapter2(docx,data){
   return els;
 }
 
-// ── 제3장: 부하량 산정 ───────────────────────────────────────────
+// ── 제2장: 부하량 산정결과 ───────────────────────────────────────
 
 // ★ 수정9: 기술지침 원단위 참조표 (표 VI-1)
 // ── 층 병합 테이블 헬퍼 ─────────────────────────────────────────
@@ -1439,13 +1439,13 @@ function buildLandTables(H,landBefore,landAfter,docx){
   return els;
 }
 
-// ── 제3장: 부하량 산정 ───────────────────────────────────────────
+// ── 제2장: 부하량 산정결과 ───────────────────────────────────────
 function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   var H=makeH(docx);
   // F에 f5 추가
   if(!F.f5)F.f5=function(v){return(typeof v==="number"&&isFinite(v))?v.toFixed(5):"-";};
   var els=[];
-  els=els.concat(H.chapterBox("제3장  부하량 산정"));
+  els=els.concat(H.chapterBox("제2장  부하량 산정결과"));
 
   var before=calcResult&&calcResult.생활계?calcResult.생활계.사업전:null;
   var after=calcResult&&calcResult.생활계?calcResult.생활계.사업후:null;
@@ -1453,8 +1453,8 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   // 기술지침 원단위 표
   els=els.concat(buildLifeStdTable(H,urbanType));
 
-  // ── 1. 생활계 ──────────────────────────────────────────────
-  els.push(H.heading1("1. 생활계"));
+  // ── 가. 생활계 ──────────────────────────────────────────────
+  els.push(H.heading1("가. 생활계"));
 
   // 세대수·인구단위 파악
   var beforeHouseholds=window.lifeBefore&&window.lifeBefore.state?parseFloat(window.lifeBefore.state.householdCount)||0:0;
@@ -1467,21 +1467,21 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   }
 
   // 사업시행 전
-  els.push(H.heading2("가. 사업시행 전"));
+  els.push(H.heading2("(1) 사업시행 전"));
   els=els.concat(buildLifePhaseSection(docx,H,before,"before",envRiver,urbanType,beforeHouseholds,popUnit));
 
   // ★ 페이지 넘김: 생활계 사업전 / 사업후
   els.push(H.pageBreak());
 
   // 사업시행 후
-  els.push(H.heading2("나. 사업시행 후"));
+  els.push(H.heading2("(2) 사업시행 후"));
   els=els.concat(buildLifePhaseSection(docx,H,after,"after",envRiver,urbanType,afterHouseholds,popUnit));
 
   // ★ 페이지 넘김: 생활계 사업후 / 토지계+최종
   els.push(H.pageBreak());
 
   // 생활계 최종 배출부하량
-  els.push(H.heading2("다. 생활계 최종 배출부하량"));
+  els.push(H.heading2("(3) 생활계 최종 배출부하량"));
   var bD=(before&&before.합계&&before.합계.배출부하량)||{BOD:0,TP:0};
   var aD=(after&&after.합계&&after.합계.배출부하량)||{BOD:0,TP:0};
   var finalBOD=Math.round((aD.BOD-bD.BOD)*1e6)/1e6;
@@ -1503,8 +1503,8 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   // ★ 페이지 넘김: 생활계최종 / 토지계
   // (이미 위에서 처리됨)
 
-  // ── 2. 토지계 ──────────────────────────────────────────────
-  els.push(H.heading1("2. 토지계"));
+  // ── 나. 토지계 ──────────────────────────────────────────────
+  els.push(H.heading1("나. 토지계"));
   var lB=calcResult&&calcResult.토지계?calcResult.토지계.사업전:null;
   var lA=calcResult&&calcResult.토지계?calcResult.토지계.사업후:null;
   var tbB=(lB&&lB.합계&&lB.합계.배출부하량)?lB.합계.배출부하량.BOD:0;
@@ -1518,8 +1518,8 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
   els.push(H.blank());
   els=els.concat(buildLandTables(H,lB,lA,docx));
 
-  // ── 3. 최종배출부하량 ──────────────────────────────────────
-  els.push(H.heading1("3. 최종배출부하량"));
+  // ── 다. 사업시행에 따른 총배출부하량 ──────────────────────────
+  els.push(H.heading1("다. 사업시행에 따른 총배출부하량"));
   var pt=(calcResult&&calcResult.최종배출부하량&&calcResult.최종배출부하량.점오염)||{BOD:0,TP:0};
   var bis=(calcResult&&calcResult.최종배출부하량&&calcResult.최종배출부하량.비점오염)||{BOD:0,TP:0};
   els.push(H.p(
@@ -1541,7 +1541,7 @@ function buildChapter3(docx,calcResult,envRiver,urbanType,unitBasin){
 
 function buildChapter4(docx){
   var H=makeH(docx);
-  return H.chapterBox("제4장  부  록").concat([
+  return H.chapterBox("부  록").concat([
     H.heading1("1. 건축물대장"),H.p("[건축물대장 첨부]",{size:H.SZ_SM}),H.blank(),
     H.heading1("2. 토지대장"),H.p("[토지대장 첨부]",{size:H.SZ_SM}),H.blank(),
     H.heading1("3. 건축도면"),H.p("[건축도면 첨부]",{size:H.SZ_SM}),H.blank(),
