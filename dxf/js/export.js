@@ -251,7 +251,7 @@ function _makeOverlapSection(slot, seqNum) {
 
   return {
     title:      `겹침 확인 — ${slot.label}${slot.file?.name ? ' (' + slot.file.name + ')' : ''}`,
-    subtitle:   `해치가 3개 이상 겹쳐서 어느 색이 위인지 알 수 없는 곳 ${chunks.length}건` +
+    subtitle:   `어느 색이 위인지 알 수 없는 겹침 ${chunks.length}건` +
       ' — 중복 해치 없이 다시 작성해서 올려주세요.',
     imgDataURL: canvas.toDataURL('image/png'),
     layerLegend: [],
