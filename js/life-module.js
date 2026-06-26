@@ -6,6 +6,51 @@
 //   - 사업전/후 타이틀 큰 글자 유지
 // ================================================================
 
+// ── 용도 검색 드롭다운 포털 ──────────────────────────────────────
+// 드롭다운을 각 칸 안에(position:absolute) 그대로 두면 부모 테이블/컬럼의
+// overflow:hidden에 잘려서 길게 안 보인다. document.body에 직접 붙여서
+// 입력칸 위치를 기준으로 떠 있게 한다(사업전/사업후 두 모듈이 같이 써도
+// 한 번에 하나만 열리므로 포털 노드 하나만 공유한다).
+let _activeUseDropdownKey = null;
+function _getUsePortalDropdown() {
+  let el = document.getElementById('lifeUsePortalDropdown');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'lifeUsePortalDropdown';
+    el.className = 'useDropdown';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function _positionUsePortalDropdown(inputEl) {
+  const portal = _getUsePortalDropdown();
+  const rect = inputEl.getBoundingClientRect();
+  const maxH = 240; // CSS max-height와 맞춤
+  // 아래쪽에 240px 여유가 없으면 입력칸 위로 띄운다(흔한 자동완성 패턴)
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUpward = spaceBelow < maxH && rect.top > maxH;
+  portal.style.position = 'fixed';
+  portal.style.left = rect.left + 'px';
+  portal.style.right = 'auto';
+  portal.style.width = rect.width + 'px';
+  portal.style.zIndex = '9999';
+  if (openUpward) {
+    portal.style.top = 'auto';
+    portal.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+  } else {
+    portal.style.bottom = 'auto';
+    portal.style.top = (rect.bottom + 2) + 'px';
+  }
+  return portal;
+}
+function _hideUsePortalDropdown() {
+  _activeUseDropdownKey = null;
+  const el = document.getElementById('lifeUsePortalDropdown');
+  if (el) { el.classList.remove('open'); el.innerHTML = ''; }
+}
+window.addEventListener('scroll', _hideUsePortalDropdown, true);
+window.addEventListener('resize', _hideUsePortalDropdown);
+
 function createLifeModule(opts) {
   const { rootId, listClassName, householdInputId } = opts;
 
@@ -215,7 +260,6 @@ function createLifeModule(opts) {
   }
   function _renderUseRow(bIdx, fIdx, uIdx) {
     const u = state.buildings[bIdx].floors[fIdx].uses[uIdx];
-    const dropId = `useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`;
     const inputId = `useSearch_${rootId}_${bIdx}_${fIdx}_${uIdx}`;
     const displayVal = _useDisplayLabel(u);
     let res = u.unitType ? {unitType:u.unitType,unitText:u.unitText} : {unitType:"",unitText:""};
@@ -243,7 +287,6 @@ function createLifeModule(opts) {
               oninput="window.__lifeOnUseSearchInput('${rootId}',${bIdx},${fIdx},${uIdx},this.value)"
               onfocus="window.__lifeOnUseSearchFocus('${rootId}',${bIdx},${fIdx},${uIdx})"
               onblur="setTimeout(()=>window.__lifeOnUseSearchBlur('${rootId}',${bIdx},${fIdx},${uIdx}),120)" />
-            <div class="useDropdown" id="${dropId}"></div>
           </div>
           ${showInput?`<input type="text" inputmode="decimal" value="${u.inputValue??""}" placeholder="면적/인원"
             style="font-size:12px;" oninput="window.__lifeOnValueChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)" />
@@ -258,7 +301,9 @@ function createLifeModule(opts) {
   }
 
   function _openUseDropdown(bIdx,fIdx,uIdx,items){
-    const drop=document.getElementById(`useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!drop) return;
+    const inputEl=document.getElementById(`useSearch_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!inputEl) return;
+    const drop=_positionUsePortalDropdown(inputEl);
+    _activeUseDropdownKey=`${rootId}_${bIdx}_${fIdx}_${uIdx}`;
     drop.innerHTML=_renderUseDropdownItems(items);
     drop.classList.add("open");
     drop.querySelectorAll(".item").forEach(el=>{
@@ -271,8 +316,9 @@ function createLifeModule(opts) {
     });
   }
   function _closeUseDropdown(bIdx,fIdx,uIdx){
-    const drop=document.getElementById(`useDrop_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!drop) return;
-    drop.classList.remove("open"); drop.innerHTML="";
+    const key=`${rootId}_${bIdx}_${fIdx}_${uIdx}`;
+    if(_activeUseDropdownKey!==key) return; // 그 사이 다른 행이 새로 연 드롭다운이면 건드리지 않음
+    _hideUsePortalDropdown();
   }
   function onUseSearchBlur(bIdx,fIdx,uIdx){
     const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
