@@ -220,9 +220,8 @@ body {
 .overlap-warning-box { border-color: var(--red-dark); margin-top: 12px; }
 .overlap-warning-box .legend-slot-title { color: var(--red-dark); }
 .overlap-warning-desc { font-size: 12px; color: var(--gray-600); margin-bottom: 10px; line-height: 1.5; }
-.overlap-slot-title { font-size: 12px; font-weight: 700; color: var(--gray-800); margin: 10px 0 4px; }
-.overlap-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gray-700); margin-bottom: 4px; }
-.overlap-swatch { width: 16px; height: 16px; border-radius: 4px; }
+.overlap-report-btn { background: var(--red-dark); }
+.overlap-report-btn:hover { opacity: 0.9; }
 
 /* ── 도면 아카이브 ── */
 .archive-toggle {

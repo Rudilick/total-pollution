@@ -23,6 +23,9 @@ const _EX = {
   incrLabel:  '#0a7a3c',
   // 증가 분석 도면의 기존 부지(용도 구분 없이 통일) 색
   baseGray:   '#9a9a9a',
+  // 겹침 확인 강조 색 (변경/증가와 헷갈리지 않게 보라색 계열)
+  overlapFill:   'rgba(190, 0, 190, 0.55)',
+  overlapStroke: '#7a0080',
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -198,6 +201,63 @@ function _makeIncreaseSection(result, sFirst, sLast) {
     layerLegend: [], // 이 도면은 기존 부지=회색, 증가 구역=초록 단 두 가지뿐이라 용도별 범례가 필요 없음
     chunks,
     chunkType: 'increase',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  겹침 확인 보고서 — 어느 색이 위인지 캐드에 기록 안 된 겹침을 도면 위에
+//  한 가지 색으로만 강조해서 보여준다(분석 실행 전, 슬롯 업로드만 된 상태에서도
+//  바로 볼 수 있다 — 변경/증가 분석과 무관하게 슬롯별로 독립적으로 본다).
+// ─────────────────────────────────────────────────────────────────
+function exportOverlapReport(slots) {
+  const targets = (slots || []).filter(s => s.rawData?.ambiguousOverlaps?.length > 0);
+  if (!targets.length) { alert('겹침이 없습니다.'); return; }
+  const sections = targets.map((slot, i) => _makeOverlapSection(slot, i + 1));
+  _openPrintWindow(sections, []);
+}
+
+function _makeOverlapSection(slot, seqNum) {
+  const data = slot.rawData;
+  const allRings = Object.values(data.colors || {}).flat();
+  const tfn = _makeMapTransform(allRings, _EX.CW, _EX.CH, _EX.PAD, _EX.LEG_H);
+
+  const canvas = _newCanvas();
+  const ctx    = canvas.getContext('2d');
+  _fillBg(ctx, canvas.width, canvas.height);
+
+  // 실제 색상으로 도면 전체를 옅게 깔아서(위치 파악용), 겹침 구역만 한 가지
+  // 경고색으로 또렷하게 강조한다 — 색상별로 다르게 칠하면 또 추측처럼 보일 수 있어서
+  // 일부러 다 같은 색 하나로만 표시한다.
+  Object.entries(data.colors || {}).forEach(([hex, rings]) => {
+    _drawRings(ctx, rings, hex, 0.35, 0.5, 1, tfn);
+  });
+
+  const chunks = [];
+  const labelPositions = [];
+  let chunkN = 1;
+  (data.ambiguousOverlaps || []).forEach(ov => {
+    (ov.polys || []).forEach(poly => {
+      if (!poly?.[0]?.length) return;
+      _drawPoly(ctx, poly, _EX.overlapFill, _EX.overlapStroke, 2.5, tfn);
+      const [cx, cy] = _centroid(poly[0]);
+      labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.overlapStroke });
+      chunks.push({ num: chunkN, area: shoelace(poly[0]) });
+      chunkN++;
+    });
+  });
+  _resolveLabelCollisions(labelPositions);
+  labelPositions.forEach(lp => _drawLabel(ctx, lp.x, lp.y, lp.num, lp.color));
+  _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
+
+  const totalArea = chunks.reduce((s, c) => s + c.area, 0);
+  return {
+    title:      `겹침 확인 — ${slot.label}${slot.file?.name ? ' (' + slot.file.name + ')' : ''}`,
+    subtitle:   `어느 색이 위인지 캐드에 기록되지 않은 겹침 ${chunks.length}건 · 합계 ${_fmtArea(totalArea)} ㎡` +
+      ' — 중복 해치 없이 다시 작성해서 올려주세요.',
+    imgDataURL: canvas.toDataURL('image/png'),
+    layerLegend: [],
+    chunks,
+    chunkType: 'overlap',
   };
 }
 
@@ -580,13 +640,18 @@ function _layerLegendHtml(items) {
 function _chunkTableHtml(chunks, type) {
   if (!chunks?.length) return '<p class="empty-note">변경/증가 구역 없음</p>';
   const isChange = type === 'change';
+  const isOverlap = type === 'overlap';
   const thead = isChange
     ? '<tr><th style="width:60px">번호</th><th>변경 전 용도</th><th>변경 후 용도</th><th style="width:130px">면적 (㎡)</th></tr>'
-    : '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">면적 (㎡)</th></tr>';
+    : isOverlap
+      ? '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">겹침 면적 (㎡)</th></tr>'
+      : '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">면적 (㎡)</th></tr>';
   const dot = color => `<span class="tbl-dot" style="background:${color}"></span>`;
   const rows = chunks.map(c => isChange
     ? `<tr><td>${c.num}</td><td class="left">${dot(layerColor(c.from))}${c.from}</td><td class="left">${dot(layerColor(c.to))}${c.to}</td><td>${_fmtArea(c.area)}</td></tr>`
-    : `<tr><td>${c.num}</td><td class="left">${dot(_EX.incrStroke)}증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
+    : isOverlap
+      ? `<tr><td>${c.num}</td><td class="left">${dot(_EX.overlapStroke)}겹침 구역</td><td>${_fmtArea(c.area)}</td></tr>`
+      : `<tr><td>${c.num}</td><td class="left">${dot(_EX.incrStroke)}증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
   ).join('');
   const total = chunks.reduce((s, c) => s + c.area, 0);
   const tfoot = isChange

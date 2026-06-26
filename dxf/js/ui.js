@@ -225,6 +225,8 @@ function _renderOverlapWarning(wrap) {
   const slotsWithOverlap = slots.filter(s => s.rawData?.ambiguousOverlaps?.length > 0);
   if (!slotsWithOverlap.length) return;
 
+  const totalCount = slotsWithOverlap.reduce((s, sl) => s + sl.rawData.ambiguousOverlaps.length, 0);
+
   const box = document.createElement('div');
   box.className = 'legend-slot overlap-warning-box';
 
@@ -236,39 +238,16 @@ function _renderOverlapWarning(wrap) {
   const desc = document.createElement('p');
   desc.className = 'overlap-warning-desc';
   desc.textContent =
-    '캐드에 표시순서(SORTENTSTABLE)가 기록되지 않은 상태로 서로 다른 색 해치가 겹쳐 있습니다. ' +
-    '추측해서 계산하면 실제로는 안 보이는 색이 계산에 잡힐 수 있어, 아래 겹침을 모두 해결(겹치지 않게 ' +
-    '수정하거나 캐드에서 표시순서를 지정)한 뒤 다시 올려야 분석할 수 있습니다.';
+    `${slotsWithOverlap.map(s => s.label).join(', ')}에 겹침 ${totalCount}건 발견. ` +
+    '도면에서 위치를 확인하려면 아래 버튼으로 겹침 확인 보고서를 열어보세요. ' +
+    '겹침을 없애거나(중복 해치 제거) 캐드에서 표시순서를 지정한 뒤 다시 올려야 분석할 수 있습니다.';
   box.appendChild(desc);
 
-  slotsWithOverlap.forEach(slot => {
-    const slotTitle = document.createElement('div');
-    slotTitle.className = 'overlap-slot-title';
-    slotTitle.textContent = `${slot.label} (${slot.file?.name || ''})`;
-    box.appendChild(slotTitle);
-
-    const labelOf = (hex) => {
-      const row = globalLegend.find(r => r.colorKey === hex);
-      return row?.label ? `${row.label}` : hex;
-    };
-
-    slot.rawData.ambiguousOverlaps
-      .slice()
-      .sort((a, b) => b.area - a.area)
-      .forEach(ov => {
-        const row = document.createElement('div');
-        row.className = 'overlap-row';
-        const swA = document.createElement('span'); swA.className = 'legend-swatch overlap-swatch'; swA.style.background = ov.hexA;
-        const swB = document.createElement('span'); swB.className = 'legend-swatch overlap-swatch'; swB.style.background = ov.hexB;
-        row.appendChild(swA);
-        row.appendChild(document.createTextNode(labelOf(ov.hexA)));
-        row.appendChild(document.createTextNode(' ↔ '));
-        row.appendChild(swB);
-        row.appendChild(document.createTextNode(labelOf(ov.hexB)));
-        row.appendChild(document.createTextNode(`  (${_fmtArea(ov.area)} ㎡)`));
-        box.appendChild(row);
-      });
-  });
+  const btn = document.createElement('button');
+  btn.className = 'run-btn overlap-report-btn';
+  btn.textContent = '겹침 확인 보고서 보기';
+  btn.onclick = () => exportOverlapReport(slots);
+  box.appendChild(btn);
 
   wrap.appendChild(box);
 }
