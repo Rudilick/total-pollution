@@ -231,15 +231,13 @@ function parseDXF(text) {
   }
 
   const colors = {};
-  // HATCH끼리 겹치는 영역은 "실제로 위에 그려진" 색상에만 남긴다 — 단, 추측은 하지 않는다.
-  // 면적도 핸들(생성순서)도 실제 화면 표시 순서를 보장하지 않는다는 걸 실제 도면들로
-  // 직접 확인했다(같은 도면 안에서도 어느 쌍은 핸들이 작은 쪽이 위, 어느 쌍은 큰 쪽이
-  // 위였음) — 그래서 둘 다 쓰지 않는다.
-  // 신뢰할 수 있는 건 SORTENTSTABLE(도면 순서 테이블) 하나뿐이다 — 캐드가 사용자의
-  // "표시순서" 조작을 실제로 기록한 값이기 때문. 그게 없는, 색이 서로 다른 두 해치가
-  // 겹치는 경우는 "어느 게 위인지 알 수 없는 겹침"으로 따로 모아서(ambiguousOverlaps)
-  // 호출자가 사용자에게 확인을 요구할 수 있게 한다. (미리보기용 순서는 어쩔 수 없이
-  // 파일 순서를 쓰지만, 그건 정답이라고 주장하는 게 아니라 그릴 순서가 필요해서일 뿐이다.)
+  // HATCH끼리 겹치는 영역은 "실제로 위에 그려진" 색상에만 남긴다.
+  // 신뢰할 수 있는 건 SORTENTSTABLE(도면 순서 테이블)뿐이다 — 캐드가 "표시순서"
+  // 조작을 실제로 기록한 값이기 때문. 그게 없는 나머지는, 보통 큰 배경 위에 작은
+  // 도형을 얹어 그리는 흔한 작성 방식을 따라 "면적이 작은 쪽이 위"로 본다 — 단,
+  // 이게 안전한 건 딱 두 해치만 겹칠 때뿐이다. 세 개 이상이 같은 자리에서 겹치면
+  // 면적 추측이 틀릴 위험이 커지므로, 그 부분만 따로 모아서(ambiguousOverlaps)
+  // 호출자가 사용자에게 확인을 요구하게 하고, 어떤 색에도 배정하지 않는다.
   const sortKeyByHandle = _parseSortEntsTable(pairs);
   function _hasSortKey(e) { return e.handle != null && sortKeyByHandle[e.handle] !== undefined; }
   function _compareHatchOrder(a, b) {
@@ -247,39 +245,56 @@ function parseDXF(text) {
     const bKey = _hasSortKey(b) ? sortKeyByHandle[b.handle] : undefined;
     if (aKey !== undefined && bKey !== undefined) return aKey - bKey;
     if (aKey !== undefined || bKey !== undefined) return aKey !== undefined ? 1 : -1;
-    return a.idx - b.idx; // 둘 다 없으면 파일 순서(미리보기용일 뿐, 정답 주장 아님)
+    return b.area - a.area; // 둘 다 없으면 면적 큰 쪽이 먼저(아래) — 두 해치만 겹칠 때 안전
   }
   const sortedByDrawOrder = hatchDrawOrder
-    .map((e, idx) => ({ ...e, idx }))
+    .map((e, idx) => ({ ...e, idx, area: shoelace(e.ring) }))
     .sort(_compareHatchOrder);
   const visibleSorted = resolveVisibleRings(sortedByDrawOrder.map(e => e.ring));
   const visibleHatchRings = new Array(hatchDrawOrder.length);
   sortedByDrawOrder.forEach((e, sortedIdx) => { visibleHatchRings[e.idx] = visibleSorted[sortedIdx]; });
+
+  // 세 개 이상의(서로 다른 색, SORTENTSTABLE 없는) 해치가 같은 자리에서 겹치는
+  // 부분을 찾는다: 어떤 두 해치의 교차 영역에 "또 다른 색의 세 번째 해치"가 한
+  // 번이라도 더 겹치면 그 부분은 더 이상 면적 추측을 믿을 수 없다.
+  const ambiguous = hatchDrawOrder.map((e, idx) => ({ ...e, idx })).filter(e => !_hasSortKey(e));
+  let deepOverlap = null; // polygon-clipping MultiPolygon (3개 이상 겹치는 전체 영역)
+  for (let a = 0; a < ambiguous.length; a++) {
+    for (let b = a + 1; b < ambiguous.length; b++) {
+      if (ambiguous[a].hex === ambiguous[b].hex) continue;
+      let pairInter;
+      try { pairInter = cleanMultiPoly(polygonClipping.intersection([ambiguous[a].ring], [ambiguous[b].ring])); }
+      catch (e) { continue; }
+      if (!pairInter.length) continue;
+
+      for (let c = 0; c < ambiguous.length; c++) {
+        if (c === a || c === b) continue;
+        if (ambiguous[c].hex === ambiguous[a].hex || ambiguous[c].hex === ambiguous[b].hex) continue;
+        let triple;
+        try { triple = cleanMultiPoly(polygonClipping.intersection(pairInter, [ambiguous[c].ring])); }
+        catch (e) { continue; }
+        if (!triple.length) continue;
+        try { deepOverlap = deepOverlap ? cleanMultiPoly(polygonClipping.union(deepOverlap, triple)) : triple; }
+        catch (e) { /* 무시 */ }
+      }
+    }
+  }
+
   hatchDrawOrder.forEach((entity, idx) => {
-    const visParts = visibleHatchRings[idx];
+    let visParts = visibleHatchRings[idx];
+    if (!visParts.length) return;
+    if (deepOverlap) {
+      try { visParts = cleanMultiPoly(polygonClipping.difference(visParts.map(r => [r]), deepOverlap)).map(p => p.length > 1 ? mergePolygonHoles(p) : p[0]); }
+      catch (e) { /* 무시 */ }
+    }
     if (!visParts.length) return;
     if (!colors[entity.hex]) colors[entity.hex] = [];
     colors[entity.hex].push(...visParts);
   });
 
-  // 어느 게 위인지 알 수 없는(SORTENTSTABLE에 둘 다 없는) 서로 다른 색 해치끼리의
-  // 실제 겹침만 모은다 — 같은 색끼리 겹치는 건 어느 게 위든 결과가 같아 무관하다.
-  const ambiguousOverlaps = [];
-  const indexed = hatchDrawOrder.map((e, idx) => ({ ...e, idx }));
-  for (let a = 0; a < indexed.length; a++) {
-    if (_hasSortKey(indexed[a])) continue;
-    for (let b = a + 1; b < indexed.length; b++) {
-      if (indexed[a].hex === indexed[b].hex) continue;
-      if (_hasSortKey(indexed[b])) continue;
-      let inter;
-      try { inter = cleanMultiPoly(polygonClipping.intersection([indexed[a].ring], [indexed[b].ring])); }
-      catch (e) { continue; }
-      const area = inter.reduce((s, poly) => s + shoelace(poly[0]), 0);
-      if (area > 0.01) {
-        ambiguousOverlaps.push({ hexA: indexed[a].hex, hexB: indexed[b].hex, area, polys: inter });
-      }
-    }
-  }
+  const ambiguousOverlaps = deepOverlap
+    ? deepOverlap.map(poly => ({ polys: [poly], area: shoelace(poly[0]) }))
+    : [];
 
   return { layers, colors, ambiguousOverlaps };
 }

@@ -249,10 +249,9 @@ function _makeOverlapSection(slot, seqNum) {
   labelPositions.forEach(lp => _drawLabel(ctx, lp.x, lp.y, lp.num, lp.color));
   _drawScaleBar(ctx, canvas.width, canvas.height, _EX.LEG_H);
 
-  const totalArea = chunks.reduce((s, c) => s + c.area, 0);
   return {
     title:      `겹침 확인 — ${slot.label}${slot.file?.name ? ' (' + slot.file.name + ')' : ''}`,
-    subtitle:   `어느 색이 위인지 캐드에 기록되지 않은 겹침 ${chunks.length}건 · 합계 ${_fmtArea(totalArea)} ㎡` +
+    subtitle:   `해치가 3개 이상 겹쳐서 어느 색이 위인지 알 수 없는 곳 ${chunks.length}건` +
       ' — 중복 해치 없이 다시 작성해서 올려주세요.',
     imgDataURL: canvas.toDataURL('image/png'),
     layerLegend: [],
@@ -639,19 +638,21 @@ function _layerLegendHtml(items) {
 
 function _chunkTableHtml(chunks, type) {
   if (!chunks?.length) return '<p class="empty-note">변경/증가 구역 없음</p>';
+  const dot = color => `<span class="tbl-dot" style="background:${color}"></span>`;
+
+  if (type === 'overlap') {
+    // 어디서 겹쳤는지 위치(도면의 번호)만 확인하면 되고, 개별 면적까지는 필요 없다.
+    const rows = chunks.map(c => `<tr><td>${c.num}</td><td class="left">${dot(_EX.overlapStroke)}겹침 구역</td></tr>`).join('');
+    return `<table><thead><tr><th style="width:60px">번호</th><th>구분</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
   const isChange = type === 'change';
-  const isOverlap = type === 'overlap';
   const thead = isChange
     ? '<tr><th style="width:60px">번호</th><th>변경 전 용도</th><th>변경 후 용도</th><th style="width:130px">면적 (㎡)</th></tr>'
-    : isOverlap
-      ? '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">겹침 면적 (㎡)</th></tr>'
-      : '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">면적 (㎡)</th></tr>';
-  const dot = color => `<span class="tbl-dot" style="background:${color}"></span>`;
+    : '<tr><th style="width:60px">번호</th><th>구분</th><th style="width:130px">면적 (㎡)</th></tr>';
   const rows = chunks.map(c => isChange
     ? `<tr><td>${c.num}</td><td class="left">${dot(layerColor(c.from))}${c.from}</td><td class="left">${dot(layerColor(c.to))}${c.to}</td><td>${_fmtArea(c.area)}</td></tr>`
-    : isOverlap
-      ? `<tr><td>${c.num}</td><td class="left">${dot(_EX.overlapStroke)}겹침 구역</td><td>${_fmtArea(c.area)}</td></tr>`
-      : `<tr><td>${c.num}</td><td class="left">${dot(_EX.incrStroke)}증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
+    : `<tr><td>${c.num}</td><td class="left">${dot(_EX.incrStroke)}증가 구역</td><td>${_fmtArea(c.area)}</td></tr>`
   ).join('');
   const total = chunks.reduce((s, c) => s + c.area, 0);
   const tfoot = isChange

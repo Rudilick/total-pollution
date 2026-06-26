@@ -232,15 +232,15 @@ function _renderOverlapWarning(wrap) {
 
   const title = document.createElement('div');
   title.className = 'legend-slot-title';
-  title.textContent = '겹침 확인 필요 — 어느 색이 위인지 알 수 없습니다';
+  title.textContent = '겹침 확인 필요 — 해치가 3개 이상 겹쳐서 어느 색이 위인지 알 수 없습니다';
   box.appendChild(title);
 
   const desc = document.createElement('p');
   desc.className = 'overlap-warning-desc';
   desc.textContent =
-    `${slotsWithOverlap.map(s => s.label).join(', ')}에 겹침 ${totalCount}건 발견. ` +
+    `${slotsWithOverlap.map(s => s.label).join(', ')}에 ${totalCount}곳 발견(2개만 겹치는 곳은 자동으로 처리됩니다). ` +
     '도면에서 위치를 확인하려면 아래 버튼으로 겹침 확인 보고서를 열어보세요. ' +
-    '겹침을 없애거나(중복 해치 제거) 캐드에서 표시순서를 지정한 뒤 다시 올려야 분석할 수 있습니다.';
+    '중복 해치를 없애거나 캐드에서 표시순서를 지정한 뒤 다시 올려야 분석할 수 있습니다.';
   box.appendChild(desc);
 
   const btn = document.createElement('button');
