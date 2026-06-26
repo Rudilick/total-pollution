@@ -20,7 +20,7 @@
     <section class="section">
       <div class="section-title">기존 협의자료 불러오기</div>
       <div id="archive-body">
-        <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다.</p>
+        <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다. 새로 작성하기 전에 먼저 검색해서 기존 데이터가 있는지 확인하고, 등록되지 않은 변경 단계부터 작성하세요.</p>
         <div class="archive-search-row">
           <input type="text" id="archive-query" placeholder="일련번호 또는 사업명 검색"
                  oninput="onArchiveSearch()"
@@ -33,7 +33,11 @@
 
     <section class="section">
       <div class="section-title">도면 단계별 업로드</div>
-      <p class="section-hint">단일 레이어에 환경영향평가 시 제출한 토지이용계획도대로 해치(솔리드) 단색으로 표시해주세요.</p>
+      <ol class="section-hint authoring-guide">
+        <li>단일 레이어에 작성</li>
+        <li>환경영향평가서 상 토지이용계획과 동일한 색상으로 구분하여 해치(솔리드)로 표현</li>
+        <li>해치가 서로 겹치지 않게 작성 (겹치면 분석이 차단됩니다)</li>
+      </ol>
       <div class="slots-wrap" id="slots-wrap"></div>
       <div class="border-info" id="border-info"></div>
       <div class="legend-wrap" id="legend-wrap"></div>
