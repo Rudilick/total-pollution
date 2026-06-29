@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DXF 토지이용계획 변경 분석기</title>
+  <title>환경영향평가 변경협의 대상여부 검토</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -13,50 +13,56 @@
         <a class="back-link" href="../index.html">← 홈으로</a>
         <a class="back-link" href="archive-admin.html" onclick="return enterArchiveAdmin(event)">도면 아카이브 관리자 →</a>
       </div>
-      <h1>토지이용계획 변경 분석기</h1>
+      <h1>환경영향평가 변경협의 대상여부 검토</h1>
       <p class="app-desc">DXF 도면을 단계별로 업로드하여 토지이용계획 변경률과 사업부지 증가율을 산출합니다.</p>
     </header>
 
-    <section class="section">
-      <div class="section-title">기존 협의자료 불러오기</div>
-      <div id="archive-body">
-        <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다. 새로 작성하기 전에 먼저 검색해서 기존 데이터가 있는지 확인하고, 등록되지 않은 변경 단계부터 작성하세요.</p>
-        <div class="archive-search-row">
-          <input type="text" id="archive-query" placeholder="일련번호 또는 사업명 검색"
-                 oninput="onArchiveSearch()"
-                 onkeydown="if(event.key==='Enter') onArchiveSearch()">
-          <button class="run-btn archive-search-btn" onclick="onArchiveSearch()">검색</button>
+    <div class="layout-row">
+      <aside class="archive-col">
+        <section class="section">
+          <div class="section-title">기존 협의자료 불러오기</div>
+          <div id="archive-body">
+            <p class="section-hint">일련번호 또는 사업명으로 검색하여 등록된 단계별 도면을 불러옵니다. 새로 작성하기 전에 먼저 검색해서 기존 데이터가 있는지 확인하고, 등록되지 않은 변경 단계부터 작성하세요.</p>
+            <div class="archive-search-row">
+              <input type="text" id="archive-query" placeholder="일련번호 또는 사업명 검색"
+                     oninput="onArchiveSearch()"
+                     onkeydown="if(event.key==='Enter') onArchiveSearch()">
+              <button class="run-btn archive-search-btn" onclick="onArchiveSearch()">검색</button>
+            </div>
+            <div id="archive-results" class="archive-results-scroll"></div>
+          </div>
+        </section>
+      </aside>
+
+      <div class="main-col">
+        <section class="section">
+          <div class="section-title">도면 단계별 업로드</div>
+          <ol class="section-hint authoring-guide">
+            <li>단일 레이어에 작성</li>
+            <li>환경영향평가서 상 토지이용계획과 동일한 색상으로 구분하여 해치(솔리드)로 표현</li>
+            <li>해치가 서로 겹치지 않게 작성 (겹치면 분석이 차단됩니다)</li>
+          </ol>
+          <div class="slots-wrap" id="slots-wrap"></div>
+          <div class="border-info" id="border-info"></div>
+          <div class="legend-wrap" id="legend-wrap"></div>
+        </section>
+
+        <button class="run-btn" id="run-btn" onclick="runAll()" disabled>분석 실행</button>
+        <div id="errdiv" style="display:none"></div>
+
+        <div class="results" id="results" style="display:none">
+          <div class="divider"></div>
+          <div class="section-title">단계별 토지이용 변경률</div>
+          <div id="pairs-wrap"></div>
+          <div class="total-box">
+            <div class="total-grid" id="total-grid"></div>
+          </div>
+          <div style="margin-top:20px;text-align:center;">
+            <button class="export-btn" id="export-btn" onclick="exportReport(lastResult, slots)">
+              📄 비교 도면 + 일람표 내보내기 (PDF)
+            </button>
+          </div>
         </div>
-        <div id="archive-results"></div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-title">도면 단계별 업로드</div>
-      <ol class="section-hint authoring-guide">
-        <li>단일 레이어에 작성</li>
-        <li>환경영향평가서 상 토지이용계획과 동일한 색상으로 구분하여 해치(솔리드)로 표현</li>
-        <li>해치가 서로 겹치지 않게 작성 (겹치면 분석이 차단됩니다)</li>
-      </ol>
-      <div class="slots-wrap" id="slots-wrap"></div>
-      <div class="border-info" id="border-info"></div>
-      <div class="legend-wrap" id="legend-wrap"></div>
-    </section>
-
-    <button class="run-btn" id="run-btn" onclick="runAll()" disabled>분석 실행</button>
-    <div id="errdiv" style="display:none"></div>
-
-    <div class="results" id="results" style="display:none">
-      <div class="divider"></div>
-      <div class="section-title">단계별 토지이용 변경률</div>
-      <div id="pairs-wrap"></div>
-      <div class="total-box">
-        <div class="total-grid" id="total-grid"></div>
-      </div>
-      <div style="margin-top:20px;text-align:center;">
-        <button class="export-btn" id="export-btn" onclick="exportReport(lastResult, slots)">
-          📄 비교 도면 + 일람표 내보내기 (PDF)
-        </button>
       </div>
     </div>
   </div>
