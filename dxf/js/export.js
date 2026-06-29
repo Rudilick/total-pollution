@@ -351,7 +351,7 @@ function _drawLabel(ctx, x, y, num, bgColor) {
   const r = num >= 100 ? 17 : 14;
   ctx.save();
   // 흰색 후광
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = 1;
   ctx.fillStyle   = '#fff';
   ctx.beginPath(); ctx.arc(x, y, r + 2.5, 0, Math.PI * 2); ctx.fill();
   // 배지
