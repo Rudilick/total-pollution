@@ -330,12 +330,35 @@ function _parseHatch(pairs, startIdx) {
   let isSolid = false; // 70(솔리드 채우기 여부) — 패턴 해치(질감용 등)는 토지이용 분석에서 제외
   let rings  = [];
   let i = startIdx;
+  // 한 HATCH 엔티티 안의 여러 경계 경로(path)는 독립된 도형이 아니라, 짝수/홀수(evenodd)
+  // 규칙으로 겹쳐서 "구멍"까지 같이 표현하는 경우가 흔하다(예: 배경 해치 안에 건물 모양으로
+  // 구멍을 뚫어둔 도면). 경로별로 바로 rings에 넣지 않고 일단 raw 형태로 모아뒀다가, 경로를
+  // 전부 다 읽은 뒤에 한꺼번에 evenodd로 합쳐서 실제 채워진 모양(구멍 포함)을 구한다.
+  const rawRings = [];
+  function _finalizeRings() {
+    if (rawRings.length === 1) {
+      if (isSolid && rawRings[0].length >= 3) rings.push({ layer, ring: rawRings[0], colorIdx, trueColor, handle });
+    } else if (rawRings.length > 1) {
+      let merged = null;
+      try { merged = cleanMultiPoly(polygonClipping.xor(...rawRings.map(r => [r]))); } catch (e) { merged = null; }
+      if (merged) {
+        merged.forEach(poly => {
+          const ring = poly.length > 1 ? mergePolygonHoles(poly) : poly[0];
+          if (isSolid && ring && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
+        });
+      } else {
+        // evenodd 합치기에 실패하면(비정상 도형 등) 안전망으로 기존처럼 각각 독립적으로 처리
+        rawRings.forEach(r => { if (isSolid && r.length >= 3) rings.push({ layer, ring: r, colorIdx, trueColor, handle }); });
+      }
+    }
+    return rings;
+  }
 
   // 레이어명·색상·핸들·솔리드 여부 수집 (AcDbEntity 섹션, 91번이 나오기 전까지)
   let pathCount = 0;
   while (i < pairs.length) {
     const [code, val] = pairs[i];
-    if (code === '0') return { rings, nextIdx: i };
+    if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
     if (code === '5') handle = val;
     else if (code === '8') layer = val;
     else if (code === '62') colorIdx = parseInt(val, 10) || 0;
@@ -350,7 +373,7 @@ function _parseHatch(pairs, startIdx) {
     let pathType = 0;
     while (i < pairs.length) {
       const [code, val] = pairs[i];
-      if (code === '0') return { rings, nextIdx: i };
+      if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
       if (code === '92') { pathType = parseInt(val) || 0; i++; break; }
       i++;
     }
@@ -362,19 +385,19 @@ function _parseHatch(pairs, startIdx) {
       let hasBulge = 0, isClosed = 0, vertCount = 0;
       while (i < pairs.length) {
         const [code, val] = pairs[i];
-        if (code === '0') return { rings, nextIdx: i };
+        if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
         if (code === '72') { hasBulge = parseInt(val); i++; break; }
         i++;
       }
       while (i < pairs.length) {
         const [code, val] = pairs[i];
-        if (code === '0') return { rings, nextIdx: i };
+        if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
         if (code === '73') { isClosed = parseInt(val); i++; break; }
         i++;
       }
       while (i < pairs.length) {
         const [code, val] = pairs[i];
-        if (code === '0') return { rings, nextIdx: i };
+        if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
         if (code === '93') { vertCount = parseInt(val) || 0; i++; break; }
         i++;
       }
@@ -399,7 +422,7 @@ function _parseHatch(pairs, startIdx) {
         if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
       }
       const ring = _applyBulges(vertices, bulges);
-      if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
+      if (ring.length >= 3) rawRings.push(ring);
     } else {
       // 엣지 경계 – 엣지 개수(93)만큼 정확히 읽는다. 라인/원호는 정확히 처리하고,
       // 타원호·스플라인처럼 흔치 않은 엣지는 모양은 부정확할 수 있어도 각 엣지의
@@ -408,7 +431,7 @@ function _parseHatch(pairs, startIdx) {
       let edgeCount = 0;
       while (i < pairs.length) {
         const [code, val] = pairs[i];
-        if (code === '0') return { rings, nextIdx: i };
+        if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
         if (code === '93') { edgeCount = parseInt(val) || 0; i++; break; }
         i++;
       }
@@ -447,13 +470,13 @@ function _parseHatch(pairs, startIdx) {
           while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') i++;
         }
       }
-      if (isSolid && ring.length >= 3) rings.push({ layer, ring, colorIdx, trueColor, handle });
+      if (ring.length >= 3) rawRings.push(ring);
     }
 
     // 소스 경계 오브젝트 스킵 (97)
     while (i < pairs.length) {
       const [code, val] = pairs[i];
-      if (code === '0') return { rings, nextIdx: i };
+      if (code === '0') return { rings: _finalizeRings(), nextIdx: i };
       if (code === '97') {
         // 97(소스 경계 오브젝트 개수) 다음에는 그 개수만큼 330(핸들) 쌍이 온다.
         // pairs 배열은 그룹코드-값 한 쌍이 이미 한 칸이므로, 97 자신(+1)과
@@ -475,7 +498,7 @@ function _parseHatch(pairs, startIdx) {
     i++;
   }
 
-  return { rings, nextIdx: i };
+  return { rings: _finalizeRings(), nextIdx: i };
 }
 
 // ── 유틸 함수 (analyzer.js에서 호출) ──────────────────────────
