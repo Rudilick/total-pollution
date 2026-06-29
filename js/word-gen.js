@@ -92,12 +92,29 @@ function wrapBizType(t){return BIZ_TYPE_WRAP[t]||t;}
 // 예전엔 세 군데에 따로 적혀 있어서 어미가 갈라지기 쉬웠다. 한 곳에서만 만들도록 통합.
 var TREATMENT_METHOD_CLAUSE={
   "공공하수처리시설":"공공하수처리시설로 유입·처리되는",
-  "개인하수처리시설":"개별오수처리시설에서 잡배수만 처리 후 방류되는",
-  "정화조":"정화조에서 잡배수만 처리 후 방류되는"
+  "개인하수처리시설":"개별오수처리시설에서 잡배수를 처리하여 방류되는",
+  "정화조":"정화조에서 분뇨를 1차 처리하고 잡배수와 함께 방류되는"
 };
-function indiDischargeDesc(method,totalBOD,totalTP){
+// 적용한 계수를 검토서 문장에 그대로 밝혀 적는다 — "추정"이 아니라 어떤 기준으로
+// 계산했는지 검토자가 바로 확인할 수 있게 한다.
+function _coefDisclosureClause(method,hhData){
+  var CC=window.CALC_CONSTS||{};
+  if(method==="정화조"){
+    var DT=CC.DIRECT_TRANSFER_COEF&&CC.DIRECT_TRANSFER_COEF["정화조"];
+    var bod=DT?F.f3(DT.BOD):"-",tn=DT?F.f3(DT.TN):"-",tp=DT?F.f3(DT.TP):"-";
+    return "「수질오염총량관리기술지침」에 따라, 분뇨발생부하량 중 BOD 25%는 정화조 내에서 자연 분해되어 삭감되는 것으로(개별삭감비 0.25 적용), 분뇨발생부하량의 BOD "+bod+"·T-N "+tn+"·T-P "+tp+"는 분뇨처리장으로 직접이송되는 것으로(직접이송대상계수 적용) 산정하였으며, 나머지가 잡배수와 함께 정상 방류되는 것으로 산정하였다. ";
+  }
+  if(method==="개인하수처리시설"&&hhData&&hhData.개인처리기준&&hhData.개인처리기준.std){
+    var std=hhData.개인처리기준.std;
+    var basis=hhData.개인처리기준.capacity==="50톤미만"?"1일 처리용량 50㎥ 미만":"1일 처리용량 50㎥ 이상";
+    return "해당 시설은 "+basis+" 시설로, 「하수도법 시행규칙」상 법정 방류수질기준 BOD "+std.BOD+"mg/L·T-N "+std.TN+"mg/L·T-P "+std.TP+"mg/L를 적용하여 산정하였다. ";
+  }
+  return "";
+}
+function indiDischargeDesc(method,totalBOD,totalTP,hhData){
   var clause=TREATMENT_METHOD_CLAUSE[method]||"";
-  return "◦ 사업부지 내 건물에서 발생하는 오수는 "+clause+" 것으로 조사되었으며, 개별배출부하량은 BOD "+F.f3(totalBOD)+"kg/일, T-P "+F.f3(totalTP)+"kg/일로 산정되었다.";
+  var coefClause=_coefDisclosureClause(method,hhData);
+  return "◦ 사업부지 내 건물에서 발생하는 오수는 "+clause+" 것으로 조사되었다. "+coefClause+"그 결과 개별배출부하량은 BOD "+F.f3(totalBOD)+"kg/일, T-P "+F.f3(totalTP)+"kg/일로 산정되었다.";
 }
 
 // 표지 줄바꿈
@@ -1216,12 +1233,12 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     function getBcong(r){
       if(method==="공공하수처리시설")return r.처리장정보?String(r.처리장정보.efflBOD):"-";
       if(method==="개인하수처리시설")return r.개인처리기준&&r.개인처리기준.std?String(r.개인처리기준.std.BOD):"-";
-      return "BOD 25%삭감";
+      return "삭감25%+이송16%"; // 정화조: 분뇨발생부하량 기준 개별삭감비(0.25)+직접이송대상계수(0.16) 적용
     }
     function getTcong(r){
       if(method==="공공하수처리시설")return r.처리장정보?String(r.처리장정보.efflTP):"-";
       if(method==="개인하수처리시설")return r.개인처리기준&&r.개인처리기준.std?String(r.개인처리기준.std.TP):"-";
-      return "원부하량";
+      return "이송20%"; // 정화조: 분뇨발생부하량 기준 직접이송대상계수(0.20) 적용, 개별삭감 없음
     }
     function getFlow(r){return method==="공공하수처리시설"?(r.관거이송량||r.오수발생유량||0):(r.잡배수발생유량||0);}
     // 동/층 show 여부 (biz 행 기준)
@@ -1278,7 +1295,7 @@ function buildDischargeSection(docx,H,lifeData,phase,isWaterBuffer){
     els=els.concat(buildIndiTable(pubBizRows,isPubHH,isPubHH?hh:null,"공공하수처리시설","공공하수처리시설 연결 개별배출부하량"));
   }
   if(hasInd){
-    els.push(H.p(indiDischargeDesc("개인하수처리시설",totalDischBOD,totalDischTP),{size:H.SZ_SM}));
+    els.push(H.p(indiDischargeDesc("개인하수처리시설",totalDischBOD,totalDischTP,isIndHH?hh:null),{size:H.SZ_SM}));
     els.push(H.blank());
     els=els.concat(buildIndiTable(indBizRows,isIndHH,isIndHH?hh:null,"개인하수처리시설","개인오수처리시설 개별배출부하량"));
   }

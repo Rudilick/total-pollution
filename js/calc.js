@@ -125,11 +125,27 @@ function _calcDischargeLoad(오수발생유량,발생부하량,method1,method2,m
     return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:잡배수유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과,개인처리기준:{grade:method2,capacity:method3,std,isWaterBuffer}};
   }
   if(method1==="정화조"){
+    // 지침 Ⅷ.4(1)①④, 표 Ⅷ-3·Ⅷ-5: 개별삭감량(BOD만 0.25, T-N·T-P는 0)은
+    // "분뇨발생부하량" 기준으로 계산한다(잡배수 기준이 아님).
+    // 지침 Ⅷ.3(1), 표 Ⅷ-1: 직접이송으로 분뇨처리장에 들어가는 부하량도
+    // "분뇨발생부하량 × 직접이송대상계수(0.16/0.20/0.20)"로 계산한다(유량과
+    // 달리 부하는 전량이 아니라 이 비율만큼만 정화조를 빠져나간다고 본다).
+    // 개별배출(정상 방류)부하량 = 발생부하량 - 개별삭감량 - 직접이송부하량
+    // (지침 Ⅷ.11① 배출원개별배출량 식 그대로) — 즉 잡배수 전량 + 분뇨 중
+    // 삭감·직접이송되지 않고 남은 상등액 몫이 함께 방류되는 구조다.
     const R=CALC_CONSTS.FECES_LOAD_RATIO;
-    const 잡배수발생부하량={BOD:_rBOD((1-R.BOD)*발생부하량.BOD),TN:_rTN((1-R.TN)*발생부하량.TN),TP:_rTP((1-R.TP)*발생부하량.TP)};
-    const 개별배출부하량={BOD:_rBOD(잡배수발생부하량.BOD*(1-0.25)),TN:잡배수발생부하량.TN,TP:잡배수발생부하량.TP};
+    const 분뇨발생부하량={BOD:_rBOD(R.BOD*발생부하량.BOD),TN:_rTN(R.TN*발생부하량.TN),TP:_rTP(R.TP*발생부하량.TP)};
+    const DT=CALC_CONSTS.DIRECT_TRANSFER_COEF["정화조"];
+    const 개별삭감량={BOD:_rBOD(0.25*분뇨발생부하량.BOD),TN:0,TP:0};
+    const 직접이송부하량={BOD:_rBOD(DT.BOD*분뇨발생부하량.BOD),TN:_rTN(DT.TN*분뇨발생부하량.TN),TP:_rTP(DT.TP*분뇨발생부하량.TP)};
+    const 개별배출부하량={
+      BOD:_rBOD(발생부하량.BOD-개별삭감량.BOD-직접이송부하량.BOD),
+      TN:_rTN(발생부하량.TN-개별삭감량.TN-직접이송부하량.TN),
+      TP:_rTP(발생부하량.TP-개별삭감량.TP-직접이송부하량.TP),
+    };
     const 직접이송결과=_calcDirectTransfer(분뇨발생유량||0,method1,fecesFacility);
-    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:_r(오수발생유량-(분뇨발생유량||0)),관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과};
+    return{배출부하량:개별배출부하량,방류부하량:{...개별배출부하량},관거배출부하량:_zero(),관거이송량:_r(오수발생유량-(분뇨발생유량||0)),관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과,
+      개별삭감량,직접이송부하량,분뇨발생부하량};
   }
   return{배출부하량:{...발생부하량},방류부하량:_zero(),관거배출부하량:_zero(),관거이송량:오수발생유량,관거배출유량:0,관거배출유량비_pct:0,관거유실율_pct:{BOD:0,TN:0,TP:0},처리장정보:null,직접이송결과:null};
 }
@@ -146,8 +162,9 @@ function _calcHousehold(households, popUnit, urbanType, method1, method2, method
   const 오수발생유량=_r(population*급수원단위/1000);
   const 일평균급수량=오수발생유량; // 단순화: 오수=물사용량으로 동일 표기
   // 분뇨/잡배수는 기술지침 계수 유지 (발생부하량 산정용)
+  // 지침 Ⅵ.1②: 잡배수발생유량 = 잡배수오수전환율(0.88) × (사용유량-분뇨발생유량)
   const 분뇨발생유량=_r(population*CALC_CONSTS.FECES_FLOW_UNIT[ut]);
-  const 잡배수발생유량=_r(오수발생유량-분뇨발생유량);
+  const 잡배수발생유량=_r(CALC_CONSTS.GRAY_CONV_RATE*(오수발생유량-분뇨발생유량));
   const R=CALC_CONSTS.FECES_LOAD_RATIO;
   const loadUnit=CALC_CONSTS.HH_LOAD_UNIT[ut];
   const 발생부하량={BOD:_rBOD(population*loadUnit.BOD/1000),TN:_rTN(population*loadUnit.TN/1000),TP:_rTP(population*loadUnit.TP/1000)};
