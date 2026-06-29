@@ -273,9 +273,9 @@ function parseDXF(text) {
     for (let b = a + 1; b < indexed.length; b++) {
       if (indexed[a].hex === indexed[b].hex) continue;
       if (_hasSortKey(indexed[b])) continue;
-      let inter;
-      try { inter = cleanMultiPoly(polygonClipping.intersection(_ringGeom(indexed[a].ring), _ringGeom(indexed[b].ring))); }
-      catch (e) { continue; }
+      const interRaw = _runClipping(polygonClipping.intersection, [_ringGeom(indexed[a].ring), _ringGeom(indexed[b].ring)]);
+      if (!interRaw) continue;
+      const inter = cleanMultiPoly(interRaw);
       inter.forEach(poly => {
         const area = shoelace(poly[0]);
         if (area > 0.01) ambiguousOverlaps.push({ polys: [poly], area });
@@ -341,8 +341,8 @@ function _parseHatch(pairs, startIdx) {
     if (rawRings.length === 1) {
       if (isSolid && rawRings[0].length >= 3) rings.push({ layer, ring: rawRings[0], colorIdx, trueColor, handle });
     } else if (rawRings.length > 1) {
-      let merged = null;
-      try { merged = cleanMultiPoly(polygonClipping.xor(...rawRings.map(r => [r]))); } catch (e) { merged = null; }
+      const xorRaw = _runClipping(polygonClipping.xor, rawRings.map(r => [r]));
+      const merged = xorRaw ? cleanMultiPoly(xorRaw) : null;
       if (merged) {
         merged.forEach(poly => {
           const ring = poly.length > 1 ? mergePolygonHoles(poly) : poly[0];

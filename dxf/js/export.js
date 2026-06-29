@@ -85,18 +85,16 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   // 변경 후 레이어를 최초 도면 전체 윤곽으로 잘라낸다 — 이 비교 도면은 "기존 부지 안에서
   // 용도가 바뀐 부분"만 보면 되고, 부지 자체가 늘어난(증가) 부분은 증가 분석 도면에서
   // 따로 다루므로 여기서는 안 보이게 뺀다.
-  const fromUnion = (() => {
-    try { return polygonClipping.union(...lsFrom.flatMap(l => tFrom[l]).map(_ringGeom)); }
-    catch (e) { return null; }
-  })();
+  const fromUnion = _runClipping(polygonClipping.union, lsFrom.flatMap(l => tFrom[l]).map(_ringGeom));
   function _clipToFrom(rings) {
     if (!fromUnion || !rings.length) return rings;
-    try {
-      const u = polygonClipping.union(...rings.map(_ringGeom));
-      return cleanMultiPoly(polygonClipping.intersection(u, fromUnion))
-        .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
-        .filter(r => r && r.length >= 3);
-    } catch (e) { return rings; }
+    const u = _runClipping(polygonClipping.union, rings.map(_ringGeom));
+    if (!u) return rings;
+    const inter = _runClipping(polygonClipping.intersection, [u, fromUnion]);
+    if (!inter) return rings;
+    return cleanMultiPoly(inter)
+      .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+      .filter(r => r && r.length >= 3);
   }
 
   // 변경 전 레이어 (연하게 — 변경 구역 강조가 도드라져 보이도록 투명도를 살짝 둔다)
@@ -153,15 +151,15 @@ function _makeIncreaseSection(result, sFirst, sLast) {
 
   // 증가 폴리곤 = last - first (polygon-clipping difference)
   let incrPolys = [];
-  try {
-    if (rFirst.length && rLast.length) {
-      const a = polygonClipping.union(...rFirst.map(_ringGeom));
-      const b = polygonClipping.union(...rLast.map(_ringGeom));
-      incrPolys = cleanMultiPoly(polygonClipping.difference(b, a));
-    } else if (rLast.length) {
-      incrPolys = cleanMultiPoly(polygonClipping.union(...rLast.map(_ringGeom)));
-    }
-  } catch (_) { incrPolys = []; }
+  if (rFirst.length && rLast.length) {
+    const a = _runClipping(polygonClipping.union, rFirst.map(_ringGeom));
+    const b = _runClipping(polygonClipping.union, rLast.map(_ringGeom));
+    const diff = a && b ? _runClipping(polygonClipping.difference, [b, a]) : null;
+    incrPolys = diff ? cleanMultiPoly(diff) : [];
+  } else if (rLast.length) {
+    const u = _runClipping(polygonClipping.union, rLast.map(_ringGeom));
+    incrPolys = u ? cleanMultiPoly(u) : [];
+  }
 
   const allRings = [...rFirst, ...rLast];
   const tfn = _makeMapTransform(allRings, _EX.CW, _EX.CH, _EX.PAD, _EX.LEG_H);
@@ -285,14 +283,12 @@ function _fillBg(ctx, w, h) {
 function _drawRings(ctx, rings, hexColor, fillAlpha, tfn) {
   if (!rings?.length) return;
   hexColor = _getDisplayColor(hexColor);
-  let merged;
-  try {
-    merged = cleanMultiPoly(polygonClipping.union(...rings.map(_ringGeom)))
-      .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
-      .filter(r => r && r.length >= 3);
-  } catch (e) {
-    merged = rings; // 합치기 실패하면 기존처럼 개별로 그림(안전망)
-  }
+  const unioned = _runClipping(polygonClipping.union, rings.map(_ringGeom));
+  const merged = unioned
+    ? cleanMultiPoly(unioned)
+        .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+        .filter(r => r && r.length >= 3)
+    : rings; // 합치기 실패하면 기존처럼 개별로 그림(안전망)
   ctx.save();
   merged.forEach(ring => {
     // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음

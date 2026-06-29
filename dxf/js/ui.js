@@ -434,14 +434,12 @@ function drawThumbnail(canvas, data) {
     // 같은 색 조각끼리 먼저 하나로 합쳐서 그린다 — 안 그러면 같은 용도가 여러
     // 조각으로 나뉘어 그려진 도면에서 조각 경계마다 선이 보인다.
     const rawRings = data.colors[col] || [];
-    let merged;
-    try {
-      merged = cleanMultiPoly(polygonClipping.union(...rawRings.map(_ringGeom)))
-        .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
-        .filter(r => r && r.length >= 3);
-    } catch (e) {
-      merged = rawRings;
-    }
+    const unioned = _runClipping(polygonClipping.union, rawRings.map(_ringGeom));
+    const merged = unioned
+      ? cleanMultiPoly(unioned)
+          .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
+          .filter(r => r && r.length >= 3)
+      : rawRings;
 
     for (const ring of merged) {
       // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
