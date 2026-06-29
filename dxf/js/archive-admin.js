@@ -1,17 +1,8 @@
 /**
  * archive-admin.js
  * 도면 아카이브 관리자 페이지 - 신규 등록 / 단계 추가 / 삭제
+ * (_adminFetch, _ensureAdminAuth는 admin-auth.js 공통 파일에 있음)
  */
-
-// ── 관리자 토큰 ──────────────────────────────────────────────
-function _adminFetch(path, opts = {}) {
-  const token = localStorage.getItem('archiveAdminToken') || '';
-  const headers = Object.assign(
-    { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    opts.headers || {}
-  );
-  return fetch(`${ARCHIVE_API_BASE}${path}`, Object.assign({}, opts, { headers }));
-}
 
 // ── 신규 프로젝트 등록용 슬롯 ────────────────────────────────
 let adminSlots = [];
@@ -546,25 +537,6 @@ async function deleteStage(serialNo, stageIndex) {
   } catch (e) {
     alert(e.message);
   }
-}
-
-// ── 진입 인증 ────────────────────────────────────────────────
-function _ensureAdminAuth() {
-  let token = localStorage.getItem('archiveAdminToken');
-  while (token !== ARCHIVE_ADMIN_KEY) {
-    const input = prompt('관리자 인증키를 입력하세요.');
-    if (input === null) {
-      location.href = 'index.html';
-      return false;
-    }
-    token = input.trim();
-    if (token === ARCHIVE_ADMIN_KEY) {
-      localStorage.setItem('archiveAdminToken', token);
-    } else {
-      alert('인증키가 올바르지 않습니다.');
-    }
-  }
-  return true;
 }
 
 // ── 초기화 ───────────────────────────────────────────────────
