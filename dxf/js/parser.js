@@ -25,7 +25,9 @@ function _bulgeArcPoints(p1, p2, bulge, segments) {
   const cx = midX + apothem * Math.cos(perpAngle);
   const cy = midY + apothem * Math.sin(perpAngle);
   const startAngle = Math.atan2(p1[1] - cy, p1[0] - cx);
-  const n = Math.max(2, segments || 12);
+  // 같은 물리적 원호를 HATCH 엣지 경계(_arcEdgePoints)에서 또 만날 수 있어서, 분할 개수가
+  // 다르면 두 근사 사이에 머리카락 굵기의 틈/겹침이 생긴다 — 두 함수 다 64로 맞춘다.
+  const n = Math.max(2, segments || 64);
   const pts = [];
   for (let k = 1; k < n; k++) {
     const t = k / n;
@@ -41,16 +43,16 @@ function _bulgeArcPoints(p1, p2, bulge, segments) {
 function _arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw, segments) {
   let startRad = startDeg * Math.PI / 180;
   let endRad = endDeg * Math.PI / 180;
-  if (ccw) {
-    while (endRad <= startRad) endRad += Math.PI * 2;
-  } else {
-    while (endRad >= startRad) endRad -= Math.PI * 2;
-  }
-  const n = Math.max(2, segments || 24);
+  // ccw(73)=0(시계방향)일 때는 start/end각이 y축이 뒤집힌 좌표계(즉 부호가 반대인 각)로
+  // 적혀있다 — 인접한 직선 엣지의 끝점과 좌표를 맞춰보면, y성분에 -1을 곱해야 정확히
+  // 일치한다(실측으로 확인됨). 이걸 빼먹으면 짧은 호 대신 전혀 다른 위치/방향의 호가 그려진다.
+  const ySign = ccw ? 1 : -1;
+  while (endRad < startRad) endRad += Math.PI * 2;
+  const n = Math.max(2, segments || 64); // _bulgeArcPoints와 분할 개수를 맞춰서 같은 원호의 근사 오차를 줄인다
   const pts = [];
   for (let k = 0; k <= n; k++) {
     const t = startRad + (endRad - startRad) * (k / n);
-    pts.push([cx + radius * Math.cos(t), cy + radius * Math.sin(t)]);
+    pts.push([cx + radius * Math.cos(t), cy + ySign * radius * Math.sin(t)]);
   }
   return pts;
 }
