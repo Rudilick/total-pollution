@@ -226,7 +226,7 @@ function _renderLegendWrap() {
 
     const swatch = document.createElement('div');
     swatch.className = 'legend-swatch';
-    swatch.style.background = row.colorKey;
+    swatch.style.background = _getDisplayColor(row.colorKey);
     rowEl.appendChild(swatch);
 
     const input = document.createElement('input');

@@ -100,9 +100,9 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   }
 
   // 변경 전 레이어 (연하게 — 변경 구역 강조가 도드라져 보이도록 투명도를 살짝 둔다)
-  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 0.14, 0.45, 1, tfn));
+  lsFrom.forEach(l => _drawRings(ctx, tFrom[l], layerColor(l), 0.14, tfn));
   // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만 / 중간 농도)
-  lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 0.28, 0.80, 1, tfn));
+  lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 0.28, tfn));
 
   // 변경 폴리곤 강조 + 넘버링 (라벨 위치는 먼저 모아서 겹침을 풀고 나중에 그린다)
   const chunks = [];
@@ -173,7 +173,7 @@ function _makeIncreaseSection(result, sFirst, sLast) {
   // 최초 도면 레이어 (base) — 용도 구분 없이 옅은 회색으로 통일 (이 도면은 증가 구역만 보면 됨)
   lsFirst.forEach(l => {
     const tr = (sFirst.data.layers[l] || []).map(r => applyTransform(r, T));
-    _drawRings(ctx, tr, _EX.baseGray, 0.35, 0.6, 1, tfn);
+    _drawRings(ctx, tr, _EX.baseGray, 0.35, tfn);
   });
 
   // 증가 구역 강조
@@ -229,7 +229,7 @@ function _makeOverlapSection(slot, seqNum) {
   // 경고색으로 또렷하게 강조한다 — 색상별로 다르게 칠하면 또 추측처럼 보일 수 있어서
   // 일부러 다 같은 색 하나로만 표시한다.
   Object.entries(data.colors || {}).forEach(([hex, rings]) => {
-    _drawRings(ctx, rings, hex, 0.35, 0.5, 1, tfn);
+    _drawRings(ctx, rings, hex, 0.35, tfn);
   });
 
   const chunks = [];
@@ -282,8 +282,9 @@ function _fillBg(ctx, w, h) {
 /** 링 배열을 같은 색으로 채워 그리기 — 같은 색 조각끼리는 먼저 하나로 합쳐서
  *  그린다. 안 그러면 원래 도면에서 같은 용도가 여러 조각으로 나뉘어 그려진 경우
  *  (인접한 조각들끼리) 그 경계마다 쓸데없는 선이 그대로 보인다. */
-function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
+function _drawRings(ctx, rings, hexColor, fillAlpha, tfn) {
   if (!rings?.length) return;
+  hexColor = _getDisplayColor(hexColor);
   let merged;
   try {
     merged = cleanMultiPoly(polygonClipping.union(...rings.map(_ringGeom)))
@@ -309,10 +310,6 @@ function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
     ctx.globalAlpha = fillAlpha;
     ctx.fillStyle   = hexColor;
     ctx.fill('evenodd');
-    ctx.globalAlpha = strokeAlpha;
-    ctx.strokeStyle = hexColor;
-    ctx.lineWidth   = lw;
-    ctx.stroke();
   });
   ctx.restore();
 }
