@@ -7,6 +7,7 @@ let lastResult = null;  // 내보내기에서 참조
 
 document.addEventListener('DOMContentLoaded', () => {
   initSlots();
+  loadDefaultArchiveList();
 });
 
 function runAll() {

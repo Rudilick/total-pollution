@@ -24,6 +24,33 @@ function enterArchiveAdmin(e) {
   return false;
 }
 
+// ── 일련번호(예: HG00000000)에서 숫자만 뽑아 큰 수로 비교 — 날짜 성격의 일련번호라
+// 숫자가 클수록(=최신일수록) 위로 오게 정렬한다.
+function _serialNumKey(serialNo) {
+  const digits = String(serialNo || '').replace(/\D/g, '');
+  return digits ? Number(digits) : -1;
+}
+
+// ── 검색어가 없을 때(검색창이 비어있는 초기 상태) 기본으로 보여줄 목록 —
+// 일련번호 숫자가 큰(최신) 순으로 정렬해서 표시한다.
+async function loadDefaultArchiveList() {
+  const resultsEl = document.getElementById('archive-results');
+  if (!resultsEl) return;
+  const seq = ++_archiveSearchSeq;
+  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
+  try {
+    const res = await fetch(`${ARCHIVE_API_BASE}/projects`);
+    if (!res.ok) throw new Error('서버 응답 오류');
+    const { projects } = await res.json();
+    if (seq !== _archiveSearchSeq) return;
+    projects.sort((a, b) => _serialNumKey(b.serial_no) - _serialNumKey(a.serial_no));
+    renderArchiveResults(projects);
+  } catch (e) {
+    if (seq !== _archiveSearchSeq) return;
+    resultsEl.innerHTML = `<p class="archive-empty">목록을 불러오지 못했습니다: ${e.message}</p>`;
+  }
+}
+
 // ── 검색 (입력할 때마다 즉시 검색) ───────────────────────────
 let _archiveSearchSeq = 0;
 
@@ -36,7 +63,7 @@ async function onArchiveSearch() {
   const seq = ++_archiveSearchSeq;
 
   if (!q) {
-    resultsEl.innerHTML = '';
+    loadDefaultArchiveList();
     return;
   }
   resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
