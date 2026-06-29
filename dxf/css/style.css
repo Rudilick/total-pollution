@@ -327,8 +327,8 @@ body {
 /* ── 관리자 폼 ── */
 .admin-input {
   width: 100%;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 7px 10px;
+  font-size: 12px;
   font-family: var(--font);
   border: 0.5px solid var(--border-md);
   border-radius: var(--radius-md);
@@ -340,8 +340,8 @@ body {
 .admin-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 @media (max-width: 640px) {
   .admin-form-grid { grid-template-columns: 1fr; }
@@ -563,7 +563,16 @@ tr:last-child td { border-bottom: none; }
 }
 
 /* ── 관리자 2단 레이아웃 (입력 / 미리보기) ── */
-.admin-app { max-width: 1800px; }
+/* .app의 "패널 높이 고정 + 내부 스크롤" 레이아웃(토지이용계획 분석기 전용)은 이 관리자
+   페이지엔 안 맞아서(내부 스크롤 체인이 없어 overflow:hidden에 내용이 그냥 잘림 —
+   "스크롤이 없다"는 문제의 원인) 되돌린다: 원래대로 자연스러운 문서 흐름 + 필요하면
+   브라우저 자체 스크롤. */
+.admin-app {
+  max-width: 1800px;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
 
 .admin-layout {
   display: grid;
