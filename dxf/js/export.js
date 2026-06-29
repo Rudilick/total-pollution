@@ -86,13 +86,13 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   // 용도가 바뀐 부분"만 보면 되고, 부지 자체가 늘어난(증가) 부분은 증가 분석 도면에서
   // 따로 다루므로 여기서는 안 보이게 뺀다.
   const fromUnion = (() => {
-    try { return polygonClipping.union(...lsFrom.flatMap(l => tFrom[l]).map(r => [r])); }
+    try { return polygonClipping.union(...lsFrom.flatMap(l => tFrom[l]).map(_ringGeom)); }
     catch (e) { return null; }
   })();
   function _clipToFrom(rings) {
     if (!fromUnion || !rings.length) return rings;
     try {
-      const u = polygonClipping.union(...rings.map(r => [r]));
+      const u = polygonClipping.union(...rings.map(_ringGeom));
       return cleanMultiPoly(polygonClipping.intersection(u, fromUnion))
         .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
         .filter(r => r && r.length >= 3);
@@ -155,11 +155,11 @@ function _makeIncreaseSection(result, sFirst, sLast) {
   let incrPolys = [];
   try {
     if (rFirst.length && rLast.length) {
-      const a = polygonClipping.union(...rFirst.map(r => [r]));
-      const b = polygonClipping.union(...rLast.map(r => [r]));
+      const a = polygonClipping.union(...rFirst.map(_ringGeom));
+      const b = polygonClipping.union(...rLast.map(_ringGeom));
       incrPolys = cleanMultiPoly(polygonClipping.difference(b, a));
     } else if (rLast.length) {
-      incrPolys = cleanMultiPoly(polygonClipping.union(...rLast.map(r => [r])));
+      incrPolys = cleanMultiPoly(polygonClipping.union(...rLast.map(_ringGeom)));
     }
   } catch (_) { incrPolys = []; }
 
@@ -286,7 +286,7 @@ function _drawRings(ctx, rings, hexColor, fillAlpha, strokeAlpha, lw, tfn) {
   if (!rings?.length) return;
   let merged;
   try {
-    merged = cleanMultiPoly(polygonClipping.union(...rings.map(r => [r])))
+    merged = cleanMultiPoly(polygonClipping.union(...rings.map(_ringGeom)))
       .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
       .filter(r => r && r.length >= 3);
   } catch (e) {

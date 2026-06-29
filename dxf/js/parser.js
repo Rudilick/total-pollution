@@ -272,7 +272,7 @@ function parseDXF(text) {
       if (indexed[a].hex === indexed[b].hex) continue;
       if (_hasSortKey(indexed[b])) continue;
       let inter;
-      try { inter = cleanMultiPoly(polygonClipping.intersection([indexed[a].ring], [indexed[b].ring])); }
+      try { inter = cleanMultiPoly(polygonClipping.intersection(_ringGeom(indexed[a].ring), _ringGeom(indexed[b].ring))); }
       catch (e) { continue; }
       inter.forEach(poly => {
         const area = shoelace(poly[0]);

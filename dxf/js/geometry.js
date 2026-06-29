@@ -4,6 +4,15 @@
  */
 
 /**
+ * 링을 polygon-clipping에 넘길 geom(폴리곤) 형태로 바꾼다.
+ * 구멍이 합쳐진 링(mergePolygonHoles로 만든 키홀 링)을 [ring] 하나로만 넘기면
+ * polygon-clipping이 구멍을 그냥 채워진 영역으로 오인해서, 그 구멍 안에 다른
+ * 도형이 있어도 "겹친다"고 잘못 판정한다 — __origPoly(원래 [외곽, 구멍...] 형태)가
+ * 있으면 그걸 그대로 써야 구멍이 제대로 빈 공간으로 처리된다.
+ */
+function _ringGeom(ring) { return ring.__origPoly || [ring]; }
+
+/**
  * 두 둘레 바운딩박스를 기준으로 A→B 정합 변환 파라미터 계산
  * @param {{ minX, minY, maxX, maxY }|null} bboxA
  * @param {{ minX, minY, maxX, maxY }|null} bboxB
@@ -77,11 +86,11 @@ function multiPolyArea(multiPoly) {
 function unionRings(rings) {
   if (!rings || rings.length === 0) return [];
   try {
-    const mp = rings.map(r => [r]);
+    const mp = rings.map(_ringGeom);
     if (mp.length === 1) return mp;
     return polygonClipping.union(...mp) || mp;
   } catch (e) {
-    return rings.map(r => [r]);
+    return rings.map(_ringGeom);
   }
 }
 
@@ -136,8 +145,8 @@ function cleanMultiPoly(multiPoly, minArea = MIN_SLIVER_AREA, minWidth = MIN_SLI
 function intersectionArea(ringsA, ringsB) {
   if (!ringsA.length || !ringsB.length) return { area: 0, polys: [] };
   try {
-    const a = polygonClipping.union(...ringsA.map(r => [r]));
-    const b = polygonClipping.union(...ringsB.map(r => [r]));
+    const a = polygonClipping.union(...ringsA.map(_ringGeom));
+    const b = polygonClipping.union(...ringsB.map(_ringGeom));
     const inter = cleanMultiPoly(polygonClipping.intersection(a, b));
     return { area: multiPolyArea(inter), polys: inter };
   } catch (e) {
@@ -155,8 +164,8 @@ function newAreaOnly(ringsA, ringsB) {
   if (!ringsB.length) return 0;
   if (!ringsA.length) return polyAreaSum(ringsB);
   try {
-    const a = polygonClipping.union(...ringsA.map(r => [r]));
-    const b = polygonClipping.union(...ringsB.map(r => [r]));
+    const a = polygonClipping.union(...ringsA.map(_ringGeom));
+    const b = polygonClipping.union(...ringsB.map(_ringGeom));
     const diff = cleanMultiPoly(polygonClipping.difference(b, a));
     return multiPolyArea(diff);
   } catch (e) {
@@ -214,20 +223,20 @@ function resolveVisibleRings(ringsInDrawOrder) {
     const ring = ringsInDrawOrder[i];
     let visible;
     if (!stack.length) {
-      visible = [[ring]];
+      visible = [_ringGeom(ring)];
     } else {
-      try { visible = cleanMultiPoly(polygonClipping.difference([ring], stack)); }
-      catch (e) { visible = [[ring]]; }
+      try { visible = cleanMultiPoly(polygonClipping.difference(_ringGeom(ring), stack)); }
+      catch (e) { visible = [_ringGeom(ring)]; }
     }
     visible.forEach(poly => {
       if (!poly[0] || poly[0].length < 3) return;
       result[i].push(poly.length > 1 ? mergePolygonHoles(poly) : poly[0]);
     });
     if (!stack.length) {
-      stack = [[ring]];
+      stack = [_ringGeom(ring)];
     } else {
-      try { stack = cleanMultiPoly(polygonClipping.union(stack, [ring])) || stack; }
-      catch (e) { stack = stack.concat([[ring]]); }
+      try { stack = cleanMultiPoly(polygonClipping.union(stack, _ringGeom(ring))) || stack; }
+      catch (e) { stack = stack.concat([_ringGeom(ring)]); }
     }
   }
   return result;

@@ -26,12 +26,46 @@ const _layerColorCache = {};
 const _toneUsedIdx = {};
 let   _fallbackIdx = 0;
 
+// ── 흰색(저대비) 해치 화면 표시용 대체색 ───────────────────────────
+// 흰색으로 입력된 용도는 배경(흰색 계열)과 안 구분돼서 안 보이는 것처럼 보인다.
+// 데이터(colorKey)는 그대로 두고, 화면에 그릴 때만 대비되는 임의 색으로 바꿔서 보여준다.
+const _displayColorOverrides = {};
+function _isLowContrast(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return false;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return r >= 240 && g >= 240 && b >= 240;
+}
+function _hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = v => Math.round(v * 255).toString(16).padStart(2, '0');
+  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+function _getDisplayColor(hex) {
+  if (!_isLowContrast(hex)) return hex;
+  if (_displayColorOverrides[hex]) return _displayColorOverrides[hex];
+  const taken = new Set([
+    ...(typeof globalLegend !== 'undefined' ? globalLegend.map(r => r.colorKey?.toLowerCase()) : []),
+    ...Object.values(_displayColorOverrides).map(c => c.toLowerCase()),
+  ]);
+  let candidate;
+  for (let tries = 0; tries < 30; tries++) {
+    candidate = _hslToHex(Math.floor(Math.random() * 360), 65 + Math.random() * 20, 45 + Math.random() * 15);
+    if (!taken.has(candidate.toLowerCase())) break;
+  }
+  _displayColorOverrides[hex] = candidate;
+  return candidate;
+}
+
 function layerColor(name) {
   // 이제는 해치 색상을 직접 읽으니 추측할 필요가 없다 — 범례에서 그 용도명에 실제로
   // 쓰인 색(colorKey)을 그대로 쓴다. 못 찾을 때만(예전 레이어명 등) 아래 추측 로직으로.
   if (typeof globalLegend !== 'undefined') {
     const hit = globalLegend.find(r => r.label === name);
-    if (hit) return hit.colorKey;
+    if (hit) return _getDisplayColor(hit.colorKey);
   }
   if (_layerColorCache[name]) return _layerColorCache[name];
 
@@ -395,16 +429,14 @@ function drawThumbnail(canvas, data) {
 
   // 레이어가 아니라 도면에 실제로 쓰인 색상 그대로 그린다 (추측 색이 아님)
   for (const col of Object.keys(data.colors || {})) {
-    ctx.fillStyle   = col + '50';
-    ctx.strokeStyle = col;
-    ctx.lineWidth   = 1;
+    ctx.fillStyle   = _getDisplayColor(col) + '50';
 
     // 같은 색 조각끼리 먼저 하나로 합쳐서 그린다 — 안 그러면 같은 용도가 여러
     // 조각으로 나뉘어 그려진 도면에서 조각 경계마다 선이 보인다.
     const rawRings = data.colors[col] || [];
     let merged;
     try {
-      merged = cleanMultiPoly(polygonClipping.union(...rawRings.map(r => [r])))
+      merged = cleanMultiPoly(polygonClipping.union(...rawRings.map(_ringGeom)))
         .map(poly => (poly.length > 1 ? mergePolygonHoles(poly) : poly[0]))
         .filter(r => r && r.length >= 3);
     } catch (e) {
@@ -425,7 +457,6 @@ function drawThumbnail(canvas, data) {
         ctx.closePath();
       });
       ctx.fill('evenodd');
-      ctx.stroke();
     }
   }
 }
