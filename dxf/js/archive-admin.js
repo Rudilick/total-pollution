@@ -438,13 +438,8 @@ async function _saveNewStagesToExistingProject() {
 // ── 단계 추가/정정 대상 검색 ─────────────────────────────────
 let _lookupSearchSeq = 0;
 
-// 일련번호(예: HG00000000)의 숫자 부분만 뽑아 최신 여부 비교용으로 쓴다
-function _serialNumKey(serialNo) {
-  const digits = String(serialNo || '').replace(/\D/g, '');
-  return digits ? Number(digits) : -1;
-}
-
-// 검색어가 없을 때 기본 목록: 도면 등록된 사업 최신순 → 미등록 사업 최신순
+// 검색어가 없을 때 기본 목록: 서버가 이미 "도면 있는 사업 우선 → 일련번호 숫자 큰(최신)
+// 순"으로 내려주므로 여기서 다시 정렬하지 않는다(중복 정렬은 기준이 어긋날 위험만 키운다).
 async function loadAdminDefaultList() {
   const resultsEl = document.getElementById('lookup-results');
   if (!resultsEl) return;
@@ -455,10 +450,6 @@ async function loadAdminDefaultList() {
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
     if (seq !== _lookupSearchSeq) return;
-    projects.sort((a, b) => {
-      if (a.has_drawings !== b.has_drawings) return b.has_drawings ? 1 : -1;
-      return _serialNumKey(b.serial_no) - _serialNumKey(a.serial_no);
-    });
     renderLookupSearchResults(projects);
   } catch (e) {
     if (seq !== _lookupSearchSeq) return;

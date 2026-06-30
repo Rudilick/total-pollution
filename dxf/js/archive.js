@@ -24,15 +24,9 @@ function enterArchiveAdmin(e) {
   return false;
 }
 
-// ── 일련번호(예: HG00000000)에서 숫자만 뽑아 큰 수로 비교 — 날짜 성격의 일련번호라
-// 숫자가 클수록(=최신일수록) 위로 오게 정렬한다.
-function _serialNumKey(serialNo) {
-  const digits = String(serialNo || '').replace(/\D/g, '');
-  return digits ? Number(digits) : -1;
-}
-
 // ── 검색어가 없을 때(검색창이 비어있는 초기 상태) 기본으로 보여줄 목록 —
-// 일련번호 숫자가 큰(최신) 순으로 정렬해서 표시한다.
+// 정렬은 서버가 이미 "도면 있는 사업 우선 → 그 안에서 일련번호 숫자 큰(최신) 순"으로
+// 내려주므로 여기서 다시 정렬하지 않는다(중복 정렬은 기준이 어긋날 위험만 키운다).
 async function loadDefaultArchiveList() {
   const resultsEl = document.getElementById('archive-results');
   if (!resultsEl) return;
@@ -43,7 +37,6 @@ async function loadDefaultArchiveList() {
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
     if (seq !== _archiveSearchSeq) return;
-    projects.sort((a, b) => _serialNumKey(b.serial_no) - _serialNumKey(a.serial_no));
     renderArchiveResults(projects);
   } catch (e) {
     if (seq !== _archiveSearchSeq) return;
