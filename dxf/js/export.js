@@ -112,7 +112,10 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
       _drawPoly(ctx, poly, _EX.chgFill, _EX.chgStroke, 2.5, tfn);
       const [cx, cy] = _centroid(poly[0]);
       labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.chgLabel });
-      chunks.push({ num: chunkN, from: ch.from, to: ch.to, area: shoelace(poly[0]), poly, origin: `${seqNum}차 변경` });
+      // shoelace(poly[0])는 외곽 링 면적만 계산해서 구멍(중간이 빠진 도넛형 모양)이 있으면
+      // 실제보다 부풀려진다 — multiPolyArea([poly])로 구멍을 빼야 한다(geometry.js의
+      // multiPolyArea가 이미 같은 이유로 정확히 이렇게 처리하고 있음).
+      chunks.push({ num: chunkN, from: ch.from, to: ch.to, area: multiPolyArea([poly]), poly, origin: `${seqNum}차 변경` });
       chunkN++;
     });
   });
@@ -183,7 +186,8 @@ function _makeIncreaseSection(result, sFirst, sLast) {
     _drawPoly(ctx, poly, _EX.incrFill, _EX.incrStroke, 2.5, tfn);
     const [cx, cy] = _centroid(poly[0]);
     labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.incrLabel });
-    chunks.push({ num: chunkN, from: '현황', to: '증가', area: shoelace(poly[0]), poly, origin: '증가' });
+    // shoelace(poly[0])는 외곽 링만 계산해 구멍이 있으면 부풀려진다 — multiPolyArea로 정정.
+    chunks.push({ num: chunkN, from: '현황', to: '증가', area: multiPolyArea([poly]), poly, origin: '증가' });
     chunkN++;
   });
   _resolveLabelCollisions(labelPositions);
@@ -239,7 +243,8 @@ function _makeOverlapSection(slot, seqNum) {
       _drawPoly(ctx, poly, _EX.overlapFill, _EX.overlapStroke, 2.5, tfn);
       const [cx, cy] = _centroid(poly[0]);
       labelPositions.push({ x: tfn.x(cx), y: tfn.y(cy), num: chunkN, color: _EX.overlapStroke });
-      chunks.push({ num: chunkN, area: shoelace(poly[0]) });
+      // shoelace(poly[0])는 외곽 링만 계산해 구멍이 있으면 부풀려진다 — multiPolyArea로 정정.
+      chunks.push({ num: chunkN, area: multiPolyArea([poly]) });
       chunkN++;
     });
   });
