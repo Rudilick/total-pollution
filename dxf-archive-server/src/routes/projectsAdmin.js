@@ -187,12 +187,13 @@ router.delete('/projects/:serial_no/stages/:stage_index', requireRegionAuth, asy
   }
 });
 
-// PATCH /api/projects/:serial_no  (메타정보 일부 수정)
+// PATCH /api/projects/:serial_no  (메타정보 일부 수정 — color_legend만 보내서
+// 새 도면 없이 범례만 갱신하는 것도 가능)
 router.patch('/projects/:serial_no', requireRegionAuth, async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { serial_no } = req.params;
-    const { project_name, operator_name, location, first_eia_year, notes } = req.body || {};
+    const { project_name, operator_name, location, first_eia_year, notes, color_legend } = req.body || {};
 
     if (!(await _assertOwnRegion(client, serial_no, req.region, res))) {
       return;
@@ -205,12 +206,14 @@ router.patch('/projects/:serial_no', requireRegionAuth, async (req, res, next) =
          location       = COALESCE($4, location),
          first_eia_year = COALESCE($5, first_eia_year),
          notes          = COALESCE($6, notes),
+         color_legend   = COALESCE($7, color_legend),
          updated_at     = now()
        WHERE serial_no = $1
        RETURNING serial_no, project_name, operator_name, location, first_eia_year, notes,
-                 created_at, updated_at`,
+                 color_legend, created_at, updated_at`,
       [serial_no, project_name ?? null, operator_name ?? null, location ?? null,
-        first_eia_year ?? null, notes ?? null]
+        first_eia_year ?? null, notes ?? null,
+        Array.isArray(color_legend) ? JSON.stringify(color_legend) : null]
     );
     res.json({ project: result.rows[0] });
   } catch (e) {

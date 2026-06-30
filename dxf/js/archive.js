@@ -153,6 +153,9 @@ async function loadArchiveProject(serialNo) {
     // 방금 불러온 도면들의 rawData가 legend 계산에서 통째로 빠지고 slot.data가
     // 끝까지 null로 남는 버그가 있었다(그래서 "해치 도형을 찾지 못했습니다"가 남).
     // rawData만 먼저 채워서 slots를 교체한 다음, legend를 한 번에 다시 계산한다.
+    // 도면 아카이브 관리자에서 저장해둔 색상별 용도명(project.color_legend)이 있으면
+    // 먼저 복원해서, 새로 감지된 색만 빈 라벨로 추가되고 기존 라벨은 유지되게 한다.
+    globalLegend = Array.isArray(project.color_legend) ? project.color_legend : [];
     const newSlots = drawings.map(d => {
       const slot = _newSlot(d.stage_label);
       slot.dxfText = d.dxf_content;

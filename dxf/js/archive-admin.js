@@ -108,7 +108,10 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
     canvas.className = 'thumb-canvas';
     canvas.width = 96;
     canvas.height = 56;
-    setTimeout(() => drawThumbnail(canvas, slot.data), 0);
+    // 썸네일은 raw 데이터(rawData)를 쓴다 — slot.data(범례 적용 후)는 용도명을 아직
+    // 안 채운 색이면 .layers가 비어서 아무것도 안 그려진다(분석기 화면도 같은 이유로
+    // rawData를 씀 — ui.js의 _makeSlotEl 참고).
+    setTimeout(() => drawThumbnail(canvas, slot.rawData), 0);
     inner.appendChild(canvas);
   } else {
     const num = document.createElement('div');
@@ -140,7 +143,7 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
   }
 
   if (slot.data) {
-    el.onclick = () => selectPreviewTile(el, slot.data, slot.file ? slot.file.name : slot.label);
+    el.onclick = () => selectPreviewTile(el, slot.rawData, slot.file ? slot.file.name : slot.label);
 
     if (!slot.saved) {
       // 이미 저장된 단계는 파일 교체 API가 없어서(삭제 후 다시 추가해야 함) 미리보기만 허용
@@ -199,7 +202,7 @@ function renderNewSlotsWrap() {
     col.appendChild(tileEl);
 
     if (slot.data && slot.id === _previewSlotId) {
-      selectPreviewTile(tileEl, slot.data, slot.file ? slot.file.name : slot.label);
+      selectPreviewTile(tileEl, slot.rawData, slot.file ? slot.file.name : slot.label);
     }
 
     if (slot.saved) {
@@ -522,13 +525,25 @@ function _resetToNewProjectMode() {
   initAdminSlots();
 }
 
-// 기존 프로젝트에 새로 추가된(저장 안 된) 슬롯들만 골라 단계로 저장
+// 기존 프로젝트에 새로 추가된(저장 안 된) 슬롯들만 골라 단계로 저장.
+// 새 도면 없이 범례만 고친 경우엔 PATCH로 범례만 갱신한다.
 async function _saveNewStagesToExistingProject() {
   const statusEl = document.getElementById('new-project-status');
   const readySlots = adminSlots.filter(s => !s.saved && s.data);
 
   if (!readySlots.length) {
-    statusEl.innerHTML = '<p class="status-err">업로드할 새 도면이 없습니다.</p>';
+    statusEl.innerHTML = '<p class="archive-empty">저장 중...</p>';
+    try {
+      const res = await _regionFetch(`/projects/${encodeURIComponent(_loadedProjectSerial)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ color_legend: adminLegend }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+      statusEl.innerHTML = '<p class="status-ok">범례 저장 완료</p>';
+    } catch (e) {
+      statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
+    }
     return;
   }
   statusEl.innerHTML = '<p class="archive-empty">저장 중...</p>';
