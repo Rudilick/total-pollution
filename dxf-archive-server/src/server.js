@@ -6,6 +6,7 @@ const cors = require('cors');
 const { runMigrations } = require('./db');
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
+const adminAuthRoute = require('./routes/adminAuthRoute');
 const regionAuthRoutes = require('./routes/regionAuth');
 const projectsRoutes = require('./routes/projects');
 const projectsAdminRoutes = require('./routes/projectsAdmin');
@@ -22,6 +23,7 @@ app.use(express.json({ limit: '15mb' }));
 
 app.use('/api', healthRoutes);
 app.use('/api', authRoutes);
+app.use('/api', adminAuthRoute);
 app.use('/api', regionAuthRoutes);
 app.use('/api', projectsRoutes);
 app.use('/api', projectsAdminRoutes);

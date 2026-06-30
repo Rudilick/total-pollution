@@ -6,8 +6,8 @@
 const ARCHIVE_API_BASE = 'https://total-pollution-production.up.railway.app/api';
 // 로컬 개발 시: const ARCHIVE_API_BASE = 'http://localhost:3000/api';
 
-// 도면 아카이브 관리자 페이지 진입 인증키 (백엔드 ADMIN_TOKEN과 동일)
-const ARCHIVE_ADMIN_KEY = 'a19900427!';
+// 슈퍼관리자 비밀번호는 더 이상 프런트 소스에 두지 않는다 — admin-auth.js가
+// POST /admin-auth/login으로 서버(ADMIN_TOKEN 환경변수)에 검증을 맡긴다.
 
 // 평가종류별 2글자 마커 + 색상톤 — 검색 결과 카드에서 한눈에 구분하려고 둔다.
 // (dxf/js/archive.js, dxf/js/archive-admin.js 양쪽 검색 카드에서 공통으로 씀)

@@ -147,8 +147,8 @@ async function _eiaHandleUpload(blockEl) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (!_ensureAdminAuth()) return;
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!(await _ensureAdminAuth())) return;
   document.querySelectorAll('.eia-upload-block').forEach(blockEl => {
     const btn = blockEl.querySelector('.eia-upload-btn');
     btn.addEventListener('click', () => _eiaHandleUpload(blockEl));
