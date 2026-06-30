@@ -94,20 +94,16 @@ function renderArchiveResults(projects) {
     const card = document.createElement('div');
     card.className = 'archive-card' + (p.has_drawings === false ? ' archive-card-nodrawing' : '');
 
-    const metaParts = [];
-    if (p.agency_name)     metaParts.push(p.agency_name);
-    if (p.operator_name)  metaParts.push(p.operator_name);
-    if (p.location)       metaParts.push(p.location);
-    if (p.first_eia_year) metaParts.push(`${p.first_eia_year}년`);
-
+    const titleParts = [p.serial_no, p.agency_name, p.operator_name].filter(Boolean).join(' ');
     const badge = p.has_drawings === false
       ? '<div class="pill pill-warn">도면 미등록</div>'
       : `<div class="pill pill-nc">${p.stage_count}단계</div>`;
 
     card.innerHTML =
       `<div class="archive-card-main">
-         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name || '(사업명 미확인)'}</span></div>
-         <div class="archive-card-meta">${metaParts.join(' · ') || '&nbsp;'}</div>
+         <div class="archive-card-title">${_assessmentTypeMarkerHtml(p.assessment_type)}${titleParts}</div>
+         <div class="archive-card-project-name">${p.project_name || '(사업명 미확인)'}</div>
+         <div class="archive-card-meta">${p.location || '&nbsp;'}</div>
        </div>
        ${badge}`;
 

@@ -15,6 +15,12 @@
   --red-dark:   #791F1F;
   --amber-light:#FAEEDA;
   --amber-dark: #633806;
+  --purple-light:#EFE7FB;
+  --purple-dark: #4B2E83;
+  --teal-light: #DEF5F0;
+  --teal-dark:  #0E6B57;
+  --orange-light:#FDE6D4;
+  --orange-dark: #8A3F0A;
   --gray-50:    #F1EFE8;
   --gray-100:   #D3D1C7;
   --gray-400:   #888780;
@@ -314,8 +320,17 @@ body {
 .archive-card-nodrawing:hover { background: var(--gray-50); border-color: var(--border-md); }
 
 .archive-card-main { min-width: 0; }
-.archive-card-title { font-size: 13px; font-weight: 600; color: #111; }
+.archive-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
 .archive-card-name { font-weight: 400; color: var(--gray-600); margin-left: 6px; }
+.archive-card-project-name { font-size: 12px; color: var(--gray-800); margin-top: 2px; }
 .archive-card-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
 
 .archive-empty {
@@ -500,6 +515,12 @@ tr:last-child td { border-bottom: none; }
 .pill-dn { background: var(--red-light); color: var(--red-dark); }
 .pill-nc { background: var(--gray-50); color: var(--gray-600); }
 .pill-warn { background: #fdf2d8; color: #97650c; }
+
+/* 평가종류 마커 — 검색 카드에서 한눈에 구분하려고 색상톤을 다르게 둠 */
+.pill-type-strategic { background: var(--purple-light); color: var(--purple-dark); }
+.pill-type-full      { background: var(--blue-light);   color: var(--blue-dark); }
+.pill-type-small     { background: var(--teal-light);   color: var(--teal-dark); }
+.pill-type-pre        { background: var(--orange-light); color: var(--orange-dark); }
 
 /* ── 환경영향평가 목록 업로드 ── */
 .eia-upload-grid {

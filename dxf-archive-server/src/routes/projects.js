@@ -19,10 +19,10 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
     // 그대로 가져온다 — "검색 전 기본 목록"과 "검색"을 같은 쿼리로 처리한다.
     const result = await pool.query(
       `SELECT serial_no, project_name, operator_name, location, first_eia_year, agency_name,
-              stage_count, has_drawings
+              assessment_type, stage_count, has_drawings
          FROM (
            SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
-                  p.agency_name,
+                  p.agency_name, p.assessment_type,
                   COUNT(d.id)::int AS stage_count,
                   TRUE AS has_drawings,
                   p.updated_at AS sort_key
@@ -45,6 +45,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
                   MAX(e.location)      AS location,
                   NULL                 AS first_eia_year,
                   MAX(e.agency_name)   AS agency_name,
+                  MAX(e.assessment_type) AS assessment_type,
                   0                    AS stage_count,
                   FALSE                AS has_drawings,
                   MAX(e.uploaded_at)   AS sort_key
