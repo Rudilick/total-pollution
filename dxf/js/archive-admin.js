@@ -334,8 +334,36 @@ async function lookupProject(serialNoArg) {
   }
 }
 
-// ── 단계 추가/정정 대상 검색 (입력할 때마다 즉시 검색) ───────
+// ── 단계 추가/정정 대상 검색 ─────────────────────────────────
 let _lookupSearchSeq = 0;
+
+// 일련번호(예: HG00000000)의 숫자 부분만 뽑아 최신 여부 비교용으로 쓴다
+function _serialNumKey(serialNo) {
+  const digits = String(serialNo || '').replace(/\D/g, '');
+  return digits ? Number(digits) : -1;
+}
+
+// 검색어가 없을 때 기본 목록: 도면 등록된 사업 최신순 → 미등록 사업 최신순
+async function loadAdminDefaultList() {
+  const resultsEl = document.getElementById('lookup-results');
+  if (!resultsEl) return;
+  const seq = ++_lookupSearchSeq;
+  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
+  try {
+    const res = await fetch(`${ARCHIVE_API_BASE}/projects`);
+    if (!res.ok) throw new Error('서버 응답 오류');
+    const { projects } = await res.json();
+    if (seq !== _lookupSearchSeq) return;
+    projects.sort((a, b) => {
+      if (a.has_drawings !== b.has_drawings) return b.has_drawings ? 1 : -1;
+      return _serialNumKey(b.serial_no) - _serialNumKey(a.serial_no);
+    });
+    renderLookupSearchResults(projects);
+  } catch (e) {
+    if (seq !== _lookupSearchSeq) return;
+    resultsEl.innerHTML = `<p class="archive-empty">목록을 불러오지 못했습니다: ${e.message}</p>`;
+  }
+}
 
 async function onLookupSearch(forceLookup) {
   const input = document.getElementById('lookup-serial');
@@ -345,7 +373,7 @@ async function onLookupSearch(forceLookup) {
 
   document.getElementById('lookup-result').innerHTML = '';
   if (!q) {
-    resultsEl.innerHTML = '';
+    loadAdminDefaultList();
     return;
   }
   resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
@@ -354,21 +382,17 @@ async function onLookupSearch(forceLookup) {
     const res = await fetch(`${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}`);
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
-    if (seq !== _lookupSearchSeq) return; // 이후 입력으로 인한 최신 요청이 아니면 무시
+    if (seq !== _lookupSearchSeq) return;
 
-    // 도면 추가가 목적인 화면이라, 도면이 아직 없는(평가목록 전용) 항목은 클릭해도 할 게
-    // 없으므로 여기서는 제외한다.
-    const withDrawings = projects.filter(p => p.has_drawings !== false);
-
-    if (forceLookup) {
-      const exact = withDrawings.find(p => p.serial_no === q);
+    if (forceLookup && projects.length) {
+      const exact = projects.find(p => p.serial_no === q && p.has_drawings);
       if (exact) {
         resultsEl.innerHTML = '';
         await lookupProject(exact.serial_no);
         return;
       }
     }
-    renderLookupSearchResults(withDrawings);
+    renderLookupSearchResults(projects);
   } catch (e) {
     if (seq !== _lookupSearchSeq) return;
     resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
@@ -386,25 +410,33 @@ function renderLookupSearchResults(projects) {
 
   projects.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'archive-card';
+    const noDrawings = p.has_drawings === false;
+    card.className = 'archive-card' + (noDrawings ? ' archive-card-nodrawing' : '');
 
     const metaParts = [];
+    if (p.agency_name)    metaParts.push(p.agency_name);
     if (p.operator_name)  metaParts.push(p.operator_name);
     if (p.location)       metaParts.push(p.location);
     if (p.first_eia_year) metaParts.push(`${p.first_eia_year}년`);
 
+    const badge = noDrawings
+      ? '<div class="pill pill-warn">도면 미등록</div>'
+      : `<div class="pill pill-nc">${p.stage_count}단계</div>`;
+
     card.innerHTML =
       `<div class="archive-card-main">
-         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name}</span></div>
+         <div class="archive-card-title">${p.serial_no} <span class="archive-card-name">${p.project_name || '(사업명 미확인)'}</span></div>
          <div class="archive-card-meta">${metaParts.join(' · ') || '&nbsp;'}</div>
        </div>
-       <div class="pill pill-nc">${p.stage_count}단계</div>`;
+       ${badge}`;
 
-    card.onclick = () => {
-      document.getElementById('lookup-serial').value = p.serial_no;
-      resultsEl.innerHTML = '';
-      lookupProject(p.serial_no);
-    };
+    if (!noDrawings) {
+      card.onclick = () => {
+        document.getElementById('lookup-serial').value = p.serial_no;
+        resultsEl.innerHTML = '';
+        lookupProject(p.serial_no);
+      };
+    }
     resultsEl.appendChild(card);
   });
 }
@@ -543,4 +575,5 @@ async function deleteStage(serialNo, stageIndex) {
 document.addEventListener('DOMContentLoaded', () => {
   if (!_ensureAdminAuth()) return;
   initAdminSlots();
+  loadAdminDefaultList();
 });
