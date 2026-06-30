@@ -104,12 +104,13 @@
               <input type="text" id="new-location" class="admin-input" placeholder="위치">
             </div>
 
-            <!-- 둘째 줄: 일련번호 / 협의년도 / 사업자명 / 협의기관(드롭다운) / 평가종류(드롭다운) -->
-            <div class="admin-form-row-5">
-              <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
+            <!-- 둘째 줄: 일련번호 / 협의년도 / 사업면적 / 사업자명 / 협의기관(드롭다운) / 평가종류(드롭다운) -->
+            <div class="admin-form-row-6">
+              <input type="text"   id="new-serial"    class="admin-input" placeholder="일련번호 (예: HG20261345)"
                      oninput="onNewSerialInput()">
-              <input type="number" id="new-year"     class="admin-input" placeholder="협의년도">
-              <input type="text"   id="new-operator" class="admin-input" placeholder="사업자명">
+              <input type="number" id="new-year"      class="admin-input" placeholder="협의년도">
+              <input type="number" id="new-site-area" class="admin-input" placeholder="사업면적(㎡)" readonly>
+              <input type="text"   id="new-operator"  class="admin-input" placeholder="사업자명">
               <select id="new-agency" class="admin-input">
                 <option value="">협의기관 선택</option>
                 <option>기후에너지환경부</option>

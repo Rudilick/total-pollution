@@ -295,7 +295,7 @@ function _drawRings(ctx, rings, hexColor, fillAlpha, tfn) {
         .filter(r => r && r.length >= 3)
     : rings; // 합치기 실패하면 기존처럼 개별로 그림(안전망)
   ctx.save();
-  ctx.filter = 'saturate(55%)';
+  ctx.filter = 'saturate(72%) brightness(110%)';
   merged.forEach(ring => {
     // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
     if (ring.length < 2 || shoelace(ring) < 1e-6) return;

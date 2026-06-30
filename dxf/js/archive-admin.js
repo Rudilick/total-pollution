@@ -159,7 +159,7 @@ function _makeUploadSlotEl(slot, idx, onFileSelect, onDelete) {
       const xBtn = document.createElement('button');
       xBtn.type = 'button';
       xBtn.className = 'slot-delete-x';
-      xBtn.innerHTML = '✕';
+      xBtn.innerHTML = '×';
       xBtn.onclick = (e) => { e.stopPropagation(); onDelete(); };
       el.appendChild(xBtn);
     }
@@ -356,10 +356,14 @@ async function _lookupAgencyForNewSerial() {
     if (entry.reply_date && yearInput && !yearInput.value.trim()) {
       yearInput.value = new Date(entry.reply_date).getFullYear();
     }
-    // 사업면적 저장 (최초도면 면적 검증용)
+    // 사업면적 저장 (최초도면 면적 검증용) + 폼에 표시
     _currentSerialSiteArea = entry.site_area ? Number(entry.site_area) : null;
+    const siteAreaEl = document.getElementById('new-site-area');
+    if (siteAreaEl) siteAreaEl.value = _currentSerialSiteArea ? Math.round(_currentSerialSiteArea) : '';
   } catch (e) {
     _currentSerialSiteArea = null;
+    const siteAreaEl = document.getElementById('new-site-area');
+    if (siteAreaEl) siteAreaEl.value = '';
   }
 }
 
@@ -391,7 +395,7 @@ let _loadedProjectSerial = null;
 // (도면 미등록 항목도 포함 — _loadedProjectSerial은 그 경우 null로 남기 때문에 별도로 둠).
 let _currentlyLoadedCardSerial = null;
 
-const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year', 'new-assessment-type'];
+const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year', 'new-site-area', 'new-assessment-type'];
 
 function submitProjectForm() {
   return _loadedProjectSerial ? _saveNewStagesToExistingProject() : _submitBrandNewProject();
@@ -529,6 +533,7 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
   document.getElementById('new-operator').value             = project.operator_name || '';
   document.getElementById('new-location').value             = project.location || '';
   document.getElementById('new-year').value                 = project.first_eia_year || '';
+  document.getElementById('new-site-area').value            = project.site_area ? Math.round(project.site_area) : '';
   document.getElementById('new-assessment-type').value      = project.assessment_type || '';
   _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
 
@@ -575,6 +580,8 @@ function _loadEiaListEntryIntoForm(p) {
   document.getElementById('new-year').value                 = p.first_eia_year || '';
   document.getElementById('new-assessment-type').value      = p.assessment_type || '';
   _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
+  // site_area는 검색결과에 없으므로 eia-list 조회로 별도 가져옴
+  _lookupAgencyForNewSerial();
 
   adminSlots = [_newAdminSlot(_adminStageLabel(0))];
   _previewSlotId = null;

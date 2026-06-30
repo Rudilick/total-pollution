@@ -107,6 +107,7 @@ router.get('/projects/:serial_no', async (req, res, next) => {
     const projResult = await pool.query(
       `SELECT p.serial_no, p.project_name, p.operator_name, p.location,
               COALESCE(p.first_eia_year, EXTRACT(YEAR FROM MAX(e.reply_date))::int) AS first_eia_year,
+              MAX(e.site_area) AS site_area,
               p.notes, p.agency_name, p.assessment_type, p.color_legend,
               p.created_at, p.updated_at
          FROM projects p

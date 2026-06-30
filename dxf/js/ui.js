@@ -168,18 +168,11 @@ function renderSlotsWrap() {
 
     const col = document.createElement('div');
     col.className = 'slot-col';
-    col.appendChild(_makeSlotEl(slot, idx));
-
-    // 삭제 버튼 (3개 이상일 때)
-    if (slots.length > 2) {
-      const del = document.createElement('button');
-      del.textContent = '삭제';
-      del.style.cssText =
-        'margin-top:5px;font-size:10px;padding:2px 7px;border-radius:6px;' +
-        'border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;box-shadow:none;';
-      del.onclick = (e) => { e.stopPropagation(); removeSlot(slot.id); };
-      col.appendChild(del);
-    }
+    const onDelete = slots.length > 2 && slot.data ? async () => {
+      const ok = await _showSlotDeleteConfirm();
+      if (ok) removeSlot(slot.id);
+    } : null;
+    col.appendChild(_makeSlotEl(slot, idx, onDelete));
 
     wrap.appendChild(col);
   });
@@ -297,7 +290,27 @@ function _makeArrow() {
   return div;
 }
 
-function _makeSlotEl(slot, idx) {
+function _showSlotDeleteConfirm() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'region-fix-overlay';
+    overlay.style.cssText = 'display:flex';
+    overlay.innerHTML =
+      '<div class="region-fix-box" style="max-width:300px;gap:10px">' +
+      '<div class="section-title" style="margin-bottom:6px">단계 삭제</div>' +
+      '<p style="font-size:13px;color:var(--gray-600);margin:0 0 14px">이 단계를 삭제하시겠습니까?</p>' +
+      '<div class="region-fix-actions">' +
+      '<button class="run-btn" style="background:#dc2626" id="_sdc-yes">삭제</button>' +
+      '<button class="run-btn" style="background:var(--gray-100);color:var(--gray-700);border:1px solid var(--border)" id="_sdc-no">취소</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    const done = v => { document.body.removeChild(overlay); resolve(v); };
+    overlay.querySelector('#_sdc-yes').onclick = () => done(true);
+    overlay.querySelector('#_sdc-no').onclick  = () => done(false);
+  });
+}
+
+function _makeSlotEl(slot, idx, onDelete) {
   const el = document.createElement('div');
   el.className = 'slot' + (slot.data ? ' loaded' : '');
 
@@ -316,6 +329,16 @@ function _makeSlotEl(slot, idx) {
     cancelBtn.textContent = '취소';
     cancelBtn.onclick = (e) => { e.stopPropagation(); clearSlot(slot); };
     el.appendChild(cancelBtn);
+
+    // 단계 삭제 X 버튼 (slots.length > 2 일 때만, 우상단)
+    if (onDelete) {
+      const xBtn = document.createElement('button');
+      xBtn.type = 'button';
+      xBtn.className = 'slot-delete-x';
+      xBtn.innerHTML = '×';
+      xBtn.onclick = (e) => { e.stopPropagation(); onDelete(); };
+      el.appendChild(xBtn);
+    }
   }
 
   const inner = document.createElement('div');

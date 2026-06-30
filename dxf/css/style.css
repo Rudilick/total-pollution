@@ -230,30 +230,32 @@ body {
 .slot.loaded .slot-label { color: var(--green-dark); }
 .slot-sub { font-size: 11px; color: var(--gray-400); text-align: center; }
 
-.thumb-canvas { width: 148px; height: 88px; display: block; filter: saturate(55%); }
-#preview-canvas { filter: saturate(55%); }
+.thumb-canvas { width: 148px; height: 88px; display: block; filter: saturate(72%) brightness(110%); }
+#preview-canvas { filter: saturate(72%) brightness(110%); }
 
 .slot-delete-x {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 16px;
-  height: 16px;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: none;
-  background: rgba(0,0,0,0.22);
-  color: #fff;
-  font-size: 9px;
+  background: rgba(255,255,255,0.85);
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
   padding: 0;
   line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
-.slot-delete-x:hover { background: #dc2626; transform: scale(1.25); }
+.slot-delete-x:hover { background: #dc2626; color: #fff; transform: scale(1.15); }
 
 /* ── add button ── */
 .add-btn {
@@ -618,16 +620,8 @@ tr:last-child td { border-bottom: none; }
   line-height: 1.25;
   flex-shrink: 0;
 }
-.drawing-circle-ok {
-  background: #16A34A;
-  color: #fff;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px #16A34A;
-}
-.drawing-circle-none {
-  background: #fdf2d8;
-  color: #97650c;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px #e5a820;
-}
+.drawing-circle-ok  { background: #16A34A; color: #fff; }
+.drawing-circle-none { background: #fdf2d8; color: #97650c; }
 
 /* 평가종류 마커 — 검색 카드에서 한눈에 구분하려고 색상톤을 다르게 둠 */
 .pill-type-strategic { background: var(--purple-light); color: var(--purple-dark); }
@@ -781,21 +775,29 @@ tr:last-child td { border-bottom: none; }
   white-space: nowrap;
 }
 
-/* 신규 프로젝트 등록 — 2행 폼 (첫 행:2칸, 둘째 행:5칸) */
+/* 신규 프로젝트 등록 — 2행 폼 (첫 행:2칸, 둘째 행:6칸) */
 .admin-form-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-bottom: 6px;
 }
-.admin-form-row-5 {
+/* 사업자명은 min-content floor → 가장 먼저 멈추고(=최우선 폭 확보), 나머지가 균등 축소 */
+.admin-form-row-6 {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns:
+    minmax(80px, 1fr)
+    minmax(55px, 1fr)
+    minmax(70px, 1fr)
+    minmax(min-content, 1fr)
+    minmax(70px, 1fr)
+    minmax(65px, 1fr);
   gap: 6px;
   margin-bottom: 8px;
 }
+.admin-form-row-6 .admin-input { text-align: center; }
 @media (max-width: 1100px) {
-  .admin-form-row-5 { grid-template-columns: repeat(3, 1fr); }
+  .admin-form-row-6 { grid-template-columns: repeat(3, 1fr); }
 }
 select.admin-input { appearance: none; -webkit-appearance: none; background: #fff; }
 .btn-sm {
@@ -936,7 +938,7 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .tile-replace-btn {
   position: absolute;
   top: 4px;
-  right: 4px;
+  left: 4px;
   font-size: 9px;
   padding: 2px 6px;
   border-radius: 5px;
