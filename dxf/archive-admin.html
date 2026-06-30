@@ -100,41 +100,65 @@
 
             <!-- 첫 줄: 사업명 / 위치 -->
             <div class="admin-form-row-2">
-              <input type="text" id="new-name"     class="admin-input" placeholder="사업명">
-              <input type="text" id="new-location" class="admin-input" placeholder="위치">
+              <div class="admin-field">
+                <div class="admin-field-label">사업명</div>
+                <input type="text" id="new-name" class="admin-input" placeholder="사업명">
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">소재지</div>
+                <input type="text" id="new-location" class="admin-input" placeholder="위치">
+              </div>
             </div>
 
             <!-- 둘째 줄: 일련번호 / 협의년도 / 사업면적 / 사업자명 / 협의기관(드롭다운) / 평가종류(드롭다운) -->
             <div class="admin-form-row-6">
-              <input type="text"   id="new-serial"    class="admin-input" placeholder="일련번호 (예: HG20261345)"
-                     oninput="onNewSerialInput()">
-              <input type="number" id="new-year"      class="admin-input" placeholder="협의년도">
-              <input type="number" id="new-site-area" class="admin-input" placeholder="사업면적(㎡)" readonly>
-              <input type="text"   id="new-operator"  class="admin-input" placeholder="사업자명">
-              <select id="new-agency" class="admin-input">
-                <option value="">협의기관 선택</option>
-                <option>기후에너지환경부</option>
-                <option>한강유역환경청</option>
-                <option>낙동강유역환경청</option>
-                <option>금강유역환경청</option>
-                <option>영산강유역환경청</option>
-                <option>원주지방환경청</option>
-                <option>대구지방환경청</option>
-                <option>대전지방환경청</option>
-                <option>강원특별자치도청</option>
-                <option>전북특별자치도청</option>
-                <option>제주특별자치도청</option>
-                <option>전남광주통합특별자치청</option>
-                <option>수도권대기환경청</option>
-                <option>새만금개발청</option>
-              </select>
-              <select id="new-assessment-type" class="admin-input">
-                <option value="">평가종류 선택</option>
-                <option>전략환경영향평가</option>
-                <option>환경영향평가</option>
-                <option>소규모환경영향평가</option>
-                <option>사전환경성검토</option>
-              </select>
+              <div class="admin-field">
+                <div class="admin-field-label">사업코드</div>
+                <input type="text" id="new-serial" class="admin-input" placeholder="HG20261345"
+                       oninput="onNewSerialInput()">
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">협의년도</div>
+                <input type="number" id="new-year" class="admin-input" placeholder="년도">
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">규모(㎡)</div>
+                <input type="number" id="new-site-area" class="admin-input" placeholder="–" readonly>
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">사업자명</div>
+                <input type="text" id="new-operator" class="admin-input" placeholder="사업자명">
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">협의기관</div>
+                <select id="new-agency" class="admin-input">
+                  <option value="">선택</option>
+                  <option>기후에너지환경부</option>
+                  <option>한강유역환경청</option>
+                  <option>낙동강유역환경청</option>
+                  <option>금강유역환경청</option>
+                  <option>영산강유역환경청</option>
+                  <option>원주지방환경청</option>
+                  <option>대구지방환경청</option>
+                  <option>대전지방환경청</option>
+                  <option>강원특별자치도청</option>
+                  <option>전북특별자치도청</option>
+                  <option>제주특별자치도청</option>
+                  <option>전남광주통합특별자치청</option>
+                  <option>수도권대기환경청</option>
+                  <option>새만금개발청</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <div class="admin-field-label">평가종류</div>
+                <select id="new-assessment-type" class="admin-input">
+                  <option value="">선택</option>
+                  <option>전략환경영향평가</option>
+                  <option>환경영향평가</option>
+                  <option>소규모환경영향평가</option>
+                  <option>사전환경성검토</option>
+                </select>
+              </div>
             </div>
 
             <div class="admin-slots-scroll">

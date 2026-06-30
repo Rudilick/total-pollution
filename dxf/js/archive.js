@@ -71,52 +71,17 @@ function _makeArchiveCard(p, resultsEl) {
   const card = document.createElement('div');
   card.className = 'archive-card' + (p.has_drawings === false ? ' archive-card-nodrawing' : '');
 
+  const boldParts = [p.serial_no, p.operator_name].filter(Boolean).join(' ');
+  const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
   const badge = p.has_drawings === false
     ? '<div class="drawing-circle drawing-circle-none">도면<br>미등록</div>'
     : '<div class="drawing-circle drawing-circle-ok">도면<br>등록</div>';
 
-  const siteAreaHtml = p.site_area
-    ? Number(p.site_area).toLocaleString('ko-KR', { maximumFractionDigits: 0 })
-    : '–';
-
   card.innerHTML =
     `<div class="archive-card-main">
-       <div class="archive-card-row1">
-         <div class="archive-field">
-           <div class="archive-field-label">사업명</div>
-           <div class="archive-field-value">${p.project_name || '–'}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">소재지</div>
-           <div class="archive-field-value">${p.location || '–'}</div>
-         </div>
-       </div>
-       <div class="archive-card-row2">
-         <div class="archive-field">
-           <div class="archive-field-label">사업코드</div>
-           <div class="archive-field-value">${p.serial_no || '–'}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">협의년도</div>
-           <div class="archive-field-value">${p.first_eia_year || '–'}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">규모(㎡)</div>
-           <div class="archive-field-value">${siteAreaHtml}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">사업자</div>
-           <div class="archive-field-value">${p.operator_name || '–'}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">협의기관</div>
-           <div class="archive-field-value">${p.agency_name || '–'}</div>
-         </div>
-         <div class="archive-field">
-           <div class="archive-field-label">${_assessmentTypeMarkerHtml(p.assessment_type)}평가종류</div>
-           <div class="archive-field-value">${p.assessment_type || '–'}</div>
-         </div>
-       </div>
+       <div class="archive-card-title">${_assessmentTypeMarkerHtml(p.assessment_type)}${boldParts}${agencyHtml}</div>
+       <div class="archive-card-project-name">${p.project_name || '(사업명 미확인)'}</div>
+       <div class="archive-card-meta">${p.location || '&nbsp;'}</div>
      </div>
      ${badge}`;
 
