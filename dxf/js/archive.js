@@ -83,8 +83,8 @@ function renderArchiveResults(projects) {
     const boldParts = [p.serial_no, p.operator_name].filter(Boolean).join(' ');
     const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
     const badge = p.has_drawings === false
-      ? '<div class="pill pill-warn pill-status">도면<br>미등록</div>'
-      : '<div class="pill pill-status-ok pill-status">도면<br>등록</div>';
+      ? '<div class="drawing-circle drawing-circle-none">도면<br>미등록</div>'
+      : '<div class="drawing-circle drawing-circle-ok">도면<br>등록</div>';
 
     card.innerHTML =
       `<div class="archive-card-main">

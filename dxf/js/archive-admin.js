@@ -90,7 +90,27 @@ function clearPreview() {
 // 파일 선택 시 동작을 콜백으로 받음). 타임라인 타일 크기로 축소,
 // 도면이 로드된 타일은 클릭 시 우측 미리보기 패널에 표시되고
 // 파일 교체는 별도의 "교체" 버튼으로 처리한다.
-function _makeUploadSlotEl(slot, idx, onFileSelect) {
+function _showDeleteConfirmModal(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'region-fix-overlay';
+    overlay.style.cssText = 'display:flex';
+    overlay.innerHTML =
+      `<div class="region-fix-box" style="max-width:320px;gap:10px">` +
+      `<div class="section-title" style="margin-bottom:6px">삭제 확인</div>` +
+      `<p style="font-size:13px;color:var(--gray-600);margin:0 0 14px">${message}</p>` +
+      `<div class="region-fix-actions">` +
+      `<button class="run-btn" style="background:#dc2626" id="_dcm-yes">삭제</button>` +
+      `<button class="run-btn" style="background:var(--gray-100);color:var(--gray-700);border:1px solid var(--border)" id="_dcm-no">취소</button>` +
+      `</div></div>`;
+    document.body.appendChild(overlay);
+    const done = v => { document.body.removeChild(overlay); resolve(v); };
+    overlay.querySelector('#_dcm-yes').onclick = () => done(true);
+    overlay.querySelector('#_dcm-no').onclick  = () => done(false);
+  });
+}
+
+function _makeUploadSlotEl(slot, idx, onFileSelect, onDelete) {
   const el = document.createElement('div');
   el.className = 'slot' + (slot.data ? ' loaded' : '');
 
@@ -132,18 +152,17 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
   }
   el.appendChild(inner);
 
-  if (slot.data && slot.file) {
-    const bottom = document.createElement('div');
-    bottom.className = 'slot-bottom';
-    const fname = document.createElement('div');
-    fname.className = 'slot-fname';
-    fname.textContent = slot.file.name;
-    bottom.appendChild(fname);
-    el.appendChild(bottom);
-  }
-
   if (slot.data) {
     el.onclick = () => selectPreviewTile(el, slot.rawData, slot.file ? slot.file.name : slot.label);
+
+    if (onDelete) {
+      const xBtn = document.createElement('button');
+      xBtn.type = 'button';
+      xBtn.className = 'slot-delete-x';
+      xBtn.innerHTML = '✕';
+      xBtn.onclick = (e) => { e.stopPropagation(); onDelete(); };
+      el.appendChild(xBtn);
+    }
 
     if (!slot.saved) {
       // 이미 저장된 단계는 파일 교체 API가 없어서(삭제 후 다시 추가해야 함) 미리보기만 허용
@@ -194,34 +213,28 @@ function renderNewSlotsWrap() {
 
     const col = document.createElement('div');
     col.className = 'slot-col';
+    const canDelete = slot.saved || adminSlots.length > 1;
+    const onDelete = slot.data && canDelete ? async () => {
+      if (slot.saved) {
+        const ok = await _showDeleteConfirmModal(
+          `${slot.stageIndex}단계 도면을 삭제하시겠습니까?<br><small style="color:#dc2626">되돌릴 수 없습니다.</small>`
+        );
+        if (ok) deleteStage(_loadedProjectSerial, slot.stageIndex);
+      } else {
+        const ok = await _showDeleteConfirmModal('이 단계를 삭제하시겠습니까?');
+        if (ok) removeAdminSlot(slot.id);
+      }
+    } : null;
+
     const tileEl = _makeUploadSlotEl(slot, idx, async (s, file) => {
       await handleAdminFileSelect(s, file);
       _previewSlotId = s.id;
       renderNewSlotsWrap();
-    });
+    }, onDelete);
     col.appendChild(tileEl);
 
     if (slot.data && slot.id === _previewSlotId) {
       selectPreviewTile(tileEl, slot.rawData, slot.file ? slot.file.name : slot.label);
-    }
-
-    if (slot.saved) {
-      // 이미 저장된 단계 — 삭제하면 실제 DB에서도 지워진다
-      const del = document.createElement('button');
-      del.textContent = '삭제';
-      del.style.cssText =
-        'margin-top:5px;font-size:10px;padding:2px 7px;border-radius:6px;' +
-        'border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;box-shadow:none;';
-      del.onclick = (e) => { e.stopPropagation(); deleteStage(_loadedProjectSerial, slot.stageIndex); };
-      col.appendChild(del);
-    } else if (adminSlots.length > 1) {
-      const del = document.createElement('button');
-      del.textContent = '삭제';
-      del.style.cssText =
-        'margin-top:5px;font-size:10px;padding:2px 7px;border-radius:6px;' +
-        'border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;box-shadow:none;';
-      del.onclick = (e) => { e.stopPropagation(); removeAdminSlot(slot.id); };
-      col.appendChild(del);
     }
 
     wrap.appendChild(col);
@@ -725,8 +738,8 @@ function renderLookupSearchResults(projects) {
     const boldParts = [p.serial_no, p.operator_name].filter(Boolean).join(' ');
     const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
     const badge = noDrawings
-      ? '<div class="pill pill-warn pill-status">도면<br>미등록</div>'
-      : '<div class="pill pill-status-ok pill-status">도면<br>등록</div>';
+      ? '<div class="drawing-circle drawing-circle-none">도면<br>미등록</div>'
+      : '<div class="drawing-circle drawing-circle-ok">도면<br>등록</div>';
 
     card.innerHTML =
       `<div class="archive-card-main">
@@ -762,7 +775,6 @@ function renderLookupSearchResults(projects) {
 }
 
 async function deleteStage(serialNo, stageIndex) {
-  if (!confirm(`${stageIndex}단계를 삭제하시겠습니까? (되돌릴 수 없습니다)`)) return;
   try {
     const res = await _regionFetch(`/projects/${encodeURIComponent(serialNo)}/stages/${stageIndex}`, {
       method: 'DELETE',

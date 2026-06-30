@@ -428,7 +428,7 @@ function drawThumbnail(canvas, data) {
   const ty = y => canvas.height - ((y - bbox.minY) * scale + oy);
 
   // 레이어가 아니라 도면에 실제로 쓰인 색상 그대로 그린다 (추측 색이 아님)
-  ctx.globalAlpha = 0.7; // 투명도 30%
+  // 채도 보정은 canvas 요소에 CSS filter: saturate(55%)로 적용한다
   for (const col of Object.keys(data.colors || {})) {
     ctx.fillStyle = _getDisplayColor(col);
 
@@ -455,7 +455,6 @@ function drawThumbnail(canvas, data) {
     }
     ctx.fill('evenodd');
   }
-  ctx.globalAlpha = 1;
 }
 
 // ── 실행 버튼 상태 ───────────────────────────────────────────

@@ -230,20 +230,30 @@ body {
 .slot.loaded .slot-label { color: var(--green-dark); }
 .slot-sub { font-size: 11px; color: var(--gray-400); text-align: center; }
 
-.thumb-canvas { width: 148px; height: 88px; display: block; }
+.thumb-canvas { width: 148px; height: 88px; display: block; filter: saturate(55%); }
+#preview-canvas { filter: saturate(55%); }
 
-.slot-bottom {
-  padding: 5px 7px;
-  text-align: center;
-  border-top: 0.5px solid var(--border);
-  background: var(--green-light);
+.slot-delete-x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.22);
+  color: #fff;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: background 0.15s, transform 0.1s;
+  padding: 0;
+  line-height: 1;
 }
-.slot-fname {
-  font-size: 10px;
-  color: var(--green-dark);
-  word-break: break-all;
-  line-height: 1.5;
-}
+.slot-delete-x:hover { background: #dc2626; transform: scale(1.25); }
 
 /* ── add button ── */
 .add-btn {
@@ -339,8 +349,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 10px 18px 10px 14px;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-md);
   margin-bottom: 8px;
@@ -592,16 +602,32 @@ tr:last-child td { border-bottom: none; }
 .pill-nc { background: var(--gray-50); color: var(--gray-600); }
 .pill-warn { background: #fdf2d8; color: #97650c; }
 
-/* 도면 등록 여부 마커 — 가로폭을 좁히고 두 줄로 세워서 왼쪽 기록 영역에 폭을 더 내준다.
-   "등록"/"미등록" 글자수가 달라 폭이 제각각이면 카드마다 중심선이 어긋나 보이므로
-   min-width로 폭을 통일한다. */
-.pill-status {
+/* 도면 등록 여부 마커 — 동심원(원형 테두리+내부원) 형태로, 가로폭을 줄여 텍스트 공간을 확보.
+   box-shadow로 외부 링을 표현하므로 레이아웃 공간을 추가로 차지하지 않는다. */
+.drawing-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 9px;
+  font-weight: 700;
   text-align: center;
-  line-height: 1.35;
-  padding: 5px 8px;
-  width: 48px; /* "등록"/"미등록" 글자수가 달라도 폭을 고정해야 카드끼리 좌우중심이 맞는다 */
+  line-height: 1.25;
+  flex-shrink: 0;
 }
-.pill-status-ok { background: #16A34A; color: #fff; font-weight: 700; }
+.drawing-circle-ok {
+  background: #16A34A;
+  color: #fff;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px #16A34A;
+}
+.drawing-circle-none {
+  background: #fdf2d8;
+  color: #97650c;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px #e5a820;
+}
 
 /* 평가종류 마커 — 검색 카드에서 한눈에 구분하려고 색상톤을 다르게 둠 */
 .pill-type-strategic { background: var(--purple-light); color: var(--purple-dark); }
@@ -829,9 +855,10 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 }
 .region-login-box .section-title { margin-bottom: 0; }
 .region-session-info {
-  font-size: 12px;
+  font-size: 9px;
   color: var(--gray-600);
-  margin-top: 6px;
+  text-align: center;
+  padding: 3px 0 4px;
 }
 .region-session-info a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
 
@@ -900,8 +927,7 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .timeline-wrap .slot-num { width: 18px; height: 18px; font-size: 9px; }
 .timeline-wrap .slot-label { font-size: 10px; }
 .timeline-wrap .slot-sub { font-size: 9px; }
-.timeline-wrap .slot-bottom { padding: 3px 5px; }
-.timeline-wrap .slot-fname { font-size: 9px; }
+
 .timeline-wrap .add-icon { width: 20px; height: 20px; font-size: 14px; }
 
 .timeline-wrap .slot.loaded { cursor: pointer; }
