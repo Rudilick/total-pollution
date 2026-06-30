@@ -1,9 +1,12 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const adminAuth = require('../middleware/adminAuth');
 const { normalizeAgency } = require('../lib/agencyAlias');
 
 const router = express.Router();
+
+const DEFAULT_REGION_PASSWORD = '0000';
 
 const VALID_TYPES = ['전략환경영향평가', '환경영향평가', '소규모환경영향평가', '사전환경성검토'];
 
@@ -67,10 +70,13 @@ router.get('/eia-list/summary', async (req, res, next) => {
 
 // POST /api/eia-list
 // body: { assessment_type, rows: [{ serial_no, agency_name, project_name, assessment_type_label,
-//         consult_type, location, site_area, reply_date, is_public }, ...] }
+//         consult_type, location, site_area, reply_date, is_public, province, city }, ...] }
 // 누적 업로드: 일련번호+기관명(정규화)+평가종류가 이미 있는 행은 건드리지 않고 건너뛰고,
 // 새로운 행만 추가한다. 업로드 자료가 EIASS에서 그대로 받아오는 거라 기존 자료가 바뀔 일이
 // 없다는 전제 — 그래서 덮어쓰기 없이 항상 "있으면 스킵, 없으면 추가"로만 동작한다.
+// 행에 광역/기초자치단체가 있으면, 처음 보는 (province, city) 조합은 비밀번호 "0000"으로
+// region_credentials에 자동 등록한다(지역 로그인 후보) — 고정 행정구역 목록을 따로
+// 하드코딩하지 않고 실제 업로드된 데이터를 그대로 지역 후보로 쓴다.
 router.post('/eia-list', async (req, res, next) => {
   const { assessment_type, rows } = req.body || {};
 
@@ -96,19 +102,27 @@ router.post('/eia-list', async (req, res, next) => {
       existing.rows.map(r => `${r.serial_no}|${normalizeAgency(r.agency_name)}`)
     );
 
+    const existingRegions = await client.query('SELECT province, city FROM region_credentials');
+    const knownRegions = new Set(existingRegions.rows.map(r => `${r.province}|${r.city}`));
+    const defaultPasswordHash = await bcrypt.hash(DEFAULT_REGION_PASSWORD, 10);
+
     let inserted = 0;
     let skipped_duplicate = 0;
+    let regions_registered = 0;
     for (const r of usable) {
       const serialNo = String(r.serial_no).trim();
       const key = `${serialNo}|${normalizeAgency(r.agency_name)}`;
       if (existingKeys.has(key)) { skipped_duplicate++; continue; }
       existingKeys.add(key); // 같은 업로드 안에서도 동일 키가 또 나오면 두 번째부터는 스킵
 
+      const province = String(r.province || '').trim() || null;
+      const city = String(r.city || '').trim() || null;
+
       await client.query(
         `INSERT INTO eia_list
            (serial_no, agency_name, project_name, assessment_type, assessment_type_label,
-            consult_type, location, site_area, reply_date, is_public)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            consult_type, location, site_area, reply_date, is_public, province, city)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           serialNo,
           r.agency_name || null,
@@ -120,13 +134,29 @@ router.post('/eia-list', async (req, res, next) => {
           r.site_area === '' || r.site_area === undefined || r.site_area === null ? null : Number(r.site_area),
           r.reply_date || null,
           typeof r.is_public === 'boolean' ? r.is_public : null,
+          province,
+          city,
         ]
       );
       inserted++;
+
+      if (province && city) {
+        const regionKey = `${province}|${city}`;
+        if (!knownRegions.has(regionKey)) {
+          knownRegions.add(regionKey);
+          await client.query(
+            `INSERT INTO region_credentials (province, city, password_hash, must_change_password)
+             VALUES ($1, $2, $3, TRUE)
+             ON CONFLICT (province, city) DO NOTHING`,
+            [province, city, defaultPasswordHash]
+          );
+          regions_registered++;
+        }
+      }
     }
 
     await client.query('COMMIT');
-    res.status(201).json({ assessment_type, inserted, skipped_duplicate, skipped_invalid });
+    res.status(201).json({ assessment_type, inserted, skipped_duplicate, skipped_invalid, regions_registered });
   } catch (e) {
     await client.query('ROLLBACK');
     next(e);

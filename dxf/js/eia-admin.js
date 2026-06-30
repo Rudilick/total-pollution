@@ -13,6 +13,8 @@ const EIA_HEADER_MAP = {
   '규모(대지면적)': 'site_area',
   '회신일': 'reply_date',
   '평가서 공개유무': 'is_public',
+  '광역자치단체': 'province',
+  '기초자치단체': 'city',
 };
 
 function _eiaParsePublic(val) {
@@ -63,6 +65,8 @@ function parseEiaWorkbook(arrayBuffer) {
       site_area: mapped.site_area === '' || mapped.site_area === undefined ? null : Number(mapped.site_area),
       reply_date: _eiaParseDate(mapped.reply_date),
       is_public: _eiaParsePublic(mapped.is_public),
+      province: String(mapped.province || '').trim() || null,
+      city: String(mapped.city || '').trim() || null,
     };
   });
 }

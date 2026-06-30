@@ -647,6 +647,29 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .project-mode-banner a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
 .admin-input:disabled { background: var(--gray-50); color: var(--gray-600); cursor: not-allowed; }
 
+/* 지역 로그인 / 강제 비밀번호 변경 화면 */
+.region-login-screen {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.region-login-box {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.region-login-box .section-title { margin-bottom: 0; }
+.region-session-info {
+  font-size: 12px;
+  color: var(--gray-600);
+  margin-top: 6px;
+}
+.region-session-info a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
 /* 오른쪽 칼럼 안에서 위=신규등록, 아래=미리보기 */
 .admin-right-col { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
 .admin-register-section { flex: none; }

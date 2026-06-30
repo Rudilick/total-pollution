@@ -1,12 +1,17 @@
 const express = require('express');
 const { pool } = require('../db');
+const { optionalRegionAuth } = require('../middleware/authJwt');
 
 const router = express.Router();
 
 // GET /api/projects?q=검색어
-router.get('/projects', async (req, res, next) => {
+// 지역 로그인 상태(req.region)면 그 지역(province+city) 결과만 보여준다 — 관리자 페이지의
+// "기존 협의자료 불러오기"가 자기 지역 목록으로만 자동완성되게. 로그인 없이 호출하면(공개
+// 분석기 화면) 기존처럼 전체를 보여준다(하위호환, 공개 비교 도구는 지역 제한이 필요 없음).
+router.get('/projects', optionalRegionAuth, async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim();
+    const region = req.region || null;
 
     // 도면이 이미 등록된 사업(projects)뿐 아니라, 아직 도면 없이 평가목록(eia_list)에만
     // 있는 사업도 같이 보여준다 — has_drawings로 클라이언트가 구분한다.
@@ -23,10 +28,13 @@ router.get('/projects', async (req, res, next) => {
                   p.updated_at AS sort_key
              FROM projects p
              LEFT JOIN drawings d ON d.serial_no = p.serial_no
-            WHERE p.serial_no ILIKE $1 || '%'
+            WHERE ($2::text IS NULL OR (p.province = $2 AND p.city = $3))
+              AND (
+                p.serial_no ILIKE $1 || '%'
                OR p.project_name ILIKE '%' || $1 || '%'
                OR p.operator_name ILIKE '%' || $1 || '%'
                OR p.location ILIKE '%' || $1 || '%'
+              )
             GROUP BY p.serial_no
 
            UNION ALL
@@ -55,6 +63,7 @@ router.get('/projects', async (req, res, next) => {
                  )
                  AND (p.assessment_type IS NULL OR p.assessment_type = e.assessment_type)
             )
+              AND ($2::text IS NULL OR (e.province = $2 AND e.city = $3))
               AND (
                 e.serial_no ILIKE $1 || '%'
                 OR e.project_name ILIKE '%' || $1 || '%'
@@ -65,7 +74,7 @@ router.get('/projects', async (req, res, next) => {
          ) combined
         ORDER BY has_drawings DESC, sort_key DESC
         LIMIT 200`,
-      [q]
+      [q, region?.province ?? null, region?.city ?? null]
     );
 
     res.json({ projects: result.rows });

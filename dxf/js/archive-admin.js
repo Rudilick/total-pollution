@@ -1,7 +1,8 @@
 /**
  * archive-admin.js
  * 도면 아카이브 관리자 페이지 - 신규 등록 / 단계 추가 / 삭제
- * (_adminFetch, _ensureAdminAuth는 admin-auth.js 공통 파일에 있음)
+ * (이 페이지의 사업/도면 조작은 지역 로그인(region-auth.js, _regionFetch)으로 인증한다 —
+ *  슈퍼관리자 키(admin-auth.js)는 환경영향평가 목록 업로드/지역 비밀번호 관리 전용 페이지에서만 씀)
  */
 
 // ── 신규 프로젝트 등록용 슬롯 ────────────────────────────────
@@ -309,7 +310,7 @@ async function _submitBrandNewProject() {
 
   statusEl.innerHTML = '<p class="archive-empty">등록 중...</p>';
   try {
-    const res = await _adminFetch('/projects', { method: 'POST', body: JSON.stringify(body) });
+    const res = await _regionFetch('/projects', { method: 'POST', body: JSON.stringify(body) });
     const data = await res.json();
     if (res.status === 409) {
       statusEl.innerHTML =
@@ -339,7 +340,7 @@ async function lookupProject(serialNoArg) {
   resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/projects/${encodeURIComponent(serialNo)}`);
+    const res = await _regionFetch(`/projects/${encodeURIComponent(serialNo)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '조회 실패');
     _loadProjectIntoForm(serialNo, data.project, data.drawings);
@@ -416,7 +417,7 @@ async function _saveNewStagesToExistingProject() {
 
   try {
     for (const slot of readySlots) {
-      const res = await _adminFetch(`/projects/${encodeURIComponent(_loadedProjectSerial)}/stages`, {
+      const res = await _regionFetch(`/projects/${encodeURIComponent(_loadedProjectSerial)}/stages`, {
         method: 'POST',
         body: JSON.stringify({
           stage_label: slot.label,
@@ -450,7 +451,7 @@ async function loadAdminDefaultList() {
   const seq = ++_lookupSearchSeq;
   resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
   try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/projects`);
+    const res = await _regionFetch('/projects');
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
     if (seq !== _lookupSearchSeq) return;
@@ -478,7 +479,7 @@ async function onLookupSearch(forceLookup) {
   resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
 
   try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}`);
+    const res = await _regionFetch(`/projects?q=${encodeURIComponent(q)}`);
     if (!res.ok) throw new Error('서버 응답 오류');
     const { projects } = await res.json();
     if (seq !== _lookupSearchSeq) return;
@@ -543,7 +544,7 @@ function renderLookupSearchResults(projects) {
 async function deleteStage(serialNo, stageIndex) {
   if (!confirm(`${stageIndex}단계를 삭제하시겠습니까? (되돌릴 수 없습니다)`)) return;
   try {
-    const res = await _adminFetch(`/projects/${encodeURIComponent(serialNo)}/stages/${stageIndex}`, {
+    const res = await _regionFetch(`/projects/${encodeURIComponent(serialNo)}/stages/${stageIndex}`, {
       method: 'DELETE',
     });
     const data = await res.json();
@@ -555,8 +556,5 @@ async function deleteStage(serialNo, stageIndex) {
 }
 
 // ── 초기화 ───────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  if (!_ensureAdminAuth()) return;
-  initAdminSlots();
-  loadAdminDefaultList();
-});
+// 지역 로그인 통과 후 initAdminSlots()/loadAdminDefaultList()는
+// region-auth.js의 _enterAdminMain()이 호출한다.

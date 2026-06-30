@@ -17,11 +17,46 @@
           <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
             환경영향평가 목록 엑셀 업로드
           </button>
+          <button class="run-btn btn-sm" onclick="window.open('region-password-admin.html','_blank')">
+            지역 비밀번호 관리
+          </button>
         </div>
       </div>
+      <div id="region-session-info" class="region-session-info" style="display:none"></div>
     </header>
 
-    <div class="layout-row">
+    <!-- 지역 로그인 화면 -->
+    <div id="region-login-screen" class="region-login-screen">
+      <div class="region-login-box">
+        <div class="section-title">🔐 지역 로그인</div>
+        <p class="section-hint">소속 광역·기초자치단체와 비밀번호를 입력하세요.</p>
+        <select id="login-province" class="admin-input" onchange="_onLoginProvinceChange()">
+          <option value="">광역자치단체 선택</option>
+        </select>
+        <select id="login-city" class="admin-input" disabled>
+          <option value="">기초자치단체 선택</option>
+        </select>
+        <input type="password" id="login-password" class="admin-input" placeholder="비밀번호"
+               onkeydown="if(event.key==='Enter') _regionLogin()">
+        <button class="run-btn" onclick="_regionLogin()">로그인</button>
+        <div id="region-login-status"></div>
+      </div>
+    </div>
+
+    <!-- 최초 로그인 시 강제 비밀번호 변경 화면 -->
+    <div id="region-changepw-screen" class="region-login-screen" style="display:none">
+      <div class="region-login-box">
+        <div class="section-title">🔑 비밀번호 변경 (최초 로그인)</div>
+        <p class="section-hint">초기 비밀번호(0000)는 계속 쓸 수 없습니다. 새 비밀번호로 바꿔주세요.</p>
+        <input type="password" id="new-pw-1" class="admin-input" placeholder="새 비밀번호">
+        <input type="password" id="new-pw-2" class="admin-input" placeholder="새 비밀번호 확인"
+               onkeydown="if(event.key==='Enter') _regionChangePassword()">
+        <button class="run-btn" onclick="_regionChangePassword()">변경하고 계속</button>
+        <div id="region-changepw-status"></div>
+      </div>
+    </div>
+
+    <div id="admin-main-content" class="layout-row" style="display:none">
       <!-- 왼쪽 1/3: 기존 프로젝트 조회 -->
       <aside class="archive-col">
         <section class="section">
@@ -113,6 +148,7 @@
   <script src="js/ui.js"></script>
   <script src="js/archive-config.js"></script>
   <script src="js/admin-auth.js"></script>
+  <script src="js/region-auth.js"></script>
   <script src="js/archive-admin.js"></script>
 </body>
 </html>
