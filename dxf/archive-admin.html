@@ -9,12 +9,15 @@
 <body>
   <div class="app admin-app">
     <header class="app-header">
-      <a class="back-link" href="index.html">← 도면 분석기로</a>
-      <div class="admin-title-row">
+      <!-- 제목 가운데, 버튼들 오른쪽 끝 -->
+      <div class="admin-header-row">
         <h1>도면 아카이브 관리자</h1>
-        <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
-          환경영향평가 목록 엑셀 업로드
-        </button>
+        <div class="admin-header-btns">
+          <a class="run-btn btn-sm" href="index.html">← 도면 분석기로</a>
+          <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
+            환경영향평가 목록 엑셀 업로드
+          </button>
+        </div>
       </div>
     </header>
 
@@ -42,17 +45,39 @@
         <div class="admin-right-col">
 
           <div class="admin-register-section">
-            <div class="section-title" style="margin-bottom:6px">신규 프로젝트 등록</div>
-            <div class="admin-form-grid">
+            <div class="section-title" style="margin-bottom:5px">신규 프로젝트 등록</div>
+
+            <!-- 첫 줄: 사업명 / 위치 -->
+            <div class="admin-form-row-2">
+              <input type="text" id="new-name"     class="admin-input" placeholder="사업명">
+              <input type="text" id="new-location" class="admin-input" placeholder="위치">
+            </div>
+
+            <!-- 둘째 줄: 일련번호 / 협의년도 / 사업자명 / 협의기관(드롭다운) -->
+            <div class="admin-form-row-4">
               <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
                      oninput="onNewSerialInput()">
-              <input type="text"   id="new-name"     class="admin-input" placeholder="사업명">
-              <input type="text"   id="new-agency"   class="admin-input" placeholder="기관명 (협의기관)">
+              <input type="number" id="new-year"     class="admin-input" placeholder="협의년도">
               <input type="text"   id="new-operator" class="admin-input" placeholder="사업자명">
-              <input type="text"   id="new-location" class="admin-input" placeholder="위치">
-              <input type="number" id="new-year"     class="admin-input" placeholder="최초 환경영향평가 연도">
-              <input type="text"   id="new-notes"    class="admin-input" placeholder="비고">
+              <select id="new-agency" class="admin-input">
+                <option value="">협의기관 선택</option>
+                <option>기후에너지환경부</option>
+                <option>한강유역환경청</option>
+                <option>낙동강유역환경청</option>
+                <option>금강유역환경청</option>
+                <option>영산강유역환경청</option>
+                <option>원주지방환경청</option>
+                <option>대구지방환경청</option>
+                <option>대전지방환경청</option>
+                <option>강원특별자치도청</option>
+                <option>전북특별자치도청</option>
+                <option>제주특별자치도청</option>
+                <option>전남광주통합특별자치청</option>
+                <option>수도권대기환경청</option>
+                <option>새만금개발청</option>
+              </select>
             </div>
+
             <div class="admin-slots-scroll">
               <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
             </div>
@@ -61,7 +86,7 @@
           </div>
 
           <div class="admin-preview-section">
-            <div class="section-title" style="margin-bottom:6px">도면 미리보기</div>
+            <div class="section-title" style="margin-bottom:5px">도면 미리보기</div>
             <div class="preview-box">
               <canvas id="preview-canvas"></canvas>
               <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>

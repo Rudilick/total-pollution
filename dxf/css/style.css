@@ -34,7 +34,7 @@ body {
   color: #1a1a1a;
   background: #f5f4f0;
   min-height: 100vh;
-  padding: 2rem 1rem;
+  padding: 1.5vmin; /* 상하좌우 동일 비율 여백 */
 }
 
 /* ── layout ── */
@@ -42,18 +42,18 @@ body {
    (위아래양옆 일정 여백만 남기고) — 그 안에서 좌/우 칼럼이 각자 내부 스크롤된다. */
 .app {
   max-width: 1480px;
-  height: calc(100vh - 4rem);
+  height: calc(100vh - 3vmin); /* body padding 1.5vmin × 2 */
   margin: 0 auto;
   background: #fff;
   border-radius: var(--radius-lg);
   border: 0.5px solid var(--border);
-  padding: 2rem 2.5rem;
+  padding: 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 안전망 — 내부 스크롤 체인이 어딘가 깨져도 패널 밖으로 안 새어나가게 */
 }
 
-.app-header { margin-bottom: 2rem; flex: none; }
+.app-header { margin-bottom: 0.5rem; flex: none; }
 
 /* 와이드 화면에서 좌(기존 협의자료 1/3) : 우(분석 기능 2/3)로 나누고, 가운데에
    구획선을 둔다. 양쪽 다 패널 안에서 내부 스크롤되고(페이지 자체는 안 늘어남). */
@@ -571,19 +571,44 @@ tr:last-child td { border-bottom: none; }
   /* height/display/overflow는 .app에서 상속 (calc(100vh-4rem), flex column, overflow:hidden) */
 }
 
-/* 헤더 h1 옆에 작은 초록 버튼 배치 */
-.admin-title-row {
+/* 제목 가운데 + 버튼들 오른쪽 끝 배치 */
+.admin-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
+.admin-header-row h1 {
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+  margin-bottom: 0;
+}
+.admin-header-btns { display: flex; gap: 7px; flex: none; }
+
+/* 신규 프로젝트 등록 — 2행 폼 (첫 행:2칸, 둘째 행:4칸) */
+.admin-form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.admin-form-row-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+select.admin-input { appearance: none; -webkit-appearance: none; background: #fff; }
 .btn-sm {
   width: auto;
   padding: 6px 14px;
   font-size: 11px;
   margin-top: 0;
   border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 .btn-green { background: var(--green); }
 .btn-green:hover { background: var(--green-dark); }
