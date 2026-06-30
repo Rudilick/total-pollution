@@ -647,25 +647,23 @@ tr:last-child td { border-bottom: none; }
   /* height/display/overflow는 .app에서 상속 (calc(100vh-4rem), flex column, overflow:hidden) */
 }
 
-/* 제목은 좌/우 요소 폭과 무관하게 행 정중앙에 절대배치, 돌아가기 링크는 왼쪽 끝, 버튼은 오른쪽 끝 */
+/* 제목은 좌/우 요소 폭과 무관하게 행 정중앙에 절대배치, 돌아가기 링크는 왼쪽 끝, 버튼은 오른쪽 끝.
+   위아래 패딩을 똑같이 둬서(상하 대칭) 제목(top:50%)과 좌우 링크/버튼(align-items:center)이
+   같은 기준 박스 안에서 정확히 같은 높이로 가운데정렬되게 한다. */
 .admin-header-row {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 50px;
   margin-bottom: 14px;
-  padding-bottom: 56px;
+  padding: 28px 0;
   border-bottom: 0.5px solid var(--border);
 }
 .admin-header-row h1 {
   position: absolute;
   left: 50%;
-  /* top:50%는 padding-bottom까지 포함한 전체 높이 기준이라 좌우 링크(컨텐츠 박스
-     안에서만 가운데정렬됨)보다 아래로 처짐 — min-height 절반 고정값으로 동일한
-     기준선에 맞춘다 */
-  top: 25px;
+  top: 50%;
   transform: translate(-50%, -50%);
   font-size: 32px;
   font-weight: 700;
