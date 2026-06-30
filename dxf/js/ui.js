@@ -429,7 +429,7 @@ function drawThumbnail(canvas, data) {
 
   // 레이어가 아니라 도면에 실제로 쓰인 색상 그대로 그린다 (추측 색이 아님)
   for (const col of Object.keys(data.colors || {})) {
-    ctx.fillStyle   = _getDisplayColor(col) + '50';
+    ctx.fillStyle   = _getDisplayColor(col); // 미리보기 해치는 불투명(투명도 0)으로
 
     // 같은 색 조각끼리 먼저 하나로 합쳐서 그린다 — 안 그러면 같은 용도가 여러
     // 조각으로 나뉘어 그려진 도면에서 조각 경계마다 선이 보인다.

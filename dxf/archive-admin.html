@@ -10,16 +10,18 @@
   <div class="app admin-app">
     <header class="app-header">
       <!-- 제목은 버튼들과 무관하게 항상 정중앙, 돌아가기 링크는 왼쪽 끝, 버튼들은 오른쪽 끝 -->
-      <div class="admin-header-row">
-        <a class="back-link-underline" href="index.html">← 돌아가기</a>
-        <h1>🗂️ 도면 아카이브 관리자 ✏️</h1>
-        <div class="admin-header-btns">
-          <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
-            환경영향평가 목록 엑셀 업로드
-          </button>
-          <button class="run-btn btn-sm" onclick="window.open('region-password-admin.html','_blank')">
-            지역 비밀번호 관리
-          </button>
+      <div class="header-titlebar">
+        <div class="admin-header-row">
+          <a class="back-link-underline" href="index.html">← 돌아가기</a>
+          <h1>🗂️ 도면 아카이브 관리자 ✏️</h1>
+          <div class="admin-header-btns">
+            <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
+              환경영향평가 목록 엑셀 업로드
+            </button>
+            <button class="run-btn btn-sm" onclick="window.open('region-password-admin.html','_blank')">
+              지역 비밀번호 관리
+            </button>
+          </div>
         </div>
       </div>
       <div id="region-session-info" class="region-session-info" style="display:none"></div>
@@ -80,7 +82,6 @@
 
           <div class="admin-register-section">
             <div class="section-title" id="register-section-title" style="margin-bottom:5px">📌 신규 프로젝트 등록</div>
-            <div id="project-mode-banner"></div>
 
             <!-- 첫 줄: 사업명 / 위치 -->
             <div class="admin-form-row-2">
@@ -123,18 +124,24 @@
             <div class="admin-slots-scroll">
               <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
             </div>
-            <div class="legend-wrap" id="admin-legend-wrap"></div>
+
+            <!-- 범례(1) : 도면 미리보기(3) 좌우분할 — 범례는 입력칸이라 폭이 짧아도 되고, 미리보기는 넓게 -->
+            <div class="admin-legend-preview-row">
+              <div class="admin-legend-col">
+                <div class="legend-wrap" id="admin-legend-wrap"></div>
+              </div>
+              <div class="admin-preview-col">
+                <div class="section-title" style="margin-bottom:5px">🖼️ 도면 미리보기</div>
+                <div class="preview-box">
+                  <canvas id="preview-canvas"></canvas>
+                  <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
+                </div>
+                <div class="preview-meta" id="preview-meta"></div>
+              </div>
+            </div>
+
             <button class="run-btn" id="project-submit-btn" onclick="submitProjectForm()">프로젝트 등록</button>
             <div id="new-project-status"></div>
-          </div>
-
-          <div class="admin-preview-section">
-            <div class="section-title" style="margin-bottom:5px">🖼️ 도면 미리보기</div>
-            <div class="preview-box">
-              <canvas id="preview-canvas"></canvas>
-              <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
-            </div>
-            <div class="preview-meta" id="preview-meta"></div>
           </div>
 
         </div>

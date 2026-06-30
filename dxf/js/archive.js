@@ -149,10 +149,7 @@ async function loadArchiveProject(serialNo) {
     renderSlotsWrap();
     updateRunBtn();
 
-    if (statusEl) {
-      statusEl.innerHTML =
-        `<p class="archive-empty">"${project.project_name}" (${project.serial_no}) 도면 ${drawings.length}건을 불러왔습니다.</p>`;
-    }
+    if (statusEl) statusEl.innerHTML = ''; // 카드가 파란색으로 강조되는 것만으로 충분 — 별도 안내문구 불필요
   } catch (e) {
     if (statusEl) {
       statusEl.innerHTML = `<p class="archive-empty">불러오기 실패: ${e.message}</p>`;

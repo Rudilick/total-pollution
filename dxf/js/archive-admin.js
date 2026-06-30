@@ -346,6 +346,9 @@ async function _lookupAgencyForNewSerial() {
 // _loadedProjectSerial이 있으면(왼쪽에서 기존 프로젝트를 불러온 상태) "도면 저장"
 // 모드, 없으면 "프로젝트 등록"(신규) 모드로 동작한다.
 let _loadedProjectSerial = null;
+// 검색 카드 재클릭 시 초기화로 토글하기 위해, 현재 폼에 불러와진 카드의 일련번호를 추적
+// (도면 미등록 항목도 포함 — _loadedProjectSerial은 그 경우 null로 남기 때문에 별도로 둠).
+let _currentlyLoadedCardSerial = null;
 
 const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year', 'new-assessment-type'];
 
@@ -427,7 +430,7 @@ async function lookupProject(serialNoArg) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '조회 실패');
     _loadProjectIntoForm(serialNo, data.project, data.drawings);
-    if (statusEl) statusEl.innerHTML = `<p class="archive-empty">✓ "${data.project.project_name}" 불러옴 — 오른쪽에서 도면을 추가하세요.</p>`;
+    if (statusEl) statusEl.innerHTML = ''; // 카드가 파란색으로 강조되는 것만으로 충분 — 별도 안내문구 불필요
   } catch (e) {
     if (statusEl) statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
@@ -469,9 +472,6 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
 
   document.getElementById('register-section-title').textContent =
     `📌 ${project.project_name} (${project.serial_no}) — 도면 추가/정정`;
-  document.getElementById('project-mode-banner').innerHTML =
-    `기존 프로젝트를 불러왔습니다 — 새 단계 도면만 업로드해서 저장하세요. ` +
-    `<a onclick="_resetToNewProjectMode()">✕ 새 프로젝트 등록으로</a>`;
   document.getElementById('project-submit-btn').textContent = '도면 저장';
   document.getElementById('new-project-status').innerHTML = '';
 }
@@ -501,9 +501,6 @@ function _loadEiaListEntryIntoForm(p) {
 
   document.getElementById('register-section-title').textContent =
     `📌 ${p.project_name || p.serial_no} (${p.serial_no}) — 최초 도면 등록`;
-  document.getElementById('project-mode-banner').innerHTML =
-    `평가목록에서 불러온 사업입니다 — 도면을 업로드해서 등록하세요. ` +
-    `<a onclick="_resetToNewProjectMode()">✕ 새 프로젝트 등록으로</a>`;
   document.getElementById('project-submit-btn').textContent = '프로젝트 등록';
   document.getElementById('new-project-status').innerHTML = '';
 }
@@ -516,10 +513,12 @@ function _resetToNewProjectMode() {
     el.value = '';
   });
   document.getElementById('register-section-title').textContent = '📌 신규 프로젝트 등록';
-  document.getElementById('project-mode-banner').innerHTML = '';
   document.getElementById('project-submit-btn').textContent = '프로젝트 등록';
   document.getElementById('new-project-status').innerHTML = '';
   document.getElementById('lookup-serial').value = '';
+  document.querySelectorAll('#lookup-results .archive-card-selected')
+    .forEach(c => c.classList.remove('archive-card-selected'));
+  _currentlyLoadedCardSerial = null;
   _previewSlotId = null;
   clearPreview();
   initAdminSlots();
@@ -668,15 +667,22 @@ function renderLookupSearchResults(projects) {
        ${badge}`;
 
     card.onclick = () => {
+      // 이미 불러온 카드를 다시 누르면 — 신규 등록 모드로 초기화(예전엔 별도
+      // "✕ 새 프로젝트 등록으로" 링크가 있었는데, 같은 카드 재클릭으로 대체).
+      if (_currentlyLoadedCardSerial === p.serial_no) {
+        _resetToNewProjectMode();
+        return;
+      }
       document.getElementById('lookup-serial').value = p.serial_no;
       // 목록은 그대로 두고 클릭한 카드만 파란톤으로 강조 — 다른 사업과 비교해가며
       // 누르기 편하게 목록이 사라지지 않게 한다.
       resultsEl.querySelectorAll('.archive-card-selected').forEach(c => c.classList.remove('archive-card-selected'));
       card.classList.add('archive-card-selected');
+      _currentlyLoadedCardSerial = p.serial_no;
       const statusEl = document.getElementById('lookup-load-status');
+      if (statusEl) statusEl.innerHTML = '';
       if (noDrawings) {
         _loadEiaListEntryIntoForm(p);
-        if (statusEl) statusEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
       } else {
         lookupProject(p.serial_no);
       }

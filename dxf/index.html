@@ -9,10 +9,12 @@
 <body>
   <div class="app">
     <header class="app-header">
-      <div class="admin-header-row">
-        <a class="back-link" href="../index.html">← 홈으로</a>
-        <h1>📑 환경영향평가 변경협의 대상여부 검토 🔍</h1>
-        <a class="back-link" href="archive-admin.html">도면 아카이브 관리자 →</a>
+      <div class="header-titlebar">
+        <div class="admin-header-row">
+          <a class="back-link" href="../index.html">← 홈으로</a>
+          <h1>📑 환경영향평가 변경협의 대상여부 검토 🔍</h1>
+          <a class="back-link" href="archive-admin.html">도면 아카이브 관리자 →</a>
+        </div>
       </div>
     </header>
 
@@ -36,12 +38,15 @@
       <div class="main-col">
         <section class="section">
           <div class="section-title">도면 작성방법</div>
-          <ol class="section-hint authoring-guide">
-            <li>단일레이어로 작성</li>
-            <li>환경영향평가서 상 토지이용계획과 동일한 색상으로 구분하여 해치(솔리드)로 표현</li>
-            <li>해치가 서로 겹치지 않게 작성 (겹치면 분석이 차단됩니다)</li>
-            <li>dxf파일로 저장</li>
-          </ol>
+          <div class="authoring-steps">
+            <div class="authoring-step"><span class="authoring-step-num">1</span>단일레이어로 작성</div>
+            <span class="authoring-step-arrow">→</span>
+            <div class="authoring-step" title="환경영향평가서 상 토지이용계획과 동일한 색상으로 구분하여 해치(솔리드)로 표현"><span class="authoring-step-num">2</span>동일 색상 해치(솔리드)로 표현</div>
+            <span class="authoring-step-arrow">→</span>
+            <div class="authoring-step" title="해치가 서로 겹치면 분석이 차단됩니다"><span class="authoring-step-num">3</span>해치 겹침 없이 작성</div>
+            <span class="authoring-step-arrow">→</span>
+            <div class="authoring-step"><span class="authoring-step-num">4</span>dxf파일로 저장</div>
+          </div>
           <div class="slots-wrap" id="slots-wrap"></div>
           <div class="border-info" id="border-info"></div>
           <div class="legend-wrap" id="legend-wrap"></div>
