@@ -609,6 +609,41 @@ tr:last-child td { border-bottom: none; }
 .pill-type-small     { background: var(--teal-light);   color: var(--teal-dark); }
 .pill-type-pre        { background: var(--orange-light); color: var(--orange-dark); }
 
+/* ── 광역/기초자치단체 수정 모달 ── */
+.region-fix-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+.region-fix-box {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.region-fix-rows { overflow-y: auto; flex: 1 1 auto; min-height: 0; margin: 12px 0; }
+.region-fix-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.region-fix-raw { font-size: 12px; color: var(--gray-600); }
+.region-fix-row-skipped { opacity: 0.5; }
+.region-fix-row-error select { border-color: var(--red); }
+.region-fix-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 /* ── 환경영향평가 목록 업로드 ── */
 .eia-upload-grid {
   display: grid;

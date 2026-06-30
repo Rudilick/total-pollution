@@ -88,6 +88,138 @@ function parseEiaWorkbook(arrayBuffer) {
   });
 }
 
+// ── 광역/기초자치단체 표준화 ────────────────────────────────
+// 오타/줄임말/옛 행정구역명을 region-standard.js의 표준 명칭으로 맞춘다.
+// 자동(정확매칭→줄임말→퀀타이징)으로 못 푸는 (province, city) 조합이 있으면
+// 모달을 띄워 사용자가 직접 고르게 하고, 같은 조합의 모든 행에 일괄 적용한다.
+// 모달에서 취소하면 null을 반환한다.
+async function _resolveRegionNames(rows) {
+  const pairKey = r => `${r.province || ''}|${r.city || ''}`;
+  const uniquePairs = new Map(); // key -> { province, city }
+  rows.forEach(r => {
+    if (!r.province && !r.city) return; // 둘 다 없으면 그대로 둠(평가목록에 칸이 없는 옛 자료 등)
+    const key = pairKey(r);
+    if (!uniquePairs.has(key)) uniquePairs.set(key, { province: r.province, city: r.city });
+  });
+
+  const resolved = new Map(); // key -> { province, city } (표준화된 값, null이면 못 풂)
+  const unresolved = [];
+  uniquePairs.forEach((pair, key) => {
+    const province = normalizeProvince(pair.province);
+    const city = normalizeCity(pair.city, province);
+    if (province && city) {
+      resolved.set(key, { province, city });
+    } else {
+      unresolved.push({ key, raw: pair, province, city });
+    }
+  });
+
+  if (unresolved.length) {
+    const fixes = await _showRegionFixModal(unresolved);
+    if (fixes === null) return null; // 사용자가 취소
+    fixes.forEach((fix, key) => resolved.set(key, fix));
+  }
+
+  return rows.map(r => {
+    if (!r.province && !r.city) return r;
+    const fixed = resolved.get(pairKey(r));
+    if (!fixed) return r; // 건너뛰기 선택된 조합 — 원래 값 그대로 둠
+    return { ...r, province: fixed.province, city: fixed.city };
+  });
+}
+
+/** 수정 모달 — 확인 시 Map(key -> {province, city}), 취소 시 null을 resolve한다. */
+function _showRegionFixModal(unresolved) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'region-fix-overlay';
+
+    const box = document.createElement('div');
+    box.className = 'region-fix-box';
+    box.innerHTML =
+      `<div class="section-title">⚠️ 광역/기초자치단체 확인 필요</div>
+       <p class="section-hint">아래 ${unresolved.length}개 조합은 표준 행정구역명으로 자동 변환되지 않았습니다.
+       올바른 광역/기초자치단체를 선택하거나, 모르면 "건너뛰기"를 누르세요(그 행은 지역 정보 없이 업로드됩니다).</p>
+       <div class="region-fix-rows"></div>
+       <div class="region-fix-actions">
+         <button type="button" class="run-btn btn-sm" id="region-fix-cancel">취소(업로드 안 함)</button>
+         <button type="button" class="run-btn btn-sm" id="region-fix-confirm">확인하고 계속</button>
+       </div>`;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const rowsEl = box.querySelector('.region-fix-rows');
+    const rowStates = unresolved.map(u => ({ ...u, skip: false }));
+
+    rowStates.forEach((u, idx) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'region-fix-row';
+
+      const label = document.createElement('div');
+      label.className = 'region-fix-raw';
+      label.textContent = `"${u.raw.province || '(없음)'}" / "${u.raw.city || '(없음)'}"`;
+      rowEl.appendChild(label);
+
+      const provinceSel = document.createElement('select');
+      provinceSel.className = 'admin-input';
+      provinceSel.innerHTML = '<option value="">광역자치단체 선택</option>' +
+        STANDARD_PROVINCES.map(p => `<option value="${p}"${p === u.province ? ' selected' : ''}>${p}</option>`).join('');
+      rowEl.appendChild(provinceSel);
+
+      const citySel = document.createElement('select');
+      citySel.className = 'admin-input';
+      function _fillCityOptions(province) {
+        const cities = STANDARD_CITIES_BY_PROVINCE[province] || [];
+        citySel.innerHTML = '<option value="">기초자치단체 선택</option>' +
+          cities.map(c => `<option value="${c}"${c === u.city ? ' selected' : ''}>${c}</option>`).join('');
+        citySel.disabled = !province;
+      }
+      _fillCityOptions(provinceSel.value);
+      provinceSel.onchange = () => _fillCityOptions(provinceSel.value);
+      rowEl.appendChild(citySel);
+
+      const skipBtn = document.createElement('button');
+      skipBtn.type = 'button';
+      skipBtn.className = 'run-btn btn-sm';
+      skipBtn.textContent = '건너뛰기';
+      skipBtn.onclick = () => {
+        rowStates[idx].skip = !rowStates[idx].skip;
+        rowEl.classList.toggle('region-fix-row-skipped', rowStates[idx].skip);
+        provinceSel.disabled = rowStates[idx].skip;
+        citySel.disabled = rowStates[idx].skip || !provinceSel.value;
+      };
+      rowEl.appendChild(skipBtn);
+
+      rowEl._getValue = () => ({
+        skip: rowStates[idx].skip,
+        province: provinceSel.value,
+        city: citySel.value,
+      });
+      rowsEl.appendChild(rowEl);
+      rowEl._provinceSel = provinceSel;
+      rowEl._citySel = citySel;
+    });
+
+    function _cleanup() { overlay.remove(); }
+
+    box.querySelector('#region-fix-cancel').onclick = () => { _cleanup(); resolve(null); };
+    box.querySelector('#region-fix-confirm').onclick = () => {
+      const fixes = new Map();
+      const rowEls = [...rowsEl.children];
+      let allOk = true;
+      rowEls.forEach((rowEl, idx) => {
+        const v = rowEl._getValue();
+        if (v.skip) return;
+        if (!v.province || !v.city) { allOk = false; rowEl.classList.add('region-fix-row-error'); return; }
+        fixes.set(unresolved[idx].key, { province: v.province, city: v.city });
+      });
+      if (!allOk) return; // 미선택 항목이 있으면 막고 빨간 테두리로 표시
+      _cleanup();
+      resolve(fixes);
+    };
+  });
+}
+
 async function _eiaHandleUpload(blockEl) {
   const fileInput = blockEl.querySelector('.eia-file-input');
   const statusEl  = blockEl.querySelector('.eia-upload-status');
@@ -106,7 +238,10 @@ async function _eiaHandleUpload(blockEl) {
 
   try {
     const buf = await file.arrayBuffer();
-    const rows = parseEiaWorkbook(buf);
+    let rows = parseEiaWorkbook(buf);
+
+    rows = await _resolveRegionNames(rows);
+    if (!rows) { statusEl.innerHTML = ''; return; } // 모달에서 취소함
 
     // 행마다 평가종류(구분/환경영향평가종류 칸)를 보고 서버가 알아서 분류하므로,
     // 양이 많을 때 한 번에 다 보내지 않고 나눠서 보낸다.
