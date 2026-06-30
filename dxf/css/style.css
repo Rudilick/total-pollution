@@ -562,37 +562,59 @@ tr:last-child td { border-bottom: none; }
   .total-grid { grid-template-columns: 1fr 1fr; }
 }
 
-/* ── 관리자 2단 레이아웃 (입력 / 미리보기) ── */
-/* .app의 "패널 높이 고정 + 내부 스크롤" 레이아웃(토지이용계획 분석기 전용)은 이 관리자
-   페이지엔 안 맞아서(내부 스크롤 체인이 없어 overflow:hidden에 내용이 그냥 잘림 —
-   "스크롤이 없다"는 문제의 원인) 되돌린다: 원래대로 자연스러운 문서 흐름 + 필요하면
-   브라우저 자체 스크롤. */
+/* ── 관리자 페이지 ── */
+/* index.html과 동일한 "패널 높이 고정(calc(100vh-4rem)) + 내부 스크롤" 레이아웃 적용.
+   좌(1/3 기존 프로젝트 조회): 기존 .archive-col/.main-col 클래스를 공유해 재사용.
+   우(2/3): 신규 등록(상단) + 도면 미리보기(하단) */
 .admin-app {
   max-width: 1800px;
-  height: auto;
-  display: block;
-  overflow: visible;
+  /* height/display/overflow는 .app에서 상속 (calc(100vh-4rem), flex column, overflow:hidden) */
 }
 
-.admin-layout {
-  display: grid;
-  grid-template-columns: minmax(460px, 620px) 1fr;
-  gap: 24px;
-  align-items: start;
+/* 헤더 h1 옆에 작은 초록 버튼 배치 */
+.admin-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-.admin-main { min-width: 0; }
+.btn-sm {
+  width: auto;
+  padding: 6px 14px;
+  font-size: 11px;
+  margin-top: 0;
+  border-radius: var(--radius-md);
+}
+.btn-green { background: var(--green); }
+.btn-green:hover { background: var(--green-dark); }
 
-.admin-preview { position: sticky; top: 20px; }
+/* admin-input 추가 압축 */
+.admin-input {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.admin-form-grid { gap: 6px; margin-bottom: 8px; }
+
+/* 도면 단계 슬롯(타임라인)은 폭이 넘치면 좌우 드래그 스크롤 — .slots-wrap의 기본
+   overflow-x:auto가 이미 처리하지만 admin right-col 안에서도 보장한다 */
+.admin-slots-scroll { overflow-x: auto; margin-bottom: 8px; }
+
+/* 오른쪽 칼럼 안에서 위=신규등록, 아래=미리보기 */
+.admin-right-col { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+.admin-register-section { flex: none; }
+.admin-preview-section  { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
 .preview-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  flex: 1 1 auto;
+  min-height: 180px;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   background: #fff;
   overflow: hidden;
 }
-.preview-box canvas { width: 100%; height: 100%; display: block; }
+.preview-box canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
 .preview-empty {
   position: absolute;
   inset: 0;
@@ -605,7 +627,15 @@ tr:last-child td { border-bottom: none; }
   color: var(--gray-400);
   line-height: 1.7;
 }
-.preview-meta { font-size: 12px; color: var(--gray-600); margin-top: 10px; line-height: 1.7; word-break: break-all; }
+.preview-meta { font-size: 11px; color: var(--gray-600); flex: none; margin-top: 6px; line-height: 1.5; word-break: break-all; }
+
+/* 조회 결과(왼쪽 칼럼)의 이중 결과 div를 하나의 스크롤 영역으로 묶기 */
+.lookup-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+
+@media (max-width: 900px) {
+  .admin-right-col { gap: 8px; }
+  .admin-title-row { flex-wrap: wrap; }
+}
 
 @media (max-width: 1000px) {
   .admin-layout { grid-template-columns: 1fr; }

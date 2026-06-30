@@ -10,28 +10,17 @@
   <div class="app admin-app">
     <header class="app-header">
       <a class="back-link" href="index.html">← 도면 분석기로</a>
-      <h1>도면 아카이브 관리자</h1>
+      <div class="admin-title-row">
+        <h1>도면 아카이브 관리자</h1>
+        <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
+          환경영향평가 목록 엑셀 업로드
+        </button>
+      </div>
     </header>
 
-    <div class="admin-layout">
-      <div class="admin-main">
-        <section class="section">
-          <div class="section-title">신규 프로젝트 등록</div>
-          <div class="admin-form-grid">
-            <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
-                   oninput="onNewSerialInput()">
-            <input type="text"   id="new-name"     class="admin-input" placeholder="사업명">
-            <input type="text"   id="new-agency"   class="admin-input" placeholder="기관명 (협의기관)">
-            <input type="text"   id="new-operator" class="admin-input" placeholder="사업자명">
-            <input type="text"   id="new-location" class="admin-input" placeholder="위치">
-            <input type="number" id="new-year"     class="admin-input" placeholder="최초 환경영향평가 연도">
-            <input type="text"   id="new-notes"    class="admin-input" placeholder="비고">
-          </div>
-          <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
-          <button class="run-btn" onclick="submitNewProject()">프로젝트 등록</button>
-          <div id="new-project-status"></div>
-        </section>
-
+    <div class="layout-row">
+      <!-- 왼쪽 1/3: 기존 프로젝트 조회 -->
+      <aside class="archive-col">
         <section class="section">
           <div class="section-title">기존 프로젝트에 단계 추가 / 정정</div>
           <p class="section-hint">일련번호, 사업명, 사업자명 등으로 검색하세요.</p>
@@ -41,26 +30,47 @@
                    onkeydown="if(event.key==='Enter') onLookupSearch(true)">
             <button class="run-btn archive-search-btn" onclick="onLookupSearch(true)">조회</button>
           </div>
-          <div id="lookup-results"></div>
-          <div id="lookup-result"></div>
+          <div class="lookup-scroll">
+            <div id="lookup-results"></div>
+            <div id="lookup-result"></div>
+          </div>
         </section>
-
-        <section class="section">
-          <div class="section-title">환경영향평가 목록 업로드</div>
-          <button class="run-btn" type="button" onclick="window.open('eia-upload.html', '_blank')">
-            새 창에서 열기 →
-          </button>
-        </section>
-      </div>
-
-      <aside class="admin-preview">
-        <div class="section-title">도면 미리보기</div>
-        <div class="preview-box">
-          <canvas id="preview-canvas"></canvas>
-          <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
-        </div>
-        <div class="preview-meta" id="preview-meta"></div>
       </aside>
+
+      <!-- 오른쪽 2/3: 신규 등록(상단) + 도면 미리보기(하단) -->
+      <div class="main-col">
+        <div class="admin-right-col">
+
+          <div class="admin-register-section">
+            <div class="section-title" style="margin-bottom:6px">신규 프로젝트 등록</div>
+            <div class="admin-form-grid">
+              <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
+                     oninput="onNewSerialInput()">
+              <input type="text"   id="new-name"     class="admin-input" placeholder="사업명">
+              <input type="text"   id="new-agency"   class="admin-input" placeholder="기관명 (협의기관)">
+              <input type="text"   id="new-operator" class="admin-input" placeholder="사업자명">
+              <input type="text"   id="new-location" class="admin-input" placeholder="위치">
+              <input type="number" id="new-year"     class="admin-input" placeholder="최초 환경영향평가 연도">
+              <input type="text"   id="new-notes"    class="admin-input" placeholder="비고">
+            </div>
+            <div class="admin-slots-scroll">
+              <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
+            </div>
+            <button class="run-btn" onclick="submitNewProject()">프로젝트 등록</button>
+            <div id="new-project-status"></div>
+          </div>
+
+          <div class="admin-preview-section">
+            <div class="section-title" style="margin-bottom:6px">도면 미리보기</div>
+            <div class="preview-box">
+              <canvas id="preview-canvas"></canvas>
+              <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
+            </div>
+            <div class="preview-meta" id="preview-meta"></div>
+          </div>
+
+        </div>
+      </div>
     </div>
   </div>
 
