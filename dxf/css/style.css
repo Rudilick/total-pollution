@@ -845,7 +845,11 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .preview-box {
   position: relative;
   width: 100%;
-  flex: 1 1 auto;
+  /* flex-basis가 auto면 안의 canvas(고유 크기가 width/height 속성값) 크기가 이 박스의
+     기본 크기 계산에 끼어들어서, "박스 크기를 재서 canvas에 적용 → 그 canvas 크기가
+     다시 박스 크기 계산에 반영"되는 식으로 누를 때마다 1px씩 커지는 피드백 루프가
+     생겼다. flex-basis:0으로 박스 크기를 콘텐츠와 완전히 무관하게 만들어 끊는다. */
+  flex: 1 1 0;
   min-height: 180px;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
