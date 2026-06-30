@@ -3,7 +3,10 @@ const { pool } = require('../db');
 const { requireRegionAuth } = require('../middleware/authJwt');
 
 const router = express.Router();
-router.use(requireRegionAuth);
+// router.use(requireRegionAuth)로 경로 없이 걸면, 이 라우터가 server.js에서 eiaListRoutes보다
+// 먼저 마운트되어 있어서 /api/eia-list 같은 "이 라우터엔 없는 경로"까지 가로채 401을 내버린다
+// (같은 '/api' 프리픽스 아래 여러 라우터가 줄줄이 마운트되는 구조라, 경로 없는 router.use는
+// 자기 라우트가 아닌 요청까지 먹어버림) — 그래서 각 라우트에 개별적으로 건다.
 
 // 서버가 일련번호_도면순서_업로드일자 형식으로 파일명을 직접 지어준다(원본 업로드 파일명은
 // 확장자만 가져다 쓰고 버린다) — 사용자별로 제각각인 원본 파일명 대신, 어떤 사업의 몇 번째
@@ -26,7 +29,7 @@ function _buildDrawingFileName(serialNo, stageIndex, originalFileName) {
 //         assessment_type, drawings: [{ stage_label, file_name, dxf_content }, ...] }  (index 0 = 최초도면)
 // province/city는 body로 안 받고 로그인된 지역(req.region) 값을 그대로 쓴다 — 사용자가 직접
 // 입력/조작해서 다른 지역 소속으로 등록하지 못하게.
-router.post('/projects', async (req, res, next) => {
+router.post('/projects', requireRegionAuth, async (req, res, next) => {
   const {
     serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
     assessment_type, drawings,
@@ -105,7 +108,7 @@ async function _assertOwnRegion(client, serial_no, region, res) {
 
 // POST /api/projects/:serial_no/stages
 // body: { stage_label, file_name, dxf_content }  -> stage_index = max+1
-router.post('/projects/:serial_no/stages', async (req, res, next) => {
+router.post('/projects/:serial_no/stages', requireRegionAuth, async (req, res, next) => {
   const { serial_no } = req.params;
   const { stage_label, file_name, dxf_content } = req.body || {};
 
@@ -150,7 +153,7 @@ router.post('/projects/:serial_no/stages', async (req, res, next) => {
 });
 
 // DELETE /api/projects/:serial_no/stages/:stage_index  (오류 정정용)
-router.delete('/projects/:serial_no/stages/:stage_index', async (req, res, next) => {
+router.delete('/projects/:serial_no/stages/:stage_index', requireRegionAuth, async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { serial_no, stage_index } = req.params;
@@ -175,7 +178,7 @@ router.delete('/projects/:serial_no/stages/:stage_index', async (req, res, next)
 });
 
 // PATCH /api/projects/:serial_no  (메타정보 일부 수정)
-router.patch('/projects/:serial_no', async (req, res, next) => {
+router.patch('/projects/:serial_no', requireRegionAuth, async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { serial_no } = req.params;
