@@ -609,8 +609,9 @@ tr:last-child td { border-bottom: none; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 46px;
   margin-bottom: 14px;
-  padding-bottom: 10px;
+  padding-bottom: 18px;
   border-bottom: 0.5px solid var(--border);
 }
 .admin-header-row h1 {
