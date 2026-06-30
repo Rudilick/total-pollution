@@ -88,16 +88,6 @@ async function _eiaHandleUpload(blockEl) {
     const buf = await file.arrayBuffer();
     const rows = parseEiaWorkbook(buf);
 
-    if (rows.length === 0) {
-      const proceed = confirm(
-        `"${assessmentType}" 유형에 0건이 업로드됩니다. 기존 데이터가 모두 삭제됩니다. 계속하시겠습니까?`
-      );
-      if (!proceed) {
-        statusEl.innerHTML = '<p class="archive-empty">취소되었습니다.</p>';
-        return;
-      }
-    }
-
     statusEl.innerHTML = '<p class="archive-empty">업로드 중...</p>';
 
     const res = await _adminFetch('/eia-list', {
@@ -107,10 +97,12 @@ async function _eiaHandleUpload(blockEl) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '업로드 실패');
 
-    statusEl.innerHTML =
-      `<p class="status-ok">${data.inserted}건 등록됨` +
-      (data.skipped ? ` (사업코드 없음 ${data.skipped}건 스킵)` : '') +
-      `</p>`;
+    // 누적 방식 — 이미 있는 행(일련번호+기관명+평가종류 일치)은 건드리지 않고 건너뛰고,
+    // 새 행만 추가한다.
+    const parts = [`${data.inserted}건 새로 추가됨`];
+    if (data.skipped_duplicate) parts.push(`중복 ${data.skipped_duplicate}건 건너뜀`);
+    if (data.skipped_invalid)   parts.push(`사업코드 없음 ${data.skipped_invalid}건 스킵`);
+    statusEl.innerHTML = `<p class="status-ok">${parts.join(' · ')}</p>`;
     fileInput.value = '';
   } catch (e) {
     statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;

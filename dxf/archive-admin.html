@@ -53,8 +53,8 @@
               <input type="text" id="new-location" class="admin-input" placeholder="위치">
             </div>
 
-            <!-- 둘째 줄: 일련번호 / 협의년도 / 사업자명 / 협의기관(드롭다운) -->
-            <div class="admin-form-row-4">
+            <!-- 둘째 줄: 일련번호 / 협의년도 / 사업자명 / 협의기관(드롭다운) / 평가종류(드롭다운) -->
+            <div class="admin-form-row-5">
               <input type="text"   id="new-serial"   class="admin-input" placeholder="일련번호 (예: HG20261345)"
                      oninput="onNewSerialInput()">
               <input type="number" id="new-year"     class="admin-input" placeholder="협의년도">
@@ -75,6 +75,13 @@
                 <option>전남광주통합특별자치청</option>
                 <option>수도권대기환경청</option>
                 <option>새만금개발청</option>
+              </select>
+              <select id="new-assessment-type" class="admin-input">
+                <option value="">평가종류 선택</option>
+                <option>전략환경영향평가</option>
+                <option>환경영향평가</option>
+                <option>소규모환경영향평가</option>
+                <option>사전환경성검토</option>
               </select>
             </div>
 

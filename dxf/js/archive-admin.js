@@ -264,7 +264,7 @@ async function _lookupAgencyForNewSerial() {
 // 모드, 없으면 "프로젝트 등록"(신규) 모드로 동작한다.
 let _loadedProjectSerial = null;
 
-const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year'];
+const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year', 'new-assessment-type'];
 
 function submitProjectForm() {
   return _loadedProjectSerial ? _saveNewStagesToExistingProject() : _submitBrandNewProject();
@@ -274,12 +274,13 @@ async function _submitBrandNewProject() {
   const statusEl = document.getElementById('new-project-status');
   statusEl.innerHTML = '';
 
-  const serial_no     = document.getElementById('new-serial').value.trim();
-  const project_name  = document.getElementById('new-name').value.trim();
-  const agency_name   = document.getElementById('new-agency').value.trim();
-  const operator_name = document.getElementById('new-operator').value.trim();
-  const location      = document.getElementById('new-location').value.trim();
-  const yearVal       = document.getElementById('new-year').value.trim();
+  const serial_no        = document.getElementById('new-serial').value.trim();
+  const project_name     = document.getElementById('new-name').value.trim();
+  const agency_name      = document.getElementById('new-agency').value.trim();
+  const operator_name    = document.getElementById('new-operator').value.trim();
+  const location         = document.getElementById('new-location').value.trim();
+  const yearVal          = document.getElementById('new-year').value.trim();
+  const assessment_type  = document.getElementById('new-assessment-type').value.trim();
 
   if (!serial_no || !project_name) {
     statusEl.innerHTML = '<p class="status-err">일련번호와 사업명은 필수입니다.</p>';
@@ -302,6 +303,7 @@ async function _submitBrandNewProject() {
     operator_name: operator_name || null,
     location: location || null,
     first_eia_year: yearVal ? Number(yearVal) : null,
+    assessment_type: assessment_type || null,
     drawings,
   };
 
@@ -352,12 +354,13 @@ async function lookupProject(serialNoArg) {
 function _loadProjectIntoForm(serialNo, project, drawings) {
   _loadedProjectSerial = serialNo;
 
-  document.getElementById('new-serial').value   = project.serial_no;
-  document.getElementById('new-name').value     = project.project_name || '';
-  document.getElementById('new-agency').value   = project.agency_name || '';
-  document.getElementById('new-operator').value = project.operator_name || '';
-  document.getElementById('new-location').value = project.location || '';
-  document.getElementById('new-year').value     = project.first_eia_year || '';
+  document.getElementById('new-serial').value             = project.serial_no;
+  document.getElementById('new-name').value                = project.project_name || '';
+  document.getElementById('new-agency').value               = project.agency_name || '';
+  document.getElementById('new-operator').value             = project.operator_name || '';
+  document.getElementById('new-location').value             = project.location || '';
+  document.getElementById('new-year').value                 = project.first_eia_year || '';
+  document.getElementById('new-assessment-type').value      = project.assessment_type || '';
   _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
 
   adminSlots = drawings.map(d => {

@@ -41,7 +41,20 @@ router.get('/projects', async (req, res, next) => {
                   FALSE                AS has_drawings,
                   MAX(e.uploaded_at)   AS sort_key
              FROM eia_list e
-            WHERE NOT EXISTS (SELECT 1 FROM projects p WHERE p.serial_no = e.serial_no)
+            -- 일련번호+기관명(정규화)+평가종류 3종이 모두 일치하는 등록된 사업이 있으면 제외.
+            -- 기관명/평가종류가 비어있는(예전에 등록된) 사업은 일련번호만으로 매칭해서
+            -- 새 컬럼이 없는 과거 데이터에서 같은 사업이 중복으로 보이지 않게 한다.
+            -- (lib/agencyAlias.js와 같은 규칙 — 거기 바뀌면 여기도 같이 바꿔야 함)
+            WHERE NOT EXISTS (
+              SELECT 1 FROM projects p
+               WHERE p.serial_no = e.serial_no
+                 AND (
+                   p.agency_name IS NULL OR e.agency_name IS NULL OR
+                   (CASE WHEN p.agency_name = '환경부' THEN '기후에너지환경부' ELSE p.agency_name END) =
+                   (CASE WHEN e.agency_name = '환경부' THEN '기후에너지환경부' ELSE e.agency_name END)
+                 )
+                 AND (p.assessment_type IS NULL OR p.assessment_type = e.assessment_type)
+            )
               AND (
                 e.serial_no ILIKE $1 || '%'
                 OR e.project_name ILIKE '%' || $1 || '%'
@@ -68,7 +81,7 @@ router.get('/projects/:serial_no', async (req, res, next) => {
 
     const projResult = await pool.query(
       `SELECT serial_no, project_name, operator_name, location, first_eia_year, notes,
-              created_at, updated_at
+              agency_name, assessment_type, created_at, updated_at
          FROM projects WHERE serial_no = $1`,
       [serial_no]
     );
