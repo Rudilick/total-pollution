@@ -48,6 +48,8 @@ async function _fetchArchivePage(q, page) {
   _archiveCurrentQuery = q;
   _archiveCurrentPage = page;
   resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 중...' : '불러오는 중...'}</p>`;
+  const statusEl = document.getElementById('archive-load-status');
+  if (statusEl) statusEl.innerHTML = '';
 
   try {
     const url = `${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}&page=${page}`;
@@ -120,10 +122,11 @@ function renderArchiveResults(projects) {
         card.classList.add('archive-card-pressed');
         setTimeout(() => card.classList.remove('archive-card-pressed'), 150);
       } else {
-        // 목록을 바로 불러오는 중... 문구로 덮어버리면 파란 눌림 표시가 화면에
-        // 그려질 틈도 없이 사라지므로, 한 프레임 보이게 짧게 지연 후 진행한다.
+        // 목록은 그대로 두고 클릭한 카드만 파란톤으로 강조 — 다른 카드를 또 비교해
+        // 누르기 편하게 목록이 사라지지 않게 한다.
+        resultsEl.querySelectorAll('.archive-card-selected').forEach(c => c.classList.remove('archive-card-selected'));
         card.classList.add('archive-card-selected');
-        setTimeout(() => loadArchiveProject(p.serial_no), 80);
+        loadArchiveProject(p.serial_no);
       }
     };
     resultsEl.appendChild(card);
@@ -135,8 +138,8 @@ function _archiveStageLabel(index) {
 }
 
 async function loadArchiveProject(serialNo) {
-  const resultsEl = document.getElementById('archive-results');
-  if (resultsEl) resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
+  const statusEl = document.getElementById('archive-load-status');
+  if (statusEl) statusEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
     const res = await fetch(`${ARCHIVE_API_BASE}/projects/${encodeURIComponent(serialNo)}`);
@@ -164,13 +167,13 @@ async function loadArchiveProject(serialNo) {
     renderSlotsWrap();
     updateRunBtn();
 
-    if (resultsEl) {
-      resultsEl.innerHTML =
+    if (statusEl) {
+      statusEl.innerHTML =
         `<p class="archive-empty">"${project.project_name}" (${project.serial_no}) 도면 ${drawings.length}건을 불러왔습니다.</p>`;
     }
   } catch (e) {
-    if (resultsEl) {
-      resultsEl.innerHTML = `<p class="archive-empty">불러오기 실패: ${e.message}</p>`;
+    if (statusEl) {
+      statusEl.innerHTML = `<p class="archive-empty">불러오기 실패: ${e.message}</p>`;
     }
   }
 }

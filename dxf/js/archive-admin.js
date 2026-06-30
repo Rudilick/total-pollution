@@ -336,17 +336,17 @@ async function lookupProject(serialNoArg) {
     ? serialNoArg
     : document.getElementById('lookup-serial').value.trim();
   if (!serialNo) return;
-  const resultsEl = document.getElementById('lookup-results');
-  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
+  const statusEl = document.getElementById('lookup-load-status');
+  if (statusEl) statusEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
     const res = await _regionFetch(`/projects/${encodeURIComponent(serialNo)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '조회 실패');
     _loadProjectIntoForm(serialNo, data.project, data.drawings);
-    resultsEl.innerHTML = `<p class="archive-empty">✓ "${data.project.project_name}" 불러옴 — 오른쪽에서 도면을 추가하세요.</p>`;
+    if (statusEl) statusEl.innerHTML = `<p class="archive-empty">✓ "${data.project.project_name}" 불러옴 — 오른쪽에서 도면을 추가하세요.</p>`;
   } catch (e) {
-    resultsEl.innerHTML = `<p class="status-err">${e.message}</p>`;
+    if (statusEl) statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
 }
 
@@ -489,6 +489,8 @@ async function _fetchLookupPage(q, page, forceLookup) {
   _lookupCurrentQuery = q;
   _lookupCurrentPage = page;
   resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 중...' : '불러오는 중...'}</p>`;
+  const loadStatusEl = document.getElementById('lookup-load-status');
+  if (loadStatusEl) loadStatusEl.innerHTML = '';
 
   try {
     const res = await _regionFetch(`/projects?q=${encodeURIComponent(q)}&page=${page}`);
@@ -564,18 +566,17 @@ function renderLookupSearchResults(projects) {
 
     card.onclick = () => {
       document.getElementById('lookup-serial').value = p.serial_no;
-      // 목록을 바로 지워버리면 파란 눌림 표시가 화면에 그려질 틈도 없이 사라지므로,
-      // 한 프레임 보이게 짧게 지연 후 진행한다.
+      // 목록은 그대로 두고 클릭한 카드만 파란톤으로 강조 — 다른 사업과 비교해가며
+      // 누르기 편하게 목록이 사라지지 않게 한다.
+      resultsEl.querySelectorAll('.archive-card-selected').forEach(c => c.classList.remove('archive-card-selected'));
       card.classList.add('archive-card-selected');
-      setTimeout(() => {
-        resultsEl.innerHTML = '';
-        if (noDrawings) {
-          _loadEiaListEntryIntoForm(p);
-          resultsEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
-        } else {
-          lookupProject(p.serial_no);
-        }
-      }, 80);
+      const statusEl = document.getElementById('lookup-load-status');
+      if (noDrawings) {
+        _loadEiaListEntryIntoForm(p);
+        if (statusEl) statusEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
+      } else {
+        lookupProject(p.serial_no);
+      }
     };
     resultsEl.appendChild(card);
   });
