@@ -25,7 +25,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
                   p.agency_name, p.assessment_type,
                   COUNT(d.id)::int AS stage_count,
                   TRUE AS has_drawings,
-                  COALESCE(NULLIF(regexp_replace(p.serial_no, '\D', '', 'g'), '')::numeric, -1) AS sort_key
+                  LPAD(regexp_replace(COALESCE(p.serial_no, ''), '[^0-9]', '', 'g'), 25, '0') AS sort_key
              FROM projects p
              LEFT JOIN drawings d ON d.serial_no = p.serial_no
             WHERE ($2::text IS NULL OR (p.province = $2 AND p.city = $3))
@@ -48,7 +48,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
                   MAX(e.assessment_type) AS assessment_type,
                   0                    AS stage_count,
                   FALSE                AS has_drawings,
-                  COALESCE(NULLIF(regexp_replace(e.serial_no, '\D', '', 'g'), '')::numeric, -1) AS sort_key
+                  LPAD(regexp_replace(COALESCE(e.serial_no, ''), '[^0-9]', '', 'g'), 25, '0') AS sort_key
              FROM eia_list e
             -- 일련번호+기관명(정규화)+평가종류 3종이 모두 일치하는 등록된 사업이 있으면 제외.
             -- 기관명/평가종류가 비어있는(예전에 등록된) 사업은 일련번호만으로 매칭해서
