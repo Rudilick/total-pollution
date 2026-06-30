@@ -89,7 +89,6 @@ function parseEiaWorkbook(arrayBuffer) {
 }
 
 async function _eiaHandleUpload(blockEl) {
-  const assessmentType = blockEl.dataset.type;
   const fileInput = blockEl.querySelector('.eia-file-input');
   const statusEl  = blockEl.querySelector('.eia-upload-status');
   const file = fileInput.files[0];
@@ -109,20 +108,38 @@ async function _eiaHandleUpload(blockEl) {
     const buf = await file.arrayBuffer();
     const rows = parseEiaWorkbook(buf);
 
-    statusEl.innerHTML = '<p class="archive-empty">업로드 중...</p>';
-
-    const res = await _adminFetch('/eia-list', {
-      method: 'POST',
-      body: JSON.stringify({ assessment_type: assessmentType, rows }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '업로드 실패');
+    // 행마다 평가종류(구분/환경영향평가종류 칸)를 보고 서버가 알아서 분류하므로,
+    // 양이 많을 때 한 번에 다 보내지 않고 나눠서 보낸다.
+    const CHUNK_SIZE = 1500;
+    const inserted_by_type = {};
+    let skipped_duplicate = 0, skipped_invalid = 0, regions_registered = 0;
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + CHUNK_SIZE);
+      statusEl.innerHTML = `<p class="archive-empty">업로드 중... (${Math.min(i + CHUNK_SIZE, rows.length)}/${rows.length})</p>`;
+      const res = await _adminFetch('/eia-list', {
+        method: 'POST',
+        body: JSON.stringify({ rows: chunk }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '업로드 실패');
+      for (const [type, n] of Object.entries(data.inserted_by_type || {})) {
+        inserted_by_type[type] = (inserted_by_type[type] || 0) + n;
+      }
+      skipped_duplicate += data.skipped_duplicate || 0;
+      skipped_invalid += data.skipped_invalid || 0;
+      regions_registered += data.regions_registered || 0;
+    }
 
     // 누적 방식 — 이미 있는 행(일련번호+기관명+평가종류 일치)은 건드리지 않고 건너뛰고,
     // 새 행만 추가한다.
-    const parts = [`${data.inserted}건 새로 추가됨`];
-    if (data.skipped_duplicate) parts.push(`중복 ${data.skipped_duplicate}건 건너뜀`);
-    if (data.skipped_invalid)   parts.push(`사업코드 없음 ${data.skipped_invalid}건 스킵`);
+    const parts = [];
+    for (const [type, n] of Object.entries(inserted_by_type)) {
+      if (n > 0) parts.push(`${type} ${n}건`);
+    }
+    if (!parts.length) parts.push('새로 추가된 건 없음');
+    if (skipped_duplicate) parts.push(`중복 ${skipped_duplicate}건 건너뜀`);
+    if (skipped_invalid)   parts.push(`종류 인식 불가/사업코드 없음 ${skipped_invalid}건 스킵`);
+    if (regions_registered) parts.push(`신규 지역 ${regions_registered}건 등록`);
     statusEl.innerHTML = `<p class="status-ok">${parts.join(' · ')}</p>`;
     fileInput.value = '';
   } catch (e) {
