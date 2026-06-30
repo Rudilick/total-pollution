@@ -25,10 +25,11 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
     // capped: 정렬 후 최대 PROJECTS_MAX_TOTAL건만 모아두고, 그 안에서 페이지(LIMIT/OFFSET)로 나눈다.
     const result = await pool.query(
       `WITH capped AS (
-         SELECT serial_no, project_name, operator_name, location, first_eia_year, agency_name,
+         SELECT serial_no, project_name, operator_name, location, first_eia_year, site_area, agency_name,
                 assessment_type, stage_count, has_drawings, sort_key
            FROM (
              SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
+                    (SELECT MAX(e2.site_area) FROM eia_list e2 WHERE e2.serial_no = p.serial_no) AS site_area,
                     p.agency_name, p.assessment_type,
                     COUNT(d.id)::int AS stage_count,
                     TRUE AS has_drawings,
@@ -51,6 +52,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
                     MAX(e.operator_name) AS operator_name,
                     MAX(e.location)      AS location,
                     EXTRACT(YEAR FROM MAX(e.reply_date))::int AS first_eia_year,
+                    MAX(e.site_area)     AS site_area,
                     MAX(e.agency_name)   AS agency_name,
                     MAX(e.assessment_type) AS assessment_type,
                     0                    AS stage_count,
@@ -83,7 +85,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
           ORDER BY has_drawings DESC, sort_key DESC
           LIMIT ${PROJECTS_MAX_TOTAL}
        )
-       SELECT serial_no, project_name, operator_name, location, first_eia_year, agency_name,
+       SELECT serial_no, project_name, operator_name, location, first_eia_year, site_area, agency_name,
               assessment_type, stage_count, has_drawings, COUNT(*) OVER()::int AS total_count
          FROM capped
         ORDER BY has_drawings DESC, sort_key DESC

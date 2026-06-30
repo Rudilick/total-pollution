@@ -30,6 +30,8 @@ let   _fallbackIdx = 0;
 // 흰색으로 입력된 용도는 배경(흰색 계열)과 안 구분돼서 안 보이는 것처럼 보인다.
 // 데이터(colorKey)는 그대로 두고, 화면에 그릴 때만 대비되는 임의 색으로 바꿔서 보여준다.
 const _displayColorOverrides = {};
+const _WHITE_PRIMARY  = '#FF69B4'; // 핫핑크 — 토지이용계획도에서 거의 미사용
+const _WHITE_FALLBACK = '#9370DB'; // 미디엄 퍼플 — 핑크가 실제 DXF 색상으로 충돌 시
 function _isLowContrast(hex) {
   const h = String(hex || '').replace('#', '');
   if (h.length !== 6) return false;
@@ -51,13 +53,19 @@ function _getDisplayColor(hex) {
     ...(typeof globalLegend !== 'undefined' ? globalLegend.map(r => r.colorKey?.toLowerCase()) : []),
     ...Object.values(_displayColorOverrides).map(c => c.toLowerCase()),
   ]);
-  let candidate;
-  for (let tries = 0; tries < 30; tries++) {
-    candidate = _hslToHex(Math.floor(Math.random() * 360), 65 + Math.random() * 20, 45 + Math.random() * 15);
-    if (!taken.has(candidate.toLowerCase())) break;
+  let chosen;
+  if (!taken.has(_WHITE_PRIMARY.toLowerCase())) {
+    chosen = _WHITE_PRIMARY;
+  } else if (!taken.has(_WHITE_FALLBACK.toLowerCase())) {
+    chosen = _WHITE_FALLBACK;
+  } else {
+    for (let tries = 0; tries < 30; tries++) {
+      const c = _hslToHex(Math.floor(Math.random() * 360), 65 + Math.random() * 20, 45 + Math.random() * 15);
+      if (!taken.has(c.toLowerCase())) { chosen = c; break; }
+    }
   }
-  _displayColorOverrides[hex] = candidate;
-  return candidate;
+  _displayColorOverrides[hex] = chosen;
+  return chosen;
 }
 
 function layerColor(name) {

@@ -8,6 +8,7 @@
 let _archiveSearchSeq = 0;
 let _archiveCurrentQuery = '';
 let _archiveCurrentPage = 1;
+let _selectedProject = null; // 현재 선택(핀 고정)된 프로젝트 객체
 
 async function loadDefaultArchiveList() {
   await _fetchArchivePage('', 1);
@@ -66,50 +67,105 @@ function renderArchivePagination(total, page, pageSize) {
   });
 }
 
+function _makeArchiveCard(p, resultsEl) {
+  const card = document.createElement('div');
+  card.className = 'archive-card' + (p.has_drawings === false ? ' archive-card-nodrawing' : '');
+
+  const badge = p.has_drawings === false
+    ? '<div class="drawing-circle drawing-circle-none">도면<br>미등록</div>'
+    : '<div class="drawing-circle drawing-circle-ok">도면<br>등록</div>';
+
+  const siteAreaHtml = p.site_area
+    ? Number(p.site_area).toLocaleString('ko-KR', { maximumFractionDigits: 0 })
+    : '–';
+
+  card.innerHTML =
+    `<div class="archive-card-main">
+       <div class="archive-card-row1">
+         <div class="archive-field">
+           <div class="archive-field-label">사업명</div>
+           <div class="archive-field-value">${p.project_name || '–'}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">소재지</div>
+           <div class="archive-field-value">${p.location || '–'}</div>
+         </div>
+       </div>
+       <div class="archive-card-row2">
+         <div class="archive-field">
+           <div class="archive-field-label">사업코드</div>
+           <div class="archive-field-value">${p.serial_no || '–'}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">협의년도</div>
+           <div class="archive-field-value">${p.first_eia_year || '–'}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">규모(㎡)</div>
+           <div class="archive-field-value">${siteAreaHtml}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">사업자</div>
+           <div class="archive-field-value">${p.operator_name || '–'}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">협의기관</div>
+           <div class="archive-field-value">${p.agency_name || '–'}</div>
+         </div>
+         <div class="archive-field">
+           <div class="archive-field-label">${_assessmentTypeMarkerHtml(p.assessment_type)}평가종류</div>
+           <div class="archive-field-value">${p.assessment_type || '–'}</div>
+         </div>
+       </div>
+     </div>
+     ${badge}`;
+
+  card.onclick = () => {
+    if (p.has_drawings === false) {
+      card.classList.add('archive-card-pressed');
+      setTimeout(() => card.classList.remove('archive-card-pressed'), 150);
+    } else if (_selectedProject?.serial_no === p.serial_no) {
+      // 이미 선택된 카드 재클릭 → 선택 해제 + 슬롯 초기화
+      _selectedProject = null;
+      initSlots();
+      _refreshGlobalLegend();
+      updateRunBtn();
+      renderArchiveResults(_lastRenderProjects || []);
+    } else {
+      _selectedProject = p;
+      loadArchiveProject(p.serial_no);
+      renderArchiveResults(_lastRenderProjects || []);
+    }
+  };
+
+  return card;
+}
+
+let _lastRenderProjects = [];
+
 function renderArchiveResults(projects) {
+  _lastRenderProjects = projects;
   const resultsEl = document.getElementById('archive-results');
   if (!resultsEl) return;
   resultsEl.innerHTML = '';
 
-  if (!projects.length) {
+  const hasResults = projects.length > 0 || _selectedProject != null;
+  if (!hasResults) {
     resultsEl.innerHTML = '<p class="archive-empty">검색 결과가 없습니다.</p>';
     return;
   }
 
-  projects.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'archive-card' + (p.has_drawings === false ? ' archive-card-nodrawing' : '');
+  // 선택 카드가 있으면 최상단 핀 고정
+  if (_selectedProject) {
+    const pinCard = _makeArchiveCard(_selectedProject, resultsEl);
+    pinCard.classList.add('archive-card-selected');
+    resultsEl.appendChild(pinCard);
+  }
 
-    const boldParts = [p.serial_no, p.operator_name].filter(Boolean).join(' ');
-    const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
-    const badge = p.has_drawings === false
-      ? '<div class="drawing-circle drawing-circle-none">도면<br>미등록</div>'
-      : '<div class="drawing-circle drawing-circle-ok">도면<br>등록</div>';
-
-    card.innerHTML =
-      `<div class="archive-card-main">
-         <div class="archive-card-title">${_assessmentTypeMarkerHtml(p.assessment_type)}${boldParts}${agencyHtml}</div>
-         <div class="archive-card-project-name">${p.project_name || '(사업명 미확인)'}</div>
-         <div class="archive-card-meta">${p.location || '&nbsp;'}</div>
-       </div>
-       ${badge}`;
-
-    card.onclick = () => {
-      if (p.has_drawings === false) {
-        // 도면 미등록 사업은 이동할 곳이 없다 — 눌렀다는 시각 피드백만 잠깐 주고 끝낸다
-        // ("도면 미등록" 배지로 이미 안내가 되어 있어 별도 메시지는 불필요).
-        card.classList.add('archive-card-pressed');
-        setTimeout(() => card.classList.remove('archive-card-pressed'), 150);
-      } else {
-        // 목록은 그대로 두고 클릭한 카드만 파란톤으로 강조 — 다른 카드를 또 비교해
-        // 누르기 편하게 목록이 사라지지 않게 한다.
-        resultsEl.querySelectorAll('.archive-card-selected').forEach(c => c.classList.remove('archive-card-selected'));
-        card.classList.add('archive-card-selected');
-        loadArchiveProject(p.serial_no);
-      }
-    };
-    resultsEl.appendChild(card);
-  });
+  // 검색 결과 (선택 카드는 제외해 중복 방지)
+  projects
+    .filter(p => p.serial_no !== _selectedProject?.serial_no)
+    .forEach(p => resultsEl.appendChild(_makeArchiveCard(p, resultsEl)));
 }
 
 function _archiveStageLabel(index) {
