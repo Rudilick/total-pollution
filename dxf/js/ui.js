@@ -203,7 +203,7 @@ function _renderLegendWrap() {
 
   const title = document.createElement('div');
   title.className = 'legend-slot-title';
-  title.textContent = '색상별 용도 입력 (모든 도면 공통)';
+  title.textContent = '범례(색상)별 용도 입력 (동 사업 내 모든 도면 공통)';
   box.appendChild(title);
 
   if (!globalLegend.length) {
@@ -212,6 +212,10 @@ function _renderLegendWrap() {
     p.textContent = '도면에서 해치(칠한 도형)를 찾지 못했습니다.';
     box.appendChild(p);
   }
+
+  const rowsWrap = document.createElement('div');
+  rowsWrap.className = 'legend-rows-h';
+  box.appendChild(rowsWrap);
 
   globalLegend.forEach(row => {
     const rowEl = document.createElement('div');
@@ -224,7 +228,7 @@ function _renderLegendWrap() {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = '용도명 입력 (예: 주거용지)';
+    input.placeholder = '용도명 입력';
     input.value = row.label;
     input.oninput = (e) => {
       row.label = e.target.value;
@@ -233,7 +237,7 @@ function _renderLegendWrap() {
     };
     rowEl.appendChild(input);
 
-    box.appendChild(rowEl);
+    rowsWrap.appendChild(rowEl);
   });
 
   if (!_isLegendComplete()) {
@@ -322,14 +326,6 @@ function _makeSlotEl(slot, idx, onDelete) {
   el.appendChild(input);
 
   if (slot.data) {
-    // 업로드 취소 — 슬롯(단계)은 남기고 도면만 빈 칸으로 되돌림
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'tile-replace-btn';
-    cancelBtn.textContent = '취소';
-    cancelBtn.onclick = (e) => { e.stopPropagation(); clearSlot(slot); };
-    el.appendChild(cancelBtn);
-
     // 단계 삭제 X 버튼 (slots.length > 2 일 때만, 우상단)
     if (onDelete) {
       const xBtn = document.createElement('button');
@@ -372,15 +368,6 @@ function _makeSlotEl(slot, idx, onDelete) {
 
   el.appendChild(inner);
 
-  if (slot.data && slot.file) {
-    const bottom = document.createElement('div');
-    bottom.className = 'slot-bottom';
-    const fname = document.createElement('div');
-    fname.className = 'slot-fname';
-    fname.textContent = slot.file.name;
-    bottom.appendChild(fname);
-    el.appendChild(bottom);
-  }
 
   el.onclick = () => input.click();
 

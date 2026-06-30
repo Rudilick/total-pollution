@@ -303,6 +303,10 @@ body {
   flex: 1; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border-md); border-radius: 6px;
 }
 .legend-row input[type="text"]:disabled { background: var(--gray-50); color: var(--gray-400); }
+/* 분석기 범례: 가로 배치 */
+.legend-rows-h { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px 14px; }
+.legend-rows-h .legend-row { margin-bottom: 0; }
+.legend-rows-h .legend-row input[type="text"] { width: 90px; flex: none; }
 .legend-incomplete { color: var(--red-dark); font-size: 12px; margin-top: 4px; }
 
 /* ── 겹침 확인 필요 ── */
@@ -751,6 +755,7 @@ tr:last-child td { border-bottom: none; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 38px;
 }
 .admin-header-row h1 {
   position: absolute;
