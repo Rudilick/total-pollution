@@ -342,6 +342,34 @@ body {
   padding: 10px 2px;
 }
 
+/* ── 검색 결과 페이지네이션 ── */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  padding-top: 10px;
+  flex: none;
+}
+.pagination-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--gray-600);
+  font-size: 12px;
+  cursor: pointer;
+}
+.pagination-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); }
+.pagination-btn-active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ── 관리자 폼 ── */
 .admin-input {
   width: 100%;
@@ -609,9 +637,9 @@ tr:last-child td { border-bottom: none; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 46px;
+  min-height: 50px;
   margin-bottom: 14px;
-  padding-bottom: 18px;
+  padding-bottom: 56px;
   border-bottom: 0.5px solid var(--border);
 }
 .admin-header-row h1 {

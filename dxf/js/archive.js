@@ -24,53 +24,65 @@ function enterArchiveAdmin(e) {
   return false;
 }
 
-// ── 검색어가 없을 때(검색창이 비어있는 초기 상태) 기본으로 보여줄 목록 —
-// 정렬은 서버가 이미 "도면 있는 사업 우선 → 그 안에서 일련번호 숫자 큰(최신) 순"으로
-// 내려주므로 여기서 다시 정렬하지 않는다(중복 정렬은 기준이 어긋날 위험만 키운다).
+// ── 검색/기본목록 공용 — 정렬은 서버가 이미 "도면 있는 사업 우선 → 그 안에서
+// 일련번호 숫자 큰(최신) 순"으로 내려주므로 여기서 다시 정렬하지 않는다.
+let _archiveSearchSeq = 0;
+let _archiveCurrentQuery = '';
+let _archiveCurrentPage = 1;
+
 async function loadDefaultArchiveList() {
+  await _fetchArchivePage('', 1);
+}
+
+// ── 검색 (입력할 때마다 즉시 검색, 항상 1페이지부터) ───────────────────────────
+async function onArchiveSearch() {
+  const input = document.getElementById('archive-query');
+  if (!input) return;
+  await _fetchArchivePage(input.value.trim(), 1);
+}
+
+async function _fetchArchivePage(q, page) {
   const resultsEl = document.getElementById('archive-results');
   if (!resultsEl) return;
   const seq = ++_archiveSearchSeq;
-  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
+  _archiveCurrentQuery = q;
+  _archiveCurrentPage = page;
+  resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 중...' : '불러오는 중...'}</p>`;
+
   try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/projects`);
+    const url = `${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}&page=${page}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error('서버 응답 오류');
-    const { projects } = await res.json();
-    if (seq !== _archiveSearchSeq) return;
+    const { projects, total, pageSize } = await res.json();
+    if (seq !== _archiveSearchSeq) return; // 이후 입력/클릭으로 인한 최신 요청이 아니면 무시
     renderArchiveResults(projects);
+    renderArchivePagination(total, page, pageSize);
   } catch (e) {
     if (seq !== _archiveSearchSeq) return;
-    resultsEl.innerHTML = `<p class="archive-empty">목록을 불러오지 못했습니다: ${e.message}</p>`;
+    resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 실패' : '목록을 불러오지 못했습니다'}: ${e.message}</p>`;
   }
 }
 
-// ── 검색 (입력할 때마다 즉시 검색) ───────────────────────────
-let _archiveSearchSeq = 0;
-
-async function onArchiveSearch() {
-  const input = document.getElementById('archive-query');
-  const resultsEl = document.getElementById('archive-results');
-  if (!input || !resultsEl) return;
-
-  const q = input.value.trim();
-  const seq = ++_archiveSearchSeq;
-
-  if (!q) {
-    loadDefaultArchiveList();
-    return;
+function renderArchivePagination(total, page, pageSize) {
+  const wrapId = 'archive-pagination';
+  let wrap = document.getElementById(wrapId);
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = wrapId;
+    wrap.className = 'pagination';
+    document.getElementById('archive-results').insertAdjacentElement('afterend', wrap);
   }
-  resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  if (pageCount <= 1) { wrap.innerHTML = ''; return; }
 
-  try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/projects?q=${encodeURIComponent(q)}`);
-    if (!res.ok) throw new Error('서버 응답 오류');
-    const { projects } = await res.json();
-    if (seq !== _archiveSearchSeq) return; // 이후 입력으로 인한 최신 요청이 아니면 무시
-    renderArchiveResults(projects);
-  } catch (e) {
-    if (seq !== _archiveSearchSeq) return;
-    resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
+  let html = '';
+  for (let i = 1; i <= pageCount; i++) {
+    html += `<button class="pagination-btn${i === page ? ' pagination-btn-active' : ''}" data-page="${i}">${i}</button>`;
   }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.pagination-btn').forEach(btn => {
+    btn.onclick = () => _fetchArchivePage(_archiveCurrentQuery, Number(btn.dataset.page));
+  });
 }
 
 function renderArchiveResults(projects) {

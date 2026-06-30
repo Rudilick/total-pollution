@@ -387,6 +387,37 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
   document.getElementById('new-project-status').innerHTML = '';
 }
 
+// 검색 결과 중 "도면 미등록"(아직 projects 테이블엔 없고 평가목록에만 있는) 항목을
+// 선택했을 때: lookupProject처럼 서버에서 다시 불러올 게 없다(projects에 없으니
+// GET /projects/:serial_no가 404남) — 검색 결과에 이미 있는 정보로 바로 폼을 채우고
+// 잠그되, _loadedProjectSerial은 null로 둬서 저장 시 "신규 등록"(POST /projects)으로
+// 처리되게 한다(최초 도면 1건과 함께 projects 행이 그제서야 생성됨).
+function _loadEiaListEntryIntoForm(p) {
+  _loadedProjectSerial = null;
+
+  document.getElementById('new-serial').value             = p.serial_no;
+  document.getElementById('new-name').value                = p.project_name || '';
+  document.getElementById('new-agency').value               = p.agency_name || '';
+  document.getElementById('new-operator').value             = p.operator_name || '';
+  document.getElementById('new-location').value             = p.location || '';
+  document.getElementById('new-year').value                 = p.first_eia_year || '';
+  document.getElementById('new-assessment-type').value      = p.assessment_type || '';
+  _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
+
+  adminSlots = [_newAdminSlot(_adminStageLabel(0))];
+  _previewSlotId = null;
+  renderNewSlotsWrap();
+  clearPreview();
+
+  document.getElementById('register-section-title').textContent =
+    `📌 ${p.project_name || p.serial_no} (${p.serial_no}) — 최초 도면 등록`;
+  document.getElementById('project-mode-banner').innerHTML =
+    `평가목록에서 불러온 사업입니다 — 도면을 업로드해서 등록하세요. ` +
+    `<a onclick="_resetToNewProjectMode()">✕ 새 프로젝트 등록으로</a>`;
+  document.getElementById('project-submit-btn').textContent = '프로젝트 등록';
+  document.getElementById('new-project-status').innerHTML = '';
+}
+
 function _resetToNewProjectMode() {
   _loadedProjectSerial = null;
   _ADMIN_FORM_FIELD_IDS.forEach(id => {
@@ -437,45 +468,35 @@ async function _saveNewStagesToExistingProject() {
 
 // ── 단계 추가/정정 대상 검색 ─────────────────────────────────
 let _lookupSearchSeq = 0;
+let _lookupCurrentQuery = '';
+let _lookupCurrentPage = 1;
 
 // 검색어가 없을 때 기본 목록: 서버가 이미 "도면 있는 사업 우선 → 일련번호 숫자 큰(최신)
 // 순"으로 내려주므로 여기서 다시 정렬하지 않는다(중복 정렬은 기준이 어긋날 위험만 키운다).
 async function loadAdminDefaultList() {
-  const resultsEl = document.getElementById('lookup-results');
-  if (!resultsEl) return;
-  const seq = ++_lookupSearchSeq;
-  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
-  try {
-    const res = await _regionFetch('/projects');
-    if (!res.ok) throw new Error('서버 응답 오류');
-    const { projects } = await res.json();
-    if (seq !== _lookupSearchSeq) return;
-    renderLookupSearchResults(projects);
-  } catch (e) {
-    if (seq !== _lookupSearchSeq) return;
-    resultsEl.innerHTML = `<p class="archive-empty">목록을 불러오지 못했습니다: ${e.message}</p>`;
-  }
+  await _fetchLookupPage('', 1, false);
 }
 
 async function onLookupSearch(forceLookup) {
   const input = document.getElementById('lookup-serial');
-  const resultsEl = document.getElementById('lookup-results');
-  const q = input.value.trim();
-  const seq = ++_lookupSearchSeq;
+  await _fetchLookupPage(input.value.trim(), 1, forceLookup);
+}
 
-  if (!q) {
-    loadAdminDefaultList();
-    return;
-  }
-  resultsEl.innerHTML = '<p class="archive-empty">검색 중...</p>';
+async function _fetchLookupPage(q, page, forceLookup) {
+  const resultsEl = document.getElementById('lookup-results');
+  if (!resultsEl) return;
+  const seq = ++_lookupSearchSeq;
+  _lookupCurrentQuery = q;
+  _lookupCurrentPage = page;
+  resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 중...' : '불러오는 중...'}</p>`;
 
   try {
-    const res = await _regionFetch(`/projects?q=${encodeURIComponent(q)}`);
+    const res = await _regionFetch(`/projects?q=${encodeURIComponent(q)}&page=${page}`);
     if (!res.ok) throw new Error('서버 응답 오류');
-    const { projects } = await res.json();
+    const { projects, total, pageSize } = await res.json();
     if (seq !== _lookupSearchSeq) return;
 
-    if (forceLookup && projects.length) {
+    if (forceLookup && q && projects.length) {
       const exact = projects.find(p => p.serial_no === q && p.has_drawings);
       if (exact) {
         resultsEl.innerHTML = '';
@@ -484,10 +505,33 @@ async function onLookupSearch(forceLookup) {
       }
     }
     renderLookupSearchResults(projects);
+    renderLookupPagination(total, page, pageSize);
   } catch (e) {
     if (seq !== _lookupSearchSeq) return;
-    resultsEl.innerHTML = `<p class="archive-empty">검색 실패: ${e.message}</p>`;
+    resultsEl.innerHTML = `<p class="archive-empty">${q ? '검색 실패' : '목록을 불러오지 못했습니다'}: ${e.message}</p>`;
   }
+}
+
+function renderLookupPagination(total, page, pageSize) {
+  const wrapId = 'lookup-pagination';
+  let wrap = document.getElementById(wrapId);
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = wrapId;
+    wrap.className = 'pagination';
+    document.querySelector('.lookup-scroll').insertAdjacentElement('afterend', wrap);
+  }
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  if (pageCount <= 1) { wrap.innerHTML = ''; return; }
+
+  let html = '';
+  for (let i = 1; i <= pageCount; i++) {
+    html += `<button class="pagination-btn${i === page ? ' pagination-btn-active' : ''}" data-page="${i}">${i}</button>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.pagination-btn').forEach(btn => {
+    btn.onclick = () => _fetchLookupPage(_lookupCurrentQuery, Number(btn.dataset.page), false);
+  });
 }
 
 function renderLookupSearchResults(projects) {
@@ -518,13 +562,16 @@ function renderLookupSearchResults(projects) {
        </div>
        ${badge}`;
 
-    if (!noDrawings) {
-      card.onclick = () => {
-        document.getElementById('lookup-serial').value = p.serial_no;
-        resultsEl.innerHTML = '';
+    card.onclick = () => {
+      document.getElementById('lookup-serial').value = p.serial_no;
+      resultsEl.innerHTML = '';
+      if (noDrawings) {
+        _loadEiaListEntryIntoForm(p);
+        resultsEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
+      } else {
         lookupProject(p.serial_no);
-      };
-    }
+      }
+    };
     resultsEl.appendChild(card);
   });
 }
