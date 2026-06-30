@@ -121,8 +121,8 @@ router.post('/eia-list', async (req, res, next) => {
       await client.query(
         `INSERT INTO eia_list
            (serial_no, agency_name, project_name, assessment_type, assessment_type_label,
-            consult_type, location, site_area, reply_date, is_public, province, city)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            consult_type, location, site_area, reply_date, is_public, province, city, operator_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           serialNo,
           r.agency_name || null,
@@ -136,6 +136,7 @@ router.post('/eia-list', async (req, res, next) => {
           typeof r.is_public === 'boolean' ? r.is_public : null,
           province,
           city,
+          r.operator_name || null,
         ]
       );
       inserted++;

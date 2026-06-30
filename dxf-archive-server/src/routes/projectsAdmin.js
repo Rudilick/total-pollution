@@ -5,6 +5,22 @@ const { requireRegionAuth } = require('../middleware/authJwt');
 const router = express.Router();
 router.use(requireRegionAuth);
 
+// 서버가 일련번호_도면순서_업로드일자 형식으로 파일명을 직접 지어준다(원본 업로드 파일명은
+// 확장자만 가져다 쓰고 버린다) — 사용자별로 제각각인 원본 파일명 대신, 어떤 사업의 몇 번째
+// 변경 도면인지 파일명만 보고 바로 알 수 있게 하기 위함.
+function _todayKstYYYYMMDD() {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000); // Date.now()는 항상 UTC 기준이라 +9시간 하면 KST 날짜가 나온다
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getUTCDate()).padStart(2, '0');
+  return `${kst.getUTCFullYear()}${mm}${dd}`;
+}
+
+function _buildDrawingFileName(serialNo, stageIndex, originalFileName) {
+  const dotIdx = originalFileName ? originalFileName.lastIndexOf('.') : -1;
+  const ext = dotIdx > -1 ? originalFileName.slice(dotIdx) : '.dxf';
+  return `${serialNo}_${stageIndex}_${_todayKstYYYYMMDD()}${ext}`;
+}
+
 // POST /api/projects
 // body: { serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
 //         assessment_type, drawings: [{ stage_label, file_name, dxf_content }, ...] }  (index 0 = 최초도면)
@@ -52,11 +68,12 @@ router.post('/projects', async (req, res, next) => {
         return res.status(400).json({ error: `drawings[${i}]에 file_name/dxf_content가 필요합니다.` });
       }
       const stageLabel = d.stage_label || (i === 0 ? '최초도면' : `${i}차변경`);
+      const fileName = _buildDrawingFileName(serial_no, i, d.file_name);
       const dResult = await client.query(
         `INSERT INTO drawings (serial_no, stage_index, stage_label, file_name, dxf_content)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING stage_index, stage_label, file_name`,
-        [serial_no, i, stageLabel, d.file_name, d.dxf_content]
+        [serial_no, i, stageLabel, fileName, d.dxf_content]
       );
       insertedDrawings.push(dResult.rows[0]);
     }
@@ -111,12 +128,13 @@ router.post('/projects/:serial_no/stages', async (req, res, next) => {
     );
     const nextIndex = maxResult.rows[0].max_idx + 1;
     const label = stage_label || (nextIndex === 0 ? '최초도면' : `${nextIndex}차변경`);
+    const generatedFileName = _buildDrawingFileName(serial_no, nextIndex, file_name);
 
     const dResult = await client.query(
       `INSERT INTO drawings (serial_no, stage_index, stage_label, file_name, dxf_content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING stage_index, stage_label, file_name`,
-      [serial_no, nextIndex, label, file_name, dxf_content]
+      [serial_no, nextIndex, label, generatedFileName, dxf_content]
     );
 
     await client.query('UPDATE projects SET updated_at = now() WHERE serial_no = $1', [serial_no]);

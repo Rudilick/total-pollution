@@ -3,25 +3,36 @@
  * 환경영향평가 목록 엑셀 업로드 (유형별 전체 교체)
  */
 
-const EIA_HEADER_MAP = {
-  '사업코드': 'serial_no',
-  '기관명': 'agency_name',
-  '사업명': 'project_name',
-  '환경영향평가종류': 'assessment_type_label',
-  '협의구분': 'consult_type',
-  '사업지': 'location',
-  '규모(대지면적)': 'site_area',
-  '회신일': 'reply_date',
-  '평가서 공개유무': 'is_public',
-  '광역자치단체': 'province',
-  '기초자치단체': 'city',
+// 칸 이름 후보를 여러 개 둬서, 우리 자체 양식(eia_list_template.xlsx)과 EIASS
+// 정보시스템에서 그대로 추출한 "협의통계목록" 원본 엑셀(.xls) 둘 다 가공 없이 그대로
+// 인식한다 — 한 행에 여러 후보 헤더가 동시에 있으면 먼저 적힌 걸 우선한다.
+const EIA_HEADER_ALIASES = {
+  serial_no: ['사업코드'],
+  agency_name: ['기관명'],
+  project_name: ['사업명'],
+  assessment_type_label: ['환경영향평가종류', '구분'],
+  consult_type: ['협의구분', '유형'],
+  location: ['사업지', '주소'],
+  site_area: ['규모(대지면적)', '규모'],
+  reply_date: ['회신일'],
+  is_public: ['평가서 공개유무'],
+  province: ['광역자치단체', '광역'],
+  city: ['기초자치단체', '기초'],
+  operator_name: ['사업자명', '사업자/계획수립자'],
 };
+
+function _eiaPick(row, key) {
+  for (const header of EIA_HEADER_ALIASES[key]) {
+    if (row[header] !== undefined && row[header] !== '') return row[header];
+  }
+  return undefined;
+}
 
 function _eiaParsePublic(val) {
   if (val === undefined || val === null) return null;
   const s = String(val).trim();
-  if (s.includes('비공개')) return false;
-  if (s.includes('공개')) return true;
+  if (s.includes('비공개') || s === '무') return false;
+  if (s.includes('공개') || s === '유') return true;
   return null;
 }
 
@@ -33,6 +44,11 @@ function _eiaParseDate(val) {
     const mm = String(val.getMonth() + 1).padStart(2, '0');
     const dd = String(val.getDate()).padStart(2, '0');
     return `${val.getFullYear()}-${mm}-${dd}`;
+  }
+  // EIASS 원본 엑셀은 회신일을 "19980630" 같은 8자리 YYYYMMDD 문자열/숫자로 준다.
+  const digits = String(val).trim();
+  if (/^\d{8}$/.test(digits)) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
   }
   if (typeof val === 'number') {
     const d = XLSX.SSF.parse_date_code(val);
@@ -52,8 +68,8 @@ function parseEiaWorkbook(arrayBuffer) {
 
   return json.map(row => {
     const mapped = {};
-    for (const [korHeader, key] of Object.entries(EIA_HEADER_MAP)) {
-      mapped[key] = row[korHeader];
+    for (const key of Object.keys(EIA_HEADER_ALIASES)) {
+      mapped[key] = _eiaPick(row, key);
     }
     return {
       serial_no: String(mapped.serial_no || '').trim(),
@@ -67,6 +83,7 @@ function parseEiaWorkbook(arrayBuffer) {
       is_public: _eiaParsePublic(mapped.is_public),
       province: String(mapped.province || '').trim() || null,
       city: String(mapped.city || '').trim() || null,
+      operator_name: String(mapped.operator_name || '').trim() || null,
     };
   });
 }

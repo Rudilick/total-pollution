@@ -41,7 +41,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
 
            SELECT e.serial_no,
                   MAX(e.project_name)  AS project_name,
-                  NULL                 AS operator_name,
+                  MAX(e.operator_name) AS operator_name,
                   MAX(e.location)      AS location,
                   NULL                 AS first_eia_year,
                   MAX(e.agency_name)   AS agency_name,
