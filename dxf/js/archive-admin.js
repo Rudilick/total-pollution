@@ -552,7 +552,7 @@ function renderLookupSearchResults(projects) {
     const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
     const badge = noDrawings
       ? '<div class="pill pill-warn pill-status">도면<br>미등록</div>'
-      : '<div class="pill pill-nc pill-status">도면<br>등록</div>';
+      : '<div class="pill pill-status-ok pill-status">도면<br>등록</div>';
 
     card.innerHTML =
       `<div class="archive-card-main">
@@ -564,13 +564,18 @@ function renderLookupSearchResults(projects) {
 
     card.onclick = () => {
       document.getElementById('lookup-serial').value = p.serial_no;
-      resultsEl.innerHTML = '';
-      if (noDrawings) {
-        _loadEiaListEntryIntoForm(p);
-        resultsEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
-      } else {
-        lookupProject(p.serial_no);
-      }
+      // 목록을 바로 지워버리면 파란 눌림 표시가 화면에 그려질 틈도 없이 사라지므로,
+      // 한 프레임 보이게 짧게 지연 후 진행한다.
+      card.classList.add('archive-card-selected');
+      setTimeout(() => {
+        resultsEl.innerHTML = '';
+        if (noDrawings) {
+          _loadEiaListEntryIntoForm(p);
+          resultsEl.innerHTML = `<p class="archive-empty">✓ "${p.project_name || p.serial_no}" 평가목록에서 불러옴 — 오른쪽에서 최초 도면을 업로드하세요.</p>`;
+        } else {
+          lookupProject(p.serial_no);
+        }
+      }, 80);
     };
     resultsEl.appendChild(card);
   });

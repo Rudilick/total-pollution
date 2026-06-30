@@ -103,7 +103,7 @@ function renderArchiveResults(projects) {
     const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
     const badge = p.has_drawings === false
       ? '<div class="pill pill-warn pill-status">도면<br>미등록</div>'
-      : '<div class="pill pill-nc pill-status">도면<br>등록</div>';
+      : '<div class="pill pill-status-ok pill-status">도면<br>등록</div>';
 
     card.innerHTML =
       `<div class="archive-card-main">
@@ -120,7 +120,10 @@ function renderArchiveResults(projects) {
         card.classList.add('archive-card-pressed');
         setTimeout(() => card.classList.remove('archive-card-pressed'), 150);
       } else {
-        loadArchiveProject(p.serial_no);
+        // 목록을 바로 불러오는 중... 문구로 덮어버리면 파란 눌림 표시가 화면에
+        // 그려질 틈도 없이 사라지므로, 한 프레임 보이게 짧게 지연 후 진행한다.
+        card.classList.add('archive-card-selected');
+        setTimeout(() => loadArchiveProject(p.serial_no), 80);
       }
     };
     resultsEl.appendChild(card);
@@ -142,16 +145,22 @@ async function loadArchiveProject(serialNo) {
 
     if (!drawings.length) throw new Error('등록된 도면이 없습니다.');
 
+    // _initSlotFromParsed()는 전역 slots 배열을 기준으로 색상범례(legend)를 다시
+    // 계산하는데, 그 시점엔 아직 slots가 예전(또는 빈) 배열을 가리키고 있어서
+    // 방금 불러온 도면들의 rawData가 legend 계산에서 통째로 빠지고 slot.data가
+    // 끝까지 null로 남는 버그가 있었다(그래서 "해치 도형을 찾지 못했습니다"가 남).
+    // rawData만 먼저 채워서 slots를 교체한 다음, legend를 한 번에 다시 계산한다.
     const newSlots = drawings.map(d => {
       const slot = _newSlot(d.stage_label);
       slot.dxfText = d.dxf_content;
-      _initSlotFromParsed(slot, parseDXF(d.dxf_content));
+      slot.rawData = parseDXF(d.dxf_content);
       slot.file = { name: d.file_name };
       return slot;
     });
     newSlots.push(_newSlot(_archiveStageLabel(drawings.length)));
 
     slots = newSlots;
+    _refreshGlobalLegend();
     renderSlotsWrap();
     updateRunBtn();
 
