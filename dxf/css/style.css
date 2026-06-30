@@ -592,24 +592,37 @@ tr:last-child td { border-bottom: none; }
   /* height/display/overflow는 .app에서 상속 (calc(100vh-4rem), flex column, overflow:hidden) */
 }
 
-/* 제목 가운데 + 버튼들 오른쪽 끝 배치 */
+/* 제목은 좌/우 요소 폭과 무관하게 행 정중앙에 절대배치, 돌아가기 링크는 왼쪽 끝, 버튼은 오른쪽 끝 */
 .admin-header-row {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 0.5px solid var(--border);
 }
 .admin-header-row h1 {
-  flex: 1;
-  text-align: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   font-size: 32px;
   font-weight: 700;
   margin-bottom: 0;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 .admin-header-btns { display: flex; gap: 7px; flex: none; }
+.back-link-underline {
+  font-size: 13px;
+  color: var(--blue);
+  text-decoration: underline;
+  font-weight: 600;
+  flex: none;
+  white-space: nowrap;
+}
 
 /* 신규 프로젝트 등록 — 2행 폼 (첫 행:2칸, 둘째 행:5칸) */
 .admin-form-row-2 {
