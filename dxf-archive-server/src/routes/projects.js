@@ -106,7 +106,7 @@ router.get('/projects/:serial_no', async (req, res, next) => {
 
     const projResult = await pool.query(
       `SELECT serial_no, project_name, operator_name, location, first_eia_year, notes,
-              agency_name, assessment_type, created_at, updated_at
+              agency_name, assessment_type, color_legend, created_at, updated_at
          FROM projects WHERE serial_no = $1`,
       [serial_no]
     );

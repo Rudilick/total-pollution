@@ -10,7 +10,7 @@ let adminSlots = [];
 let _adminSlotId = 0;
 
 function _newAdminSlot(label) {
-  return { id: ++_adminSlotId, label, data: null, file: null, dxfText: null, saved: false, stageIndex: null };
+  return { id: ++_adminSlotId, label, data: null, rawData: null, file: null, dxfText: null, saved: false, stageIndex: null };
 }
 
 function _adminStageLabel(idx) {
@@ -19,6 +19,7 @@ function _adminStageLabel(idx) {
 
 function initAdminSlots() {
   adminSlots = [_newAdminSlot(_adminStageLabel(0))];
+  adminLegend = [];
   renderNewSlotsWrap();
 }
 
@@ -30,15 +31,17 @@ function addAdminSlot() {
 function removeAdminSlot(id) {
   if (adminSlots.length <= 1) return;
   adminSlots = adminSlots.filter(s => s.id !== id);
+  _refreshAdminLegend();
   renderNewSlotsWrap();
 }
 
 async function handleAdminFileSelect(slot, file) {
   try {
     const text = await file.text();
-    slot.data = parseDXF(text);
     slot.dxfText = text;
+    slot.rawData = parseDXF(text);
     slot.file = file;
+    _refreshAdminLegend();
   } catch (e) {
     alert('DXF 파일 읽기 실패: ' + e.message);
   }
@@ -227,6 +230,82 @@ function renderNewSlotsWrap() {
   addBtn.innerHTML = '<div class="add-icon">+</div><span>단계 추가</span>';
   addBtn.onclick = addAdminSlot;
   wrap.appendChild(addBtn);
+
+  _renderAdminLegendWrap();
+}
+
+// ── 색상별 용도 입력 (분석기 화면의 globalLegend/_refreshGlobalLegend와 같은 패턴 —
+// 도면 아카이브에 등록할 때도 색상별 용도명을 받아서 projects.color_legend에 저장한다) ──
+let adminLegend = [];
+
+function _recomputeAdminSlotData(slot) {
+  if (!slot.rawData) { slot.data = null; return; }
+  slot.data = applyColorLegend(slot.rawData, adminLegend);
+}
+
+// 새 색상이 감지되면(예: 새 단계 도면에 이전엔 없던 색) 기존 라벨은 보존한 채 새 행을
+// 자동으로 추가한다.
+function _refreshAdminLegend() {
+  const seen = new Set();
+  const merged = [];
+  adminSlots.filter(s => s.rawData).forEach(s => {
+    getDistinctColors(s.rawData).forEach(colorKey => {
+      if (seen.has(colorKey)) return;
+      seen.add(colorKey);
+      const existing = adminLegend.find(r => r.colorKey === colorKey);
+      merged.push(existing || { colorKey, label: '' });
+    });
+  });
+  adminLegend = merged;
+  adminSlots.forEach(_recomputeAdminSlotData);
+  _renderAdminLegendWrap();
+}
+
+function _renderAdminLegendWrap() {
+  const wrap = document.getElementById('admin-legend-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  if (!adminSlots.some(s => s.rawData)) return;
+
+  const box = document.createElement('div');
+  box.className = 'legend-slot';
+
+  const title = document.createElement('div');
+  title.className = 'legend-slot-title';
+  title.textContent = '색상별 용도 입력 (모든 도면 공통)';
+  box.appendChild(title);
+
+  if (!adminLegend.length) {
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:12px;color:var(--gray-400);';
+    p.textContent = '도면에서 해치(칠한 도형)를 찾지 못했습니다.';
+    box.appendChild(p);
+  }
+
+  adminLegend.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'legend-row';
+
+    const swatch = document.createElement('div');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = _getDisplayColor(row.colorKey);
+    rowEl.appendChild(swatch);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '용도명 입력 (예: 주거용지)';
+    input.value = row.label;
+    input.oninput = (e) => {
+      row.label = e.target.value;
+      adminSlots.forEach(_recomputeAdminSlotData);
+    };
+    rowEl.appendChild(input);
+
+    box.appendChild(rowEl);
+  });
+
+  wrap.appendChild(box);
 }
 
 // ── 신규 등록 시 일련번호 입력 -> 평가목록 기관명 자동완성 ───
@@ -305,6 +384,7 @@ async function _submitBrandNewProject() {
     location: location || null,
     first_eia_year: yearVal ? Number(yearVal) : null,
     assessment_type: assessment_type || null,
+    color_legend: adminLegend,
     drawings,
   };
 
@@ -364,17 +444,23 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
   document.getElementById('new-assessment-type').value      = project.assessment_type || '';
   _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
 
+  // 저장된 색상범례를 먼저 복원한 뒤(기존 라벨이 살아있게), rawData만 채워서 slots를
+  // 교체하고 한 번에 다시 계산한다 — legend 계산을 slots 교체 전에 하면 막 불러온
+  // 도면들의 색상이 통째로 빠지는 버그가 났던 적이 있어(분석기 화면에서 고친 것과
+  // 같은 종류) 순서를 지킨다.
+  adminLegend = Array.isArray(project.color_legend) ? project.color_legend : [];
   adminSlots = drawings.map(d => {
     const slot = _newAdminSlot(d.stage_label);
     slot.saved = true;
     slot.stageIndex = d.stage_index;
     slot.file = { name: d.file_name };
     slot.dxfText = d.dxf_content;
-    try { slot.data = parseDXF(d.dxf_content); } catch (e) { slot.data = null; }
+    try { slot.rawData = parseDXF(d.dxf_content); } catch (e) { slot.rawData = null; }
     return slot;
   });
   adminSlots.push(_newAdminSlot(_adminStageLabel(drawings.length)));
   _previewSlotId = null;
+  _refreshAdminLegend();
   renderNewSlotsWrap();
   clearPreview();
 
@@ -394,6 +480,7 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
 // 처리되게 한다(최초 도면 1건과 함께 projects 행이 그제서야 생성됨).
 function _loadEiaListEntryIntoForm(p) {
   _loadedProjectSerial = null;
+  adminLegend = []; // 완전히 새 사업이라 이전 범례가 없음
 
   document.getElementById('new-serial').value             = p.serial_no;
   document.getElementById('new-name').value                = p.project_name || '';
@@ -454,6 +541,7 @@ async function _saveNewStagesToExistingProject() {
           stage_label: slot.label,
           file_name: slot.file.name,
           dxf_content: slot.dxfText,
+          color_legend: adminLegend,
         }),
       });
       const data = await res.json();

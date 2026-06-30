@@ -26,13 +26,14 @@ function _buildDrawingFileName(serialNo, stageIndex, originalFileName) {
 
 // POST /api/projects
 // body: { serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
-//         assessment_type, drawings: [{ stage_label, file_name, dxf_content }, ...] }  (index 0 = 최초도면)
+//         assessment_type, color_legend, drawings: [{ stage_label, file_name, dxf_content }, ...] }
+//         (drawings index 0 = 최초도면, color_legend = [{colorKey, label}, ...])
 // province/city는 body로 안 받고 로그인된 지역(req.region) 값을 그대로 쓴다 — 사용자가 직접
 // 입력/조작해서 다른 지역 소속으로 등록하지 못하게.
 router.post('/projects', requireRegionAuth, async (req, res, next) => {
   const {
     serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
-    assessment_type, drawings,
+    assessment_type, color_legend, drawings,
   } = req.body || {};
   const { province, city } = req.region;
 
@@ -54,13 +55,13 @@ router.post('/projects', requireRegionAuth, async (req, res, next) => {
     }
 
     const projResult = await client.query(
-      `INSERT INTO projects (serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name, assessment_type, province, city)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO projects (serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name, assessment_type, province, city, color_legend)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
-                 assessment_type, province, city, created_at, updated_at`,
+                 assessment_type, province, city, color_legend, created_at, updated_at`,
       [serial_no, project_name, operator_name || null, location || null,
         first_eia_year || null, notes || null, agency_name || null, assessment_type || null,
-        province, city]
+        province, city, JSON.stringify(Array.isArray(color_legend) ? color_legend : [])]
     );
 
     const insertedDrawings = [];
@@ -107,10 +108,12 @@ async function _assertOwnRegion(client, serial_no, region, res) {
 }
 
 // POST /api/projects/:serial_no/stages
-// body: { stage_label, file_name, dxf_content }  -> stage_index = max+1
+// body: { stage_label, file_name, dxf_content, color_legend }  -> stage_index = max+1
+// color_legend가 오면 그 시점의 전체 범례로 갱신한다(프런트가 항상 누적된 전체 범례를
+// 들고 있다가 보냄 — 새 단계에서 새 색상이 감지되면 그 행까지 포함된 상태로 옴).
 router.post('/projects/:serial_no/stages', requireRegionAuth, async (req, res, next) => {
   const { serial_no } = req.params;
-  const { stage_label, file_name, dxf_content } = req.body || {};
+  const { stage_label, file_name, dxf_content, color_legend } = req.body || {};
 
   if (!file_name || !dxf_content) {
     return res.status(400).json({ error: 'file_name, dxf_content는 필수입니다.' });
@@ -140,7 +143,14 @@ router.post('/projects/:serial_no/stages', requireRegionAuth, async (req, res, n
       [serial_no, nextIndex, label, generatedFileName, dxf_content]
     );
 
-    await client.query('UPDATE projects SET updated_at = now() WHERE serial_no = $1', [serial_no]);
+    if (Array.isArray(color_legend)) {
+      await client.query(
+        'UPDATE projects SET color_legend = $2, updated_at = now() WHERE serial_no = $1',
+        [serial_no, JSON.stringify(color_legend)]
+      );
+    } else {
+      await client.query('UPDATE projects SET updated_at = now() WHERE serial_no = $1', [serial_no]);
+    }
 
     await client.query('COMMIT');
     res.status(201).json({ drawing: dResult.rows[0] });
