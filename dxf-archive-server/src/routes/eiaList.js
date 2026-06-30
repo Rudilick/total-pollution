@@ -68,6 +68,24 @@ router.get('/eia-list/summary', async (req, res, next) => {
   }
 });
 
+// PATCH /api/eia-list/reclassify  (업로드 시 종류를 잘못 골라 올린 경우 일괄 정정용)
+// body: { from_type, to_type }
+router.patch('/eia-list/reclassify', async (req, res, next) => {
+  const { from_type, to_type } = req.body || {};
+  if (!VALID_TYPES.includes(from_type) || !VALID_TYPES.includes(to_type)) {
+    return res.status(400).json({ error: 'from_type/to_type이 올바르지 않습니다.' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE eia_list SET assessment_type = $2, assessment_type_label = $2 WHERE assessment_type = $1',
+      [from_type, to_type]
+    );
+    res.json({ updated: result.rowCount });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // POST /api/eia-list
 // body: { assessment_type, rows: [{ serial_no, agency_name, project_name, assessment_type_label,
 //         consult_type, location, site_area, reply_date, is_public, province, city }, ...] }
