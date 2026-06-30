@@ -330,8 +330,8 @@ body {
   flex-wrap: wrap;
 }
 .archive-card-name { font-weight: 400; color: var(--gray-600); margin-left: 6px; }
-.archive-card-project-name { font-size: 12px; color: var(--gray-800); margin-top: 2px; }
-.archive-card-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+.archive-card-project-name { font-size: 12px; color: var(--gray-800); margin-top: 2px; word-break: keep-all; overflow-wrap: break-word; }
+.archive-card-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; word-break: keep-all; overflow-wrap: break-word; }
 
 .archive-empty {
   font-size: 12px;
