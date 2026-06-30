@@ -628,6 +628,22 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
    overflow-x:auto가 이미 처리하지만 admin right-col 안에서도 보장한다 */
 .admin-slots-scroll { overflow-x: auto; margin-bottom: 8px; }
 
+/* 기존 프로젝트를 불러와 "도면 저장" 모드로 전환됐을 때 보여주는 안내줄 */
+.project-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--blue-light);
+  color: var(--blue-dark);
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+}
+.project-mode-banner a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.admin-input:disabled { background: var(--gray-50); color: var(--gray-600); cursor: not-allowed; }
+
 /* 오른쪽 칼럼 안에서 위=신규등록, 아래=미리보기 */
 .admin-right-col { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
 .admin-register-section { flex: none; }

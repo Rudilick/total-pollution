@@ -35,7 +35,6 @@
           </div>
           <div class="lookup-scroll">
             <div id="lookup-results"></div>
-            <div id="lookup-result"></div>
           </div>
         </section>
       </aside>
@@ -45,7 +44,8 @@
         <div class="admin-right-col">
 
           <div class="admin-register-section">
-            <div class="section-title" style="margin-bottom:5px">📌 신규 프로젝트 등록</div>
+            <div class="section-title" id="register-section-title" style="margin-bottom:5px">📌 신규 프로젝트 등록</div>
+            <div id="project-mode-banner"></div>
 
             <!-- 첫 줄: 사업명 / 위치 -->
             <div class="admin-form-row-2">
@@ -81,7 +81,7 @@
             <div class="admin-slots-scroll">
               <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
             </div>
-            <button class="run-btn" onclick="submitNewProject()">프로젝트 등록</button>
+            <button class="run-btn" id="project-submit-btn" onclick="submitProjectForm()">프로젝트 등록</button>
             <div id="new-project-status"></div>
           </div>
 

@@ -9,7 +9,7 @@ let adminSlots = [];
 let _adminSlotId = 0;
 
 function _newAdminSlot(label) {
-  return { id: ++_adminSlotId, label, data: null, file: null, dxfText: null };
+  return { id: ++_adminSlotId, label, data: null, file: null, dxfText: null, saved: false, stageIndex: null };
 }
 
 function _adminStageLabel(idx) {
@@ -138,36 +138,41 @@ function _makeUploadSlotEl(slot, idx, onFileSelect) {
   if (slot.data) {
     el.onclick = () => selectPreviewTile(el, slot.data, slot.file ? slot.file.name : slot.label);
 
-    const replaceBtn = document.createElement('button');
-    replaceBtn.type = 'button';
-    replaceBtn.className = 'tile-replace-btn';
-    replaceBtn.textContent = '교체';
-    replaceBtn.onclick = (e) => { e.stopPropagation(); input.click(); };
-    el.appendChild(replaceBtn);
+    if (!slot.saved) {
+      // 이미 저장된 단계는 파일 교체 API가 없어서(삭제 후 다시 추가해야 함) 미리보기만 허용
+      const replaceBtn = document.createElement('button');
+      replaceBtn.type = 'button';
+      replaceBtn.className = 'tile-replace-btn';
+      replaceBtn.textContent = '교체';
+      replaceBtn.onclick = (e) => { e.stopPropagation(); input.click(); };
+      el.appendChild(replaceBtn);
+    }
   } else {
     el.onclick = () => input.click();
   }
 
-  el.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    el.style.borderColor = 'var(--blue-mid)';
-    el.style.background  = 'var(--blue-light)';
-  });
-  el.addEventListener('dragleave', () => {
-    el.style.borderColor = '';
-    el.style.background  = '';
-  });
-  el.addEventListener('drop', (e) => {
-    e.preventDefault();
-    el.style.borderColor = '';
-    el.style.background  = '';
-    const file = e.dataTransfer.files[0];
-    if (file && file.name.toLowerCase().endsWith('.dxf')) {
-      onFileSelect(slot, file);
-    } else if (file) {
-      alert('.dxf 파일만 업로드할 수 있습니다.');
-    }
-  });
+  if (!slot.saved) {
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      el.style.borderColor = 'var(--blue-mid)';
+      el.style.background  = 'var(--blue-light)';
+    });
+    el.addEventListener('dragleave', () => {
+      el.style.borderColor = '';
+      el.style.background  = '';
+    });
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.style.borderColor = '';
+      el.style.background  = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.dxf')) {
+        onFileSelect(slot, file);
+      } else if (file) {
+        alert('.dxf 파일만 업로드할 수 있습니다.');
+      }
+    });
+  }
 
   return el;
 }
@@ -193,7 +198,16 @@ function renderNewSlotsWrap() {
       selectPreviewTile(tileEl, slot.data, slot.file ? slot.file.name : slot.label);
     }
 
-    if (adminSlots.length > 1) {
+    if (slot.saved) {
+      // 이미 저장된 단계 — 삭제하면 실제 DB에서도 지워진다
+      const del = document.createElement('button');
+      del.textContent = '삭제';
+      del.style.cssText =
+        'margin-top:5px;font-size:10px;padding:2px 7px;border-radius:6px;' +
+        'border:1px solid #ddd;background:#fff;color:#888;cursor:pointer;box-shadow:none;';
+      del.onclick = (e) => { e.stopPropagation(); deleteStage(_loadedProjectSerial, slot.stageIndex); };
+      col.appendChild(del);
+    } else if (adminSlots.length > 1) {
       const del = document.createElement('button');
       del.textContent = '삭제';
       del.style.cssText =
@@ -245,8 +259,18 @@ async function _lookupAgencyForNewSerial() {
   }
 }
 
-// ── 신규 프로젝트 등록 제출 ──────────────────────────────────
-async function submitNewProject() {
+// ── 신규 등록 / 기존 프로젝트에 도면 저장 (통합) ─────────────
+// _loadedProjectSerial이 있으면(왼쪽에서 기존 프로젝트를 불러온 상태) "도면 저장"
+// 모드, 없으면 "프로젝트 등록"(신규) 모드로 동작한다.
+let _loadedProjectSerial = null;
+
+const _ADMIN_FORM_FIELD_IDS = ['new-serial', 'new-name', 'new-agency', 'new-operator', 'new-location', 'new-year'];
+
+function submitProjectForm() {
+  return _loadedProjectSerial ? _saveNewStagesToExistingProject() : _submitBrandNewProject();
+}
+
+async function _submitBrandNewProject() {
   const statusEl = document.getElementById('new-project-status');
   statusEl.innerHTML = '';
 
@@ -256,7 +280,6 @@ async function submitNewProject() {
   const operator_name = document.getElementById('new-operator').value.trim();
   const location      = document.getElementById('new-location').value.trim();
   const yearVal       = document.getElementById('new-year').value.trim();
-  const notes         = document.getElementById('new-notes').value.trim();
 
   if (!serial_no || !project_name) {
     statusEl.innerHTML = '<p class="status-err">일련번호와 사업명은 필수입니다.</p>';
@@ -279,7 +302,6 @@ async function submitNewProject() {
     operator_name: operator_name || null,
     location: location || null,
     first_eia_year: yearVal ? Number(yearVal) : null,
-    notes: notes || null,
     drawings,
   };
 
@@ -289,20 +311,14 @@ async function submitNewProject() {
     const data = await res.json();
     if (res.status === 409) {
       statusEl.innerHTML =
-        `<p class="status-err">${data.error} 아래 "기존 프로젝트에 단계 추가" 섹션을 이용하세요.</p>`;
+        `<p class="status-err">${data.error} 왼쪽에서 검색해 불러온 뒤 도면을 추가하세요.</p>`;
       return;
     }
     if (!res.ok) throw new Error(data.error || '등록 실패');
 
     statusEl.innerHTML =
       `<p class="status-ok">등록 완료: ${data.project.serial_no} (${data.drawings.length}단계)</p>`;
-    document.getElementById('new-serial').value   = '';
-    document.getElementById('new-name').value     = '';
-    document.getElementById('new-agency').value   = '';
-    document.getElementById('new-operator').value = '';
-    document.getElementById('new-location').value = '';
-    document.getElementById('new-year').value     = '';
-    document.getElementById('new-notes').value    = '';
+    _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).value = ''; });
     _previewSlotId = null;
     clearPreview();
     initAdminSlots();
@@ -311,26 +327,107 @@ async function submitNewProject() {
   }
 }
 
-// ── 기존 프로젝트 조회 / 단계 추가 / 삭제 ────────────────────
-let _stageSerialNo = null;
-let _stageDrawingsCount = 0;
-let _stageSlot = null;
-
+// ── 기존 프로젝트 조회 → 오른쪽 폼/슬롯에 불러오기 ───────────
 async function lookupProject(serialNoArg) {
   const serialNo = serialNoArg !== undefined
     ? serialNoArg
     : document.getElementById('lookup-serial').value.trim();
-  const resultEl = document.getElementById('lookup-result');
   if (!serialNo) return;
-  resultEl.innerHTML = '<p class="archive-empty">조회 중...</p>';
+  const resultsEl = document.getElementById('lookup-results');
+  resultsEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
     const res = await fetch(`${ARCHIVE_API_BASE}/projects/${encodeURIComponent(serialNo)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '조회 실패');
-    renderLookupResult(serialNo, data.project, data.drawings);
+    _loadProjectIntoForm(serialNo, data.project, data.drawings);
+    resultsEl.innerHTML = `<p class="archive-empty">✓ "${data.project.project_name}" 불러옴 — 오른쪽에서 도면을 추가하세요.</p>`;
   } catch (e) {
-    resultEl.innerHTML = `<p class="status-err">${e.message}</p>`;
+    resultsEl.innerHTML = `<p class="status-err">${e.message}</p>`;
+  }
+}
+
+// 검색에서 항목을 선택했을 때: 오른쪽 폼을 그 프로젝트 정보로 채우고(수정 불가),
+// 기존에 저장된 도면들을 전부 불러와 슬롯에 표시 + 새 단계용 빈 슬롯 1개 추가.
+function _loadProjectIntoForm(serialNo, project, drawings) {
+  _loadedProjectSerial = serialNo;
+
+  document.getElementById('new-serial').value   = project.serial_no;
+  document.getElementById('new-name').value     = project.project_name || '';
+  document.getElementById('new-agency').value   = project.agency_name || '';
+  document.getElementById('new-operator').value = project.operator_name || '';
+  document.getElementById('new-location').value = project.location || '';
+  document.getElementById('new-year').value     = project.first_eia_year || '';
+  _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
+
+  adminSlots = drawings.map(d => {
+    const slot = _newAdminSlot(d.stage_label);
+    slot.saved = true;
+    slot.stageIndex = d.stage_index;
+    slot.file = { name: d.file_name };
+    slot.dxfText = d.dxf_content;
+    try { slot.data = parseDXF(d.dxf_content); } catch (e) { slot.data = null; }
+    return slot;
+  });
+  adminSlots.push(_newAdminSlot(_adminStageLabel(drawings.length)));
+  _previewSlotId = null;
+  renderNewSlotsWrap();
+  clearPreview();
+
+  document.getElementById('register-section-title').textContent =
+    `📌 ${project.project_name} (${project.serial_no}) — 도면 추가/정정`;
+  document.getElementById('project-mode-banner').innerHTML =
+    `기존 프로젝트를 불러왔습니다 — 새 단계 도면만 업로드해서 저장하세요. ` +
+    `<a onclick="_resetToNewProjectMode()">✕ 새 프로젝트 등록으로</a>`;
+  document.getElementById('project-submit-btn').textContent = '도면 저장';
+  document.getElementById('new-project-status').innerHTML = '';
+}
+
+function _resetToNewProjectMode() {
+  _loadedProjectSerial = null;
+  _ADMIN_FORM_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    el.disabled = false;
+    el.value = '';
+  });
+  document.getElementById('register-section-title').textContent = '📌 신규 프로젝트 등록';
+  document.getElementById('project-mode-banner').innerHTML = '';
+  document.getElementById('project-submit-btn').textContent = '프로젝트 등록';
+  document.getElementById('new-project-status').innerHTML = '';
+  document.getElementById('lookup-serial').value = '';
+  _previewSlotId = null;
+  clearPreview();
+  initAdminSlots();
+}
+
+// 기존 프로젝트에 새로 추가된(저장 안 된) 슬롯들만 골라 단계로 저장
+async function _saveNewStagesToExistingProject() {
+  const statusEl = document.getElementById('new-project-status');
+  const readySlots = adminSlots.filter(s => !s.saved && s.data);
+
+  if (!readySlots.length) {
+    statusEl.innerHTML = '<p class="status-err">업로드할 새 도면이 없습니다.</p>';
+    return;
+  }
+  statusEl.innerHTML = '<p class="archive-empty">저장 중...</p>';
+
+  try {
+    for (const slot of readySlots) {
+      const res = await _adminFetch(`/projects/${encodeURIComponent(_loadedProjectSerial)}/stages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          stage_label: slot.label,
+          file_name: slot.file.name,
+          dxf_content: slot.dxfText,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+    }
+    await lookupProject(_loadedProjectSerial); // 새로 저장된 단계까지 반영해 다시 불러오기
+    document.getElementById('new-project-status').innerHTML = '<p class="status-ok">도면 저장 완료</p>';
+  } catch (e) {
+    statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
 }
 
@@ -371,7 +468,6 @@ async function onLookupSearch(forceLookup) {
   const q = input.value.trim();
   const seq = ++_lookupSearchSeq;
 
-  document.getElementById('lookup-result').innerHTML = '';
   if (!q) {
     loadAdminDefaultList();
     return;
@@ -441,122 +537,6 @@ function renderLookupSearchResults(projects) {
   });
 }
 
-function renderLookupResult(serialNo, project, drawings) {
-  const resultEl = document.getElementById('lookup-result');
-  resultEl.innerHTML = '';
-
-  _stageSerialNo = serialNo;
-  _stageDrawingsCount = drawings.length;
-  _stageSlot = _newAdminSlot(_adminStageLabel(drawings.length));
-
-  const meta = document.createElement('p');
-  meta.className = 'archive-empty';
-  meta.textContent = `${project.project_name} (${project.serial_no}) — 등록된 단계: ${drawings.length}개`;
-  resultEl.appendChild(meta);
-
-  const list = document.createElement('div');
-  list.className = 'stage-list';
-  drawings.forEach(d => {
-    const item = document.createElement('div');
-    item.className = 'stage-item';
-
-    const info = document.createElement('div');
-    info.className = 'stage-info';
-
-    let dData = null;
-    try { dData = parseDXF(d.dxf_content); } catch (e) { /* 미리보기 불가 */ }
-
-    if (dData) {
-      const thumb = document.createElement('canvas');
-      thumb.className = 'stage-thumb';
-      thumb.width = 56;
-      thumb.height = 40;
-      setTimeout(() => drawThumbnail(thumb, dData), 0);
-      thumb.onclick = () =>
-        selectPreviewTile(thumb, dData, `${d.stage_index}: ${d.stage_label} — ${d.file_name}`);
-      info.appendChild(thumb);
-    }
-
-    const label = document.createElement('span');
-    label.innerHTML =
-      `<span class="layer-dot" style="background:${layerColor(d.stage_label)}"></span>` +
-      `${d.stage_index}: ${d.stage_label} — ${d.file_name}`;
-    info.appendChild(label);
-
-    const del = document.createElement('button');
-    del.className = 'btn-danger';
-    del.textContent = '삭제';
-    del.onclick = () => deleteStage(serialNo, d.stage_index);
-
-    item.appendChild(info);
-    item.appendChild(del);
-    list.appendChild(item);
-  });
-  resultEl.appendChild(list);
-
-  const addWrap = document.createElement('div');
-  addWrap.className = 'slots-wrap timeline-wrap';
-  addWrap.id = 'stage-add-wrap';
-  resultEl.appendChild(addWrap);
-  _renderStageSlot();
-
-  const addBtn = document.createElement('button');
-  addBtn.className = 'run-btn';
-  addBtn.id = 'stage-add-btn';
-  addBtn.textContent = `${_stageSlot.label} 추가`;
-  addBtn.onclick = submitAddStage;
-  resultEl.appendChild(addBtn);
-
-  const status = document.createElement('div');
-  status.id = 'stage-status';
-  resultEl.appendChild(status);
-}
-
-function _renderStageSlot() {
-  const wrap = document.getElementById('stage-add-wrap');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-
-  const col = document.createElement('div');
-  col.className = 'slot-col';
-  const tileEl = _makeUploadSlotEl(_stageSlot, _stageDrawingsCount, async (slot, file) => {
-    await handleAdminFileSelect(slot, file);
-    _previewSlotId = slot.id;
-    _renderStageSlot();
-  });
-  col.appendChild(tileEl);
-
-  if (_stageSlot.data && _stageSlot.id === _previewSlotId) {
-    selectPreviewTile(tileEl, _stageSlot.data, _stageSlot.file ? _stageSlot.file.name : _stageSlot.label);
-  }
-  wrap.appendChild(col);
-}
-
-async function submitAddStage() {
-  const statusEl = document.getElementById('stage-status');
-  if (!_stageSlot.data) {
-    statusEl.innerHTML = '<p class="status-err">DXF 파일을 업로드하세요.</p>';
-    return;
-  }
-  statusEl.innerHTML = '<p class="archive-empty">추가 중...</p>';
-
-  try {
-    const res = await _adminFetch(`/projects/${encodeURIComponent(_stageSerialNo)}/stages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        stage_label: _stageSlot.label,
-        file_name: _stageSlot.file.name,
-        dxf_content: _stageSlot.dxfText,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '추가 실패');
-    await lookupProject();
-  } catch (e) {
-    statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
-  }
-}
-
 async function deleteStage(serialNo, stageIndex) {
   if (!confirm(`${stageIndex}단계를 삭제하시겠습니까? (되돌릴 수 없습니다)`)) return;
   try {
@@ -565,7 +545,7 @@ async function deleteStage(serialNo, stageIndex) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '삭제 실패');
-    await lookupProject();
+    await lookupProject(serialNo);
   } catch (e) {
     alert(e.message);
   }
