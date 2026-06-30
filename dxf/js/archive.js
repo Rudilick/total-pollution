@@ -3,27 +3,6 @@
  * 도면 아카이브 검색 및 슬롯 자동 채움
  */
 
-// ── 관리자 페이지 진입 인증 ──────────────────────────────────
-function enterArchiveAdmin(e) {
-  if (e) e.preventDefault();
-
-  if (localStorage.getItem('archiveAdminToken') === ARCHIVE_ADMIN_KEY) {
-    location.href = 'archive-admin.html';
-    return false;
-  }
-
-  const input = prompt('관리자 인증키를 입력하세요.');
-  if (input === null) return false;
-
-  if (input.trim() === ARCHIVE_ADMIN_KEY) {
-    localStorage.setItem('archiveAdminToken', input.trim());
-    location.href = 'archive-admin.html';
-  } else {
-    alert('인증키가 올바르지 않습니다.');
-  }
-  return false;
-}
-
 // ── 검색/기본목록 공용 — 정렬은 서버가 이미 "도면 있는 사업 우선 → 그 안에서
 // 일련번호 숫자 큰(최신) 순"으로 내려주므로 여기서 다시 정렬하지 않는다.
 let _archiveSearchSeq = 0;
