@@ -504,14 +504,15 @@ function renderLookupSearchResults(projects) {
     const noDrawings = p.has_drawings === false;
     card.className = 'archive-card' + (noDrawings ? ' archive-card-nodrawing' : '');
 
-    const titleParts = [p.serial_no, p.agency_name, p.operator_name].filter(Boolean).join(' ');
+    const boldParts = [p.serial_no, p.operator_name].filter(Boolean).join(' ');
+    const agencyHtml = p.agency_name ? `<span class="archive-card-agency">${p.agency_name}</span>` : '';
     const badge = noDrawings
-      ? '<div class="pill pill-warn">도면 미등록</div>'
-      : `<div class="pill pill-nc">${p.stage_count}단계</div>`;
+      ? '<div class="pill pill-warn pill-status">도면<br>미등록</div>'
+      : '<div class="pill pill-nc pill-status">도면<br>등록</div>';
 
     card.innerHTML =
       `<div class="archive-card-main">
-         <div class="archive-card-title">${_assessmentTypeMarkerHtml(p.assessment_type)}${titleParts}</div>
+         <div class="archive-card-title">${_assessmentTypeMarkerHtml(p.assessment_type)}${boldParts}${agencyHtml}</div>
          <div class="archive-card-project-name">${p.project_name || '(사업명 미확인)'}</div>
          <div class="archive-card-meta">${p.location || '&nbsp;'}</div>
        </div>

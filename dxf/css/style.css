@@ -317,6 +317,8 @@ body {
 }
 .archive-card:hover { background: var(--blue-light); border-color: var(--blue-mid); }
 .archive-card-nodrawing { border-style: dashed; }
+/* 도면 미등록 카드를 눌렀을 때 이동 없이 잠깐 눌린 느낌만 주는 시각 피드백 */
+.archive-card-pressed { background: var(--gray-100) !important; border-color: var(--border-md) !important; }
 .archive-card-nodrawing:hover { background: var(--gray-50); border-color: var(--border-md); }
 
 .archive-card-main { min-width: 0; }
@@ -330,6 +332,7 @@ body {
   flex-wrap: wrap;
 }
 .archive-card-name { font-weight: 400; color: var(--gray-600); margin-left: 6px; }
+.archive-card-agency { font-size: 11px; font-weight: 400; color: var(--gray-400); }
 .archive-card-project-name { font-size: 12px; color: var(--gray-800); margin-top: 2px; word-break: keep-all; overflow-wrap: break-word; }
 .archive-card-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; word-break: keep-all; overflow-wrap: break-word; }
 
@@ -515,6 +518,13 @@ tr:last-child td { border-bottom: none; }
 .pill-dn { background: var(--red-light); color: var(--red-dark); }
 .pill-nc { background: var(--gray-50); color: var(--gray-600); }
 .pill-warn { background: #fdf2d8; color: #97650c; }
+
+/* 도면 등록 여부 마커 — 가로폭을 좁히고 두 줄로 세워서 왼쪽 기록 영역에 폭을 더 내준다 */
+.pill-status {
+  text-align: center;
+  line-height: 1.35;
+  padding: 5px 8px;
+}
 
 /* 평가종류 마커 — 검색 카드에서 한눈에 구분하려고 색상톤을 다르게 둠 */
 .pill-type-strategic { background: var(--purple-light); color: var(--purple-dark); }
