@@ -21,7 +21,8 @@ router.get('/eia-list/by-serial/:serial_no', async (req, res, next) => {
     let result;
     if (agency_name || assessment_type) {
       const all = await pool.query(
-        `SELECT agency_name, project_name, assessment_type, assessment_type_label, uploaded_at
+        `SELECT agency_name, project_name, assessment_type, assessment_type_label,
+                site_area, reply_date, uploaded_at
            FROM eia_list
           WHERE serial_no = $1
           ORDER BY uploaded_at DESC`,
@@ -34,7 +35,8 @@ router.get('/eia-list/by-serial/:serial_no', async (req, res, next) => {
       result = { rows: match ? [match] : [] };
     } else {
       result = await pool.query(
-        `SELECT agency_name, project_name, assessment_type, assessment_type_label, uploaded_at
+        `SELECT agency_name, project_name, assessment_type, assessment_type_label,
+                site_area, reply_date, uploaded_at
            FROM eia_list
           WHERE serial_no = $1
           ORDER BY uploaded_at DESC

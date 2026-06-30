@@ -4,8 +4,6 @@
  * (admin-auth.js)와는 별개의 토큰(localStorage 'regionToken')으로 동작한다.
  */
 
-let _regionsCache = null;
-
 function _regionFetch(path, opts = {}) {
   const token = localStorage.getItem('regionToken') || '';
   const headers = Object.assign(
@@ -15,33 +13,23 @@ function _regionFetch(path, opts = {}) {
   return fetch(`${ARCHIVE_API_BASE}${path}`, Object.assign({}, opts, { headers }));
 }
 
-async function _loadRegionOptions() {
+function _loadRegionOptions() {
   const provinceSel = document.getElementById('login-province');
   if (!provinceSel) return;
-  try {
-    const res = await fetch(`${ARCHIVE_API_BASE}/region-auth/regions`);
-    const data = await res.json();
-    _regionsCache = data.regions || [];
-    const provinces = [...new Set(_regionsCache.map(r => r.province))].sort();
-    provinces.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p;
-      opt.textContent = p;
-      provinceSel.appendChild(opt);
-    });
-  } catch (e) {
-    const statusEl = document.getElementById('region-login-status');
-    if (statusEl) statusEl.innerHTML = `<p class="status-err">지역 목록을 불러오지 못했습니다: ${e.message}</p>`;
-  }
+  STANDARD_PROVINCES.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    provinceSel.appendChild(opt);
+  });
 }
 
 function _onLoginProvinceChange() {
   const province = document.getElementById('login-province').value;
   const citySel = document.getElementById('login-city');
   citySel.innerHTML = '<option value="">기초자치단체 선택</option>';
-  if (!province || !_regionsCache) { citySel.disabled = true; return; }
-  const cities = _regionsCache.filter(r => r.province === province).map(r => r.city).sort();
-  cities.forEach(c => {
+  if (!province) { citySel.disabled = true; return; }
+  (STANDARD_CITIES_BY_PROVINCE[province] || []).forEach(c => {
     const opt = document.createElement('option');
     opt.value = c;
     opt.textContent = c;
@@ -135,10 +123,56 @@ function _enterAdminMain() {
   const city = localStorage.getItem('regionCity');
   const infoEl = document.getElementById('region-session-info');
   infoEl.style.display = '';
-  infoEl.innerHTML = `📍 ${province} ${city}로 로그인됨 · <a onclick="_regionLogout()">로그아웃</a>`;
+  infoEl.innerHTML =
+    `📍 ${province} ${city}로 로그인됨 · ` +
+    `<a onclick="_showSessionChangePw()">비밀번호 변경</a> · ` +
+    `<a onclick="_regionLogout()">로그아웃</a>`;
 
   if (typeof initAdminSlots === 'function') initAdminSlots();
   if (typeof loadAdminDefaultList === 'function') loadAdminDefaultList();
+}
+
+// ── 세션 중 비밀번호 변경 ─────────────────────────────────────
+function _showSessionChangePw() {
+  const modal = document.getElementById('session-changepw-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function _hideSessionChangePw() {
+  const modal = document.getElementById('session-changepw-modal');
+  if (modal) modal.style.display = 'none';
+  ['session-cur-pw', 'session-new-pw-1', 'session-new-pw-2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const s = document.getElementById('session-changepw-status');
+  if (s) s.innerHTML = '';
+}
+
+async function _sessionChangePassword() {
+  const curPw = document.getElementById('session-cur-pw').value;
+  const pw1   = document.getElementById('session-new-pw-1').value;
+  const pw2   = document.getElementById('session-new-pw-2').value;
+  const statusEl = document.getElementById('session-changepw-status');
+
+  if (!curPw) { statusEl.innerHTML = '<p class="status-err">현재 비밀번호를 입력하세요.</p>'; return; }
+  if (!pw1 || !pw2) { statusEl.innerHTML = '<p class="status-err">새 비밀번호를 두 번 입력하세요.</p>'; return; }
+  if (pw1 !== pw2) { statusEl.innerHTML = '<p class="status-err">새 비밀번호가 서로 다릅니다.</p>'; return; }
+  if (pw1.length < 4) { statusEl.innerHTML = '<p class="status-err">비밀번호는 4자 이상이어야 합니다.</p>'; return; }
+
+  statusEl.innerHTML = '<p class="archive-empty">변경 중...</p>';
+  try {
+    const res = await _regionFetch('/region-auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword: curPw, newPassword: pw1, newPassword2: pw2 }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '변경 실패');
+    statusEl.innerHTML = '<p class="status-ok">비밀번호가 변경되었습니다.</p>';
+    setTimeout(_hideSessionChangePw, 1200);
+  } catch (e) {
+    statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
+  }
 }
 
 function _regionLogout() {
@@ -150,7 +184,7 @@ function _regionLogout() {
 
 // ── 초기화 — 이미 로그인돼 있으면 토큰 유효성 확인 후 바로 본문 진입 ──────
 document.addEventListener('DOMContentLoaded', async () => {
-  await _loadRegionOptions();
+  _loadRegionOptions();
 
   const token = localStorage.getItem('regionToken');
   if (!token) { _showRegionScreen('login'); return; }

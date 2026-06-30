@@ -48,10 +48,19 @@ router.post('/projects', requireRegionAuth, async (req, res, next) => {
   try {
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT 1 FROM projects WHERE serial_no = $1', [serial_no]);
+    const existing = await client.query('SELECT province, city FROM projects WHERE serial_no = $1', [serial_no]);
     if (existing.rows.length > 0) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ error: '이미 등록된 일련번호입니다. 단계 추가 API를 사용하세요.' });
+      if (!req.body.overwrite) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: '이미 등록된 일련번호입니다.' });
+      }
+      const p = existing.rows[0];
+      if (p.province !== province || p.city !== city) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: '다른 지역에 등록된 사업을 덮어쓸 수 없습니다.' });
+      }
+      await client.query('DELETE FROM drawings WHERE serial_no = $1', [serial_no]);
+      await client.query('DELETE FROM projects WHERE serial_no = $1', [serial_no]);
     }
 
     const projResult = await client.query(

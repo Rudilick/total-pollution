@@ -118,7 +118,6 @@ function _archiveStageLabel(index) {
 
 async function loadArchiveProject(serialNo) {
   const statusEl = document.getElementById('archive-load-status');
-  if (statusEl) statusEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
     const res = await fetch(`${ARCHIVE_API_BASE}/projects/${encodeURIComponent(serialNo)}`);

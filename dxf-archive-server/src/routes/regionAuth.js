@@ -56,10 +56,12 @@ router.post('/region-auth/login', async (req, res, next) => {
 });
 
 // POST /api/region-auth/change-password  (지역 로그인 필요)
-// body: { newPassword, newPassword2 }
+// body: { currentPassword?, newPassword, newPassword2 }
+// currentPassword가 있으면 기존 비밀번호를 먼저 검증한다(세션 중 자발적 변경 시 필수).
+// 없으면 최초 로그인 강제 변경 흐름으로 간주한다.
 router.post('/region-auth/change-password', requireRegionAuth, async (req, res, next) => {
   try {
-    const { newPassword, newPassword2 } = req.body || {};
+    const { currentPassword, newPassword, newPassword2 } = req.body || {};
     if (!newPassword || !newPassword2) {
       return res.status(400).json({ error: '새 비밀번호를 두 번 입력하세요.' });
     }
@@ -68,6 +70,16 @@ router.post('/region-auth/change-password', requireRegionAuth, async (req, res, 
     }
     if (newPassword.length < 4) {
       return res.status(400).json({ error: '비밀번호는 4자 이상이어야 합니다.' });
+    }
+
+    if (currentPassword) {
+      const row = await pool.query(
+        'SELECT password_hash FROM region_credentials WHERE province = $1 AND city = $2',
+        [req.region.province, req.region.city]
+      );
+      if (!row.rows[0] || !(await bcrypt.compare(currentPassword, row.rows[0].password_hash))) {
+        return res.status(401).json({ error: '현재 비밀번호가 올바르지 않습니다.' });
+      }
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

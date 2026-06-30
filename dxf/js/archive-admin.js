@@ -276,7 +276,7 @@ function _renderAdminLegendWrap() {
 
   const title = document.createElement('div');
   title.className = 'legend-slot-title';
-  title.textContent = '색상별 용도 입력 (모든 도면 공통)';
+  title.textContent = '범례(색상)별 용도 입력 (동 사업 내 모든 도면 공통)';
   box.appendChild(title);
 
   if (!adminLegend.length) {
@@ -311,9 +311,10 @@ function _renderAdminLegendWrap() {
   wrap.appendChild(box);
 }
 
-// ── 신규 등록 시 일련번호 입력 -> 평가목록 기관명 자동완성 ───
+// ── 신규 등록 시 일련번호 입력 -> 평가목록 기관명/연도/사업면적 자동완성 ───
 let _newSerialLookupSeq = 0;
 let _newSerialLookupTimer = null;
+let _currentSerialSiteArea = null; // 평가목록의 사업면적(규모) — 최초도면 면적 검증에 사용
 
 function onNewSerialInput() {
   clearTimeout(_newSerialLookupTimer);
@@ -321,25 +322,52 @@ function onNewSerialInput() {
 }
 
 async function _lookupAgencyForNewSerial() {
-  const serialInput = document.getElementById('new-serial');
+  const serialInput  = document.getElementById('new-serial');
   const agencyInput  = document.getElementById('new-agency');
+  const yearInput    = document.getElementById('new-year');
   if (!serialInput || !agencyInput) return;
 
   const serialNo = serialInput.value.trim();
   const seq = ++_newSerialLookupSeq;
-  if (!serialNo) return;
+  if (!serialNo) { _currentSerialSiteArea = null; return; }
 
   try {
     const res = await fetch(`${ARCHIVE_API_BASE}/eia-list/by-serial/${encodeURIComponent(serialNo)}`);
     if (seq !== _newSerialLookupSeq) return;
-    if (!res.ok) return; // 평가목록에 없으면 조용히 무시 — 직접 입력 가능
+    if (!res.ok) { _currentSerialSiteArea = null; return; }
     const { entry } = await res.json();
     if (entry.agency_name && !agencyInput.value.trim()) {
       agencyInput.value = entry.agency_name;
     }
+    // 회신일 → 협의년도 자동완성
+    if (entry.reply_date && yearInput && !yearInput.value.trim()) {
+      yearInput.value = new Date(entry.reply_date).getFullYear();
+    }
+    // 사업면적 저장 (최초도면 면적 검증용)
+    _currentSerialSiteArea = entry.site_area ? Number(entry.site_area) : null;
   } catch (e) {
-    // 자동완성 실패는 조용히 무시 — 수동 입력 가능
+    _currentSerialSiteArea = null;
   }
+}
+
+// ── 최초도면 면적 검증 ─────────────────────────────────────────
+function _dxfTotalArea(rawData) {
+  if (!rawData || !rawData.colors) return 0;
+  let total = 0;
+  for (const rings of Object.values(rawData.colors)) {
+    for (const ring of rings) total += shoelace(ring);
+  }
+  return total;
+}
+
+function _areaMatchesSiteArea(dxfArea, siteArea) {
+  if (!siteArea || siteArea <= 0) return true; // 평가목록에 면적 없으면 검증 생략
+  // 사업면적 자릿수의 10의 -1승 단위로 반올림 후 비교
+  const order = Math.floor(Math.log10(siteArea));
+  const unit  = Math.pow(10, order - 1);
+  const roundedDxf  = Math.round(dxfArea  / unit) * unit;
+  const roundedSite = Math.round(siteArea / unit) * unit;
+  return roundedDxf === roundedSite;
 }
 
 // ── 신규 등록 / 기존 프로젝트에 도면 저장 (통합) ─────────────
@@ -377,6 +405,21 @@ async function _submitBrandNewProject() {
     return;
   }
 
+  // 최초도면(stage 0) 면적 검증 — 평가목록의 사업면적과 일치해야 등록 허용
+  if (_currentSerialSiteArea) {
+    const firstSlot = adminSlots[0];
+    if (firstSlot && firstSlot.rawData) {
+      const dxfArea = _dxfTotalArea(firstSlot.rawData);
+      if (!_areaMatchesSiteArea(dxfArea, _currentSerialSiteArea)) {
+        statusEl.innerHTML =
+          `<p class="status-err">최초도면 총면적(${dxfArea.toLocaleString('ko-KR', {maximumFractionDigits:1})}㎡)이 ` +
+          `평가목록 사업면적(${_currentSerialSiteArea.toLocaleString('ko-KR', {maximumFractionDigits:1})}㎡)과 ` +
+          `일치하지 않아 등록이 거부됩니다.</p>`;
+        return;
+      }
+    }
+  }
+
   const drawings = adminSlots.map((s, i) => ({
     stage_label: _adminStageLabel(i),
     file_name: s.file.name,
@@ -396,13 +439,20 @@ async function _submitBrandNewProject() {
 
   statusEl.innerHTML = '<p class="archive-empty">등록 중...</p>';
   try {
-    const res = await _regionFetch('/projects', { method: 'POST', body: JSON.stringify(body) });
-    const data = await res.json();
+    let res = await _regionFetch('/projects', { method: 'POST', body: JSON.stringify(body) });
+    let data = await res.json();
+
     if (res.status === 409) {
-      statusEl.innerHTML =
-        `<p class="status-err">${data.error} 왼쪽에서 검색해 불러온 뒤 도면을 추가하세요.</p>`;
-      return;
+      const confirmed = await _showOverwriteModal();
+      if (!confirmed) {
+        statusEl.innerHTML = '<p class="status-err">등록 취소: 기존 자료가 유지됩니다.</p>';
+        return;
+      }
+      statusEl.innerHTML = '<p class="archive-empty">덮어쓰는 중...</p>';
+      res = await _regionFetch('/projects', { method: 'POST', body: JSON.stringify({ ...body, overwrite: true }) });
+      data = await res.json();
     }
+
     if (!res.ok) throw new Error(data.error || '등록 실패');
 
     statusEl.innerHTML =
@@ -416,6 +466,26 @@ async function _submitBrandNewProject() {
   }
 }
 
+function _showOverwriteModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'region-fix-overlay';
+    overlay.innerHTML =
+      `<div class="region-fix-box" style="max-width:380px">
+         <div class="section-title" style="margin-bottom:10px">이미 등록된 사업입니다</div>
+         <p style="font-size:13px;color:var(--gray-600);margin-bottom:18px">기존 자료에 덮어쓰시겠습니까?<br><small style="color:var(--red)">기존 도면이 모두 삭제되고 새 도면으로 교체됩니다.</small></p>
+         <div class="region-fix-actions">
+           <button class="run-btn" id="_owm-yes">예, 덮어씁니다</button>
+           <button class="run-btn" style="background:var(--gray-100);color:var(--gray-700);border:1px solid var(--border)" id="_owm-no">아니오</button>
+         </div>
+       </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (val) => { document.body.removeChild(overlay); resolve(val); };
+    overlay.querySelector('#_owm-yes').onclick = () => cleanup(true);
+    overlay.querySelector('#_owm-no').onclick  = () => cleanup(false);
+  });
+}
+
 // ── 기존 프로젝트 조회 → 오른쪽 폼/슬롯에 불러오기 ───────────
 async function lookupProject(serialNoArg) {
   const serialNo = serialNoArg !== undefined
@@ -423,14 +493,13 @@ async function lookupProject(serialNoArg) {
     : document.getElementById('lookup-serial').value.trim();
   if (!serialNo) return;
   const statusEl = document.getElementById('lookup-load-status');
-  if (statusEl) statusEl.innerHTML = '<p class="archive-empty">불러오는 중...</p>';
 
   try {
     const res = await _regionFetch(`/projects/${encodeURIComponent(serialNo)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '조회 실패');
     _loadProjectIntoForm(serialNo, data.project, data.drawings);
-    if (statusEl) statusEl.innerHTML = ''; // 카드가 파란색으로 강조되는 것만으로 충분 — 별도 안내문구 불필요
+    if (statusEl) statusEl.innerHTML = '';
   } catch (e) {
     if (statusEl) statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
@@ -507,6 +576,7 @@ function _loadEiaListEntryIntoForm(p) {
 
 function _resetToNewProjectMode() {
   _loadedProjectSerial = null;
+  _currentSerialSiteArea = null;
   _ADMIN_FORM_FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
     el.disabled = false;

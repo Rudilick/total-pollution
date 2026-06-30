@@ -50,7 +50,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
                     MAX(e.project_name)  AS project_name,
                     MAX(e.operator_name) AS operator_name,
                     MAX(e.location)      AS location,
-                    NULL                 AS first_eia_year,
+                    EXTRACT(YEAR FROM MAX(e.reply_date))::int AS first_eia_year,
                     MAX(e.agency_name)   AS agency_name,
                     MAX(e.assessment_type) AS assessment_type,
                     0                    AS stage_count,
@@ -105,9 +105,14 @@ router.get('/projects/:serial_no', async (req, res, next) => {
     const { serial_no } = req.params;
 
     const projResult = await pool.query(
-      `SELECT serial_no, project_name, operator_name, location, first_eia_year, notes,
-              agency_name, assessment_type, color_legend, created_at, updated_at
-         FROM projects WHERE serial_no = $1`,
+      `SELECT p.serial_no, p.project_name, p.operator_name, p.location,
+              COALESCE(p.first_eia_year, EXTRACT(YEAR FROM MAX(e.reply_date))::int) AS first_eia_year,
+              p.notes, p.agency_name, p.assessment_type, p.color_legend,
+              p.created_at, p.updated_at
+         FROM projects p
+         LEFT JOIN eia_list e ON e.serial_no = p.serial_no
+        WHERE p.serial_no = $1
+        GROUP BY p.serial_no`,
       [serial_no]
     );
     if (projResult.rows.length === 0) {

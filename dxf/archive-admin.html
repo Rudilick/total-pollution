@@ -9,11 +9,13 @@
 <body>
   <div class="app admin-app">
     <header class="app-header">
-      <!-- 제목은 버튼들과 무관하게 항상 정중앙, 돌아가기 링크는 왼쪽 끝, 버튼들은 오른쪽 끝 -->
       <div class="header-titlebar">
         <div class="admin-header-row">
           <a class="back-link-underline" href="index.html">← 돌아가기</a>
-          <h1>🗂️ 도면 아카이브 관리자 ✏️</h1>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+            <h1>🗂️ 도면 아카이브 관리자 ✏️</h1>
+            <div id="region-session-info" class="region-session-info" style="display:none"></div>
+          </div>
           <div class="admin-header-btns">
             <button class="run-btn btn-sm btn-green" onclick="window.open('eia-upload.html','_blank')">
               환경영향평가 목록 엑셀 업로드
@@ -24,8 +26,23 @@
           </div>
         </div>
       </div>
-      <div id="region-session-info" class="region-session-info" style="display:none"></div>
     </header>
+
+    <!-- 세션 내 비밀번호 변경 모달 -->
+    <div id="session-changepw-modal" class="region-fix-overlay" style="display:none">
+      <div class="region-fix-box" style="max-width:360px;gap:8px">
+        <div class="section-title" style="margin-bottom:4px">🔑 비밀번호 변경</div>
+        <input type="password" id="session-cur-pw"  class="admin-input" placeholder="현재 비밀번호">
+        <input type="password" id="session-new-pw-1" class="admin-input" placeholder="새 비밀번호">
+        <input type="password" id="session-new-pw-2" class="admin-input" placeholder="새 비밀번호 확인"
+               onkeydown="if(event.key==='Enter') _sessionChangePassword()">
+        <div id="session-changepw-status"></div>
+        <div class="region-fix-actions" style="margin-top:8px">
+          <button class="run-btn" onclick="_sessionChangePassword()">변경</button>
+          <button class="run-btn" style="background:var(--gray-100);color:var(--gray-700);border:1px solid var(--border)" onclick="_hideSessionChangePw()">취소</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 지역 로그인 화면 -->
     <div id="region-login-screen" class="region-login-screen">
@@ -131,7 +148,6 @@
                 <div class="legend-wrap" id="admin-legend-wrap"></div>
               </div>
               <div class="admin-preview-col">
-                <div class="section-title" style="margin-bottom:5px">🖼️ 도면 미리보기</div>
                 <div class="preview-box">
                   <canvas id="preview-canvas"></canvas>
                   <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
@@ -140,8 +156,8 @@
               </div>
             </div>
 
-            <button class="run-btn" id="project-submit-btn" onclick="submitProjectForm()">프로젝트 등록</button>
             <div id="new-project-status"></div>
+            <button class="run-btn" id="project-submit-btn" onclick="submitProjectForm()">프로젝트 등록</button>
           </div>
 
         </div>
@@ -156,6 +172,7 @@
   <script src="js/ui.js"></script>
   <script src="js/archive-config.js"></script>
   <script src="js/admin-auth.js"></script>
+  <script src="js/region-standard.js"></script>
   <script src="js/region-auth.js"></script>
   <script src="js/archive-admin.js"></script>
 </body>

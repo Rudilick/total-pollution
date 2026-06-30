@@ -428,11 +428,12 @@ function drawThumbnail(canvas, data) {
   const ty = y => canvas.height - ((y - bbox.minY) * scale + oy);
 
   // 레이어가 아니라 도면에 실제로 쓰인 색상 그대로 그린다 (추측 색이 아님)
+  ctx.globalAlpha = 0.7; // 투명도 30%
   for (const col of Object.keys(data.colors || {})) {
-    ctx.fillStyle   = _getDisplayColor(col); // 미리보기 해치는 불투명(투명도 0)으로
+    ctx.fillStyle = _getDisplayColor(col);
 
-    // 같은 색 조각끼리 먼저 하나로 합쳐서 그린다 — 안 그러면 같은 용도가 여러
-    // 조각으로 나뉘어 그려진 도면에서 조각 경계마다 선이 보인다.
+    // 같은 색 조각을 union 후 색상 단위로 path 하나에 모아 그린다 —
+    // 조각별로 beginPath/fill하면 같은 색 인접 경계에 안티앨리어싱 선이 생긴다.
     const rawRings = data.colors[col] || [];
     const unioned = _runClipping(polygonClipping.union, rawRings.map(_ringGeom));
     const merged = unioned
@@ -441,12 +442,9 @@ function drawThumbnail(canvas, data) {
           .filter(r => r && r.length >= 3)
       : rawRings;
 
+    ctx.beginPath();
     for (const ring of merged) {
-      // 면적이 0인 퇴화(점/선) 링은 잔재 가이드선이므로 그리지 않음
       if (ring.length < 2 || shoelace(ring) < 1e-6) continue;
-      ctx.beginPath();
-      // 구멍이 합쳐진 링은 외곽+구멍을 각각 서브패스로 그려서(evenodd) 둘을 잇는 틈새 선이
-      // 안 보이게 한다 (__origPoly가 원래의 [외곽, 구멍...] 형태)
       const subpaths = ring.__origPoly || [ring];
       subpaths.forEach(sub => {
         if (!sub.length) return;
@@ -454,9 +452,10 @@ function drawThumbnail(canvas, data) {
         for (let k = 1; k < sub.length; k++) ctx.lineTo(tx(sub[k][0]), ty(sub[k][1]));
         ctx.closePath();
       });
-      ctx.fill('evenodd');
     }
+    ctx.fill('evenodd');
   }
+  ctx.globalAlpha = 1;
 }
 
 // ── 실행 버튼 상태 ───────────────────────────────────────────

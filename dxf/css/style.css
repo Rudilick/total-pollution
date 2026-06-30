@@ -630,6 +630,7 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   flex-direction: column;
 }
+.region-fix-box .admin-input { margin-bottom: 0; }
 .region-fix-rows { overflow-y: auto; flex: 1 1 auto; min-height: 0; margin: 12px 0; }
 .region-fix-row {
   display: grid;
@@ -835,10 +836,13 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .region-session-info a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
 
 /* 오른쪽 칼럼: 신규등록 폼+슬롯은 고정 높이, 그 아래 범례(1):미리보기(3) 좌우분할 행이
-   남는 세로공간을 채운다 */
-.admin-right-col { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+   남는 세로공간을 채운다. 프로젝트 등록 버튼은 화면 최하단에 고정.
+   .main-col 기본값(overflow-y:auto)을 admin에서 flex+hidden으로 덮어써야
+   자식들이 뷰포트 높이를 상속받고 버튼이 바닥에 붙는다. */
+.admin-app .main-col { display: flex; flex-direction: column; overflow-y: hidden; }
+.admin-right-col { display: flex; flex-direction: column; min-height: 0; gap: 12px; flex: 1 1 auto; }
 .admin-register-section { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.admin-legend-preview-row { display: flex; gap: 16px; flex: 1 1 auto; min-height: 0; margin-bottom: 10px; }
+.admin-legend-preview-row { display: flex; gap: 16px; flex: 1 1 auto; min-height: 160px; margin-bottom: 10px; }
 .admin-legend-col { flex: 1 1 0; min-width: 0; overflow-y: auto; }
 .admin-preview-col { flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
