@@ -449,7 +449,10 @@ function _parseHatch(pairs, startIdx) {
         } else if (code === '42' && bulges.length) bulges[bulges.length - 1] = parseFloat(val) || 0;
         i++;
       }
-      if (isClosed && vertices.length > 0) {
+      // isClosed(73) 플래그가 0으로 찍혀 있어도, 해치 경계 폴리라인은 정의상 항상
+      // 닫힌 루프여야 한다(안 닫히면 채울 영역 자체가 없다) — 플래그를 믿지 말고
+      // 첫/끝 점이 다르면 항상 닫아준다(엣지 경계 쪽과 동일한 이유).
+      if (vertices.length > 0) {
         const [fx, fy] = vertices[0];
         const [lx, ly] = vertices[vertices.length - 1];
         if (fx !== lx || fy !== ly) vertices.push([fx, fy]);
