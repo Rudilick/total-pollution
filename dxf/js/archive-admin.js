@@ -343,7 +343,13 @@ function _renderAdminLegendWrap() {
   if (!wrap) return;
   wrap.innerHTML = '';
 
-  if (!adminSlots.some(s => s.rawData)) return;
+  if (!adminSlots.some(s => s.rawData)) {
+    const empty = document.createElement('div');
+    empty.className = 'legend-empty-box';
+    empty.innerHTML = '도면을 업로드하면<br>범례입력창이 표시됩니다';
+    wrap.appendChild(empty);
+    return;
+  }
 
   const box = document.createElement('div');
   box.className = 'legend-slot';
