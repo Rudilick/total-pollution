@@ -166,19 +166,15 @@
               <div class="slots-wrap timeline-wrap" id="new-slots-wrap"></div>
             </div>
 
-            <!-- 범례(1) : 도면 미리보기(3) 좌우분할 — 범례는 입력칸이라 폭이 짧아도 되고, 미리보기는 넓게 -->
-            <div class="admin-legend-preview-row">
-              <div class="admin-legend-col">
-                <div class="legend-wrap" id="admin-legend-wrap"></div>
-              </div>
-              <div class="admin-preview-col">
-                <div class="preview-box">
-                  <canvas id="preview-canvas"></canvas>
-                  <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
-                </div>
-                <div class="preview-meta" id="preview-meta"></div>
+            <!-- 범례(1) : 도면 미리보기(3) 좌우분할 — 하나의 라운드 박스 안에 구분선으로 분할 -->
+            <div class="admin-legend-preview-box">
+              <div class="admin-legend-pane" id="admin-legend-wrap"></div>
+              <div class="admin-preview-pane">
+                <canvas id="preview-canvas"></canvas>
+                <div class="preview-empty" id="preview-empty">도면 타일을 클릭하면<br>여기에 미리보기가 표시됩니다</div>
               </div>
             </div>
+            <div class="preview-meta" id="preview-meta"></div>
 
             <div id="new-project-status"></div>
             <button class="run-btn" id="project-submit-btn" onclick="submitProjectForm()">프로젝트 등록</button>
