@@ -879,6 +879,41 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 .admin-input:disabled { background: var(--gray-50); color: var(--gray-600); cursor: not-allowed; }
 select.admin-input:disabled { opacity: 1; }
 
+/* ── 협의년도 타일 피커 ── */
+.year-picker-wrap { position: relative; }
+.year-picker-input { cursor: pointer; user-select: none; }
+.year-picker-input:disabled { cursor: not-allowed; }
+.year-picker-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 200;
+  background: #fff;
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+  padding: 5px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  min-width: 175px;
+}
+.year-picker-panel.open { display: grid; }
+.year-tile {
+  padding: 4px 0;
+  font-size: 11px;
+  border: 0.5px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  background: #fff;
+  color: var(--gray-700);
+  transition: background 0.1s, color 0.1s;
+  line-height: 1.3;
+}
+.year-tile:hover { background: var(--blue-light); color: var(--blue); border-color: var(--blue-mid); }
+.year-tile.year-tile-selected { background: var(--blue); color: #fff; border-color: var(--blue); }
+
 /* 지역 로그인 / 강제 비밀번호 변경 화면 */
 .region-login-screen {
   flex: 1 1 auto;

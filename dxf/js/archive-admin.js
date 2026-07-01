@@ -17,19 +17,49 @@ function _adminStageLabel(idx) {
   return idx === 0 ? '최초도면' : `${idx}차변경`;
 }
 
-function initAdminSlots() {
-  // 협의년도 select 초기화 (최초 1회만)
-  const yearSel = document.getElementById('new-year');
-  if (yearSel && yearSel.options.length <= 1) {
-    const curYear = new Date().getFullYear();
-    for (let y = curYear; y >= 1990; y--) {
-      const opt = document.createElement('option');
-      opt.value = y;
-      opt.textContent = y + '년';
-      yearSel.appendChild(opt);
-    }
+function _initYearPicker() {
+  const input = document.getElementById('new-year');
+  const panel = document.getElementById('year-picker-panel');
+  if (!input || !panel || panel.children.length > 0) return;
+
+  const curYear = new Date().getFullYear();
+  for (let y = curYear; y >= 1990; y--) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'year-tile';
+    tile.textContent = y;
+    tile.dataset.year = String(y);
+    tile.onclick = (e) => {
+      e.stopPropagation();
+      input.value = y;
+      panel.classList.remove('open');
+      panel.querySelectorAll('.year-tile').forEach(t =>
+        t.classList.toggle('year-tile-selected', t.dataset.year === String(y))
+      );
+    };
+    panel.appendChild(tile);
   }
 
+  input.onclick = () => {
+    if (input.disabled) return;
+    const opening = !panel.classList.contains('open');
+    panel.classList.toggle('open', opening);
+    if (opening) {
+      panel.querySelectorAll('.year-tile').forEach(t =>
+        t.classList.toggle('year-tile-selected', t.dataset.year === input.value)
+      );
+    }
+  };
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !panel.contains(e.target)) {
+      panel.classList.remove('open');
+    }
+  }, true);
+}
+
+function initAdminSlots() {
+  _initYearPicker();
   adminSlots = [_newAdminSlot(_adminStageLabel(0))];
   adminLegend = [];
   renderNewSlotsWrap();
@@ -628,6 +658,7 @@ function _loadEiaListEntryIntoForm(p) {
 function _resetToNewProjectMode() {
   _loadedProjectSerial = null;
   _currentSerialSiteArea = null;
+  document.getElementById('year-picker-panel')?.classList.remove('open');
   _ADMIN_FORM_FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
     el.disabled = false;

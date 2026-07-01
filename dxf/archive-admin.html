@@ -117,9 +117,10 @@
                 <input type="text" id="new-serial" class="admin-input" placeholder="HG20261345"
                        oninput="onNewSerialInput()">
               </div>
-              <div class="admin-field">
+              <div class="admin-field year-picker-wrap">
                 <div class="admin-field-label">협의년도</div>
-                <select id="new-year" class="admin-input"><option value="">선택</option></select>
+                <input type="text" id="new-year" class="admin-input year-picker-input" placeholder="년도" readonly>
+                <div id="year-picker-panel" class="year-picker-panel"></div>
               </div>
               <div class="admin-field">
                 <div class="admin-field-label">규모(㎡)</div>
