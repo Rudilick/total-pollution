@@ -18,6 +18,18 @@ function _adminStageLabel(idx) {
 }
 
 function initAdminSlots() {
+  // 협의년도 select 초기화 (최초 1회만)
+  const yearSel = document.getElementById('new-year');
+  if (yearSel && yearSel.options.length <= 1) {
+    const curYear = new Date().getFullYear();
+    for (let y = curYear; y >= 1990; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y + '년';
+      yearSel.appendChild(opt);
+    }
+  }
+
   adminSlots = [_newAdminSlot(_adminStageLabel(0))];
   adminLegend = [];
   renderNewSlotsWrap();
@@ -162,6 +174,25 @@ function _makeUploadSlotEl(slot, idx, onFileSelect, onDelete) {
       xBtn.innerHTML = '×';
       xBtn.onclick = (e) => { e.stopPropagation(); onDelete(); };
       el.appendChild(xBtn);
+    }
+
+    if (slot.dxfText) {
+      const dlBtn = document.createElement('button');
+      dlBtn.type = 'button';
+      dlBtn.className = 'slot-download-btn';
+      dlBtn.innerHTML = '↓';
+      dlBtn.title = 'DXF 다운로드';
+      dlBtn.onclick = (e) => {
+        e.stopPropagation();
+        const blob = new Blob([slot.dxfText], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = slot.file?.name || `${slot.label}.dxf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      el.appendChild(dlBtn);
     }
 
     if (!slot.saved) {
@@ -359,7 +390,7 @@ async function _lookupAgencyForNewSerial() {
     // 사업면적 저장 (최초도면 면적 검증용) + 폼에 표시
     _currentSerialSiteArea = entry.site_area ? Number(entry.site_area) : null;
     const siteAreaEl = document.getElementById('new-site-area');
-    if (siteAreaEl) siteAreaEl.value = _currentSerialSiteArea ? Math.round(_currentSerialSiteArea) : '';
+    if (siteAreaEl) siteAreaEl.value = _currentSerialSiteArea ? Math.round(_currentSerialSiteArea).toLocaleString('ko-KR') : '';
   } catch (e) {
     _currentSerialSiteArea = null;
     const siteAreaEl = document.getElementById('new-site-area');
@@ -533,7 +564,7 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
   document.getElementById('new-operator').value             = project.operator_name || '';
   document.getElementById('new-location').value             = project.location || '';
   document.getElementById('new-year').value                 = project.first_eia_year || '';
-  document.getElementById('new-site-area').value            = project.site_area ? Math.round(project.site_area) : '';
+  document.getElementById('new-site-area').value            = project.site_area ? Math.round(project.site_area).toLocaleString('ko-KR') : '';
   document.getElementById('new-assessment-type').value      = project.assessment_type || '';
   _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = true; });
 
@@ -558,7 +589,7 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
   clearPreview();
 
   document.getElementById('register-section-title').textContent =
-    `📌 ${project.project_name} (${project.serial_no}) — 도면 추가/정정`;
+    '📌 기존 환경영향평가 토지이용계획도 확인/변경';
   document.getElementById('project-submit-btn').textContent = '도면 저장';
   document.getElementById('new-project-status').innerHTML = '';
 }
@@ -589,7 +620,7 @@ function _loadEiaListEntryIntoForm(p) {
   clearPreview();
 
   document.getElementById('register-section-title').textContent =
-    `📌 ${p.project_name || p.serial_no} (${p.serial_no}) — 최초 도면 등록`;
+    '📌 기존 환경영향평가 토지이용계획도 확인/변경';
   document.getElementById('project-submit-btn').textContent = '프로젝트 등록';
   document.getElementById('new-project-status').innerHTML = '';
 }

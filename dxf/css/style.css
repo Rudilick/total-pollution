@@ -256,6 +256,29 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 .slot-delete-x:hover { background: #dc2626; color: #fff; transform: scale(1.15); }
+.slot-download-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.85);
+  color: #aaa;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  padding: 0;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.slot-download-btn:hover { background: #2563eb; color: #fff; transform: scale(1.15); }
 
 /* ── add button ── */
 .add-btn {
@@ -854,6 +877,7 @@ select.admin-input { appearance: none; -webkit-appearance: none; background: #ff
 }
 .project-mode-banner a { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
 .admin-input:disabled { background: var(--gray-50); color: var(--gray-600); cursor: not-allowed; }
+select.admin-input:disabled { opacity: 1; }
 
 /* 지역 로그인 / 강제 비밀번호 변경 화면 */
 .region-login-screen {
