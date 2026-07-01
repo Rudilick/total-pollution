@@ -56,6 +56,37 @@ function _arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw, segments) {
   }
   return pts;
 }
+/**
+ * HATCH 엣지 경계의 "타원호(타입3)" 엣지 — 중심/장축벡터/단축비율/시작각/끝각(도)으로
+ * 타원호를 점들로 잘라낸다. _arcEdgePoints와 같은 각도 파라미터화(50/51, 73)를 쓰되,
+ * 장축 방향(rot)만큼 회전시킨다.
+ */
+function _ellipticArcEdgePoints(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw, segments) {
+  const majorLen = Math.hypot(majDx, majDy);
+  const rot = Math.atan2(majDy, majDx);
+  let startRad = startDeg * Math.PI / 180;
+  let endRad = endDeg * Math.PI / 180;
+  const ySign = ccw ? 1 : -1; // _arcEdgePoints와 같은 DXF 좌표계 관례
+  while (endRad < startRad) endRad += Math.PI * 2;
+  const n = Math.max(2, segments || 64);
+  const pts = [];
+  for (let k = 0; k <= n; k++) {
+    const t = startRad + (endRad - startRad) * (k / n);
+    const u = majorLen * Math.cos(t);
+    const v = ySign * majorLen * ratio * Math.sin(t);
+    pts.push([cx + u * Math.cos(rot) - v * Math.sin(rot), cy + u * Math.sin(rot) + v * Math.cos(rot)]);
+  }
+  return pts;
+}
+/**
+ * HATCH 엣지 경계의 "스플라인(타입4)" 엣지 — 정확한 NURBS 평가 대신, 곡선이 실제로
+ * 지나가는 피팅점(fitPts)이 있으면 그걸, 없으면 제어점(controlPts, 곡선 근처를 지나감)을
+ * 근사 좌표로 쓴다. "완전히 스킵"보다는 실제 면적에 훨씬 가까워진다.
+ */
+function _splineEdgePoints(fitPts, controlPts) {
+  if (fitPts && fitPts.length >= 2) return fitPts;
+  return controlPts || [];
+}
 
 /** vertices[i] → vertices[i+1] 구간의 불지값이 bulges[i]일 때, 곡선 구간에 보간점을 끼워넣는다 */
 function _applyBulges(vertices, bulges) {
@@ -467,10 +498,71 @@ function _parseHatch(pairs, startIdx) {
             i++;
           }
           ring.push(..._arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw));
+        } else if (edgeType === 3) {
+          // 타원호: 10/20=중심, 11/21=장축 끝점(중심 기준 상대좌표), 40=단축/장축 비율,
+          // 50/51=시작/끝각(도), 73=반시계 여부
+          let cx = 0, cy = 0, majDx = 0, majDy = 0, ratio = 1, startDeg = 0, endDeg = 0, ccw = true;
+          while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') {
+            const [code, val] = pairs[i];
+            if (code === '10') cx = parseFloat(val);
+            else if (code === '20') cy = parseFloat(val);
+            else if (code === '11') majDx = parseFloat(val);
+            else if (code === '21') majDy = parseFloat(val);
+            else if (code === '40') ratio = parseFloat(val);
+            else if (code === '50') startDeg = parseFloat(val);
+            else if (code === '51') endDeg = parseFloat(val);
+            else if (code === '73') ccw = val === '1';
+            i++;
+          }
+          ring.push(..._ellipticArcEdgePoints(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw));
+        } else if (edgeType === 4) {
+          // 스플라인: 94(차수)/73(유리)/74(주기)/95(노트개수)/96(제어점개수) 헤더 뒤에
+          // 40(노트값)들, 10/20(+유리스플라인이면 42=가중치)로 된 제어점들, 그 뒤에
+          // 97(피팅점개수)+11/21(피팅점)이 순서대로 온다. 이 97은 경로 전체가 끝난 뒤
+          // 나오는 "소스 경계 오브젝트 개수" 97(아래 545번째 줄 부근)과 그룹코드가 같지만,
+          // 제어점 데이터 바로 뒤에 있는 97은 거의 항상 이 스플라인 자신의 피팅점개수다
+          // (경로 단위 97은 보통 associative 해치에만, 그것도 이 자리보다 뒤에 나온다) —
+          // 그 값만큼 11/21을 그대로 읽어 소모하면 동기화가 깨지지 않는다.
+          while (i < pairs.length && ['94', '73', '74', '95', '96'].includes(pairs[i][0])) i++;
+          while (i < pairs.length && pairs[i][0] === '40') i++; // 노트값 스킵
+          const controlPts = [];
+          let scx = null;
+          while (i < pairs.length) {
+            const [code, val] = pairs[i];
+            if (code === '10') { scx = parseFloat(val); i++; }
+            else if (code === '20' && scx !== null) { controlPts.push([scx, parseFloat(val)]); scx = null; i++; }
+            else if (code === '42') { i++; } // 가중치, 사용 안 함
+            else break;
+          }
+          const fitPts = [];
+          if (i < pairs.length && pairs[i][0] === '97') {
+            let numFit = parseInt(pairs[i][1], 10) || 0;
+            i++;
+            let fcx = null;
+            while (i < pairs.length && numFit > 0) {
+              const [code, val] = pairs[i];
+              if (code === '11') { fcx = parseFloat(val); i++; }
+              else if (code === '21' && fcx !== null) { fitPts.push([fcx, parseFloat(val)]); fcx = null; numFit--; i++; }
+              else break; // 예상과 다른 코드가 나오면 더 진행하지 않고 안전하게 멈춘다
+            }
+          }
+          // 접선(12/22, 13/23) 등 남은 선택 필드는 다음 엣지(72)/경로 종료(97/0) 앞까지 건너뛴다
+          while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') i++;
+          ring.push(..._splineEdgePoints(fitPts, controlPts));
         } else {
-          // 타원호/스플라인 등 — 다음 엣지 시작 전까지만 건너뛰어 동기화를 유지한다.
+          // 정말 알 수 없는 엣지 타입 — 다음 엣지 시작 전까지만 건너뛰어 동기화를 유지한다.
           while (i < pairs.length && pairs[i][0] !== '72' && pairs[i][0] !== '97' && pairs[i][0] !== '0') i++;
         }
+      }
+      // 엣지 경계는 각 엣지의 시작점만 모아서 마지막 점이 첫 점과 같지 않다(직선/원호 등
+      // "연속된 엣지의 시작점들이 이미 폐다각형을 이룬다"는 가정은 맞지만, 배열 자체는
+      // 닫혀있지 않다). shoelace()는 첫 점=마지막 점인 닫힌 링을 전제로 하므로, 여기서
+      // 명시적으로 첫 점을 끝에 복제해 닫아준다 — 안 닫으면 도형 위치에 따라 면적이
+      // 실제보다 크거나 작게 계산된다(원점에서 먼 도형일수록 오차가 커짐).
+      if (ring.length > 0) {
+        const [fx, fy] = ring[0];
+        const [lx, ly] = ring[ring.length - 1];
+        if (fx !== lx || fy !== ly) ring.push([fx, fy]);
       }
       if (ring.length >= 3) rawRings.push(ring);
     }
