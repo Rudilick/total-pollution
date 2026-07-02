@@ -37,8 +37,8 @@ function calcPairChange(dataA, dataB) {
 
   const totalRingsA = lsA.flatMap(l => ringsA[l]);
   const totalRingsB = lsB.flatMap(l => ringsB[l]);
-  const totalAreaA = polyAreaSum(totalRingsA);
-  const totalAreaB = polyAreaSum(totalRingsB);
+  const totalAreaA = exactPolyAreaSum(totalRingsA);
+  const totalAreaB = exactPolyAreaSum(totalRingsB);
 
   // 변경부지: A의 레이어X → B의 레이어Y (X≠Y) 교차 면적
   const changes = [];
@@ -77,7 +77,7 @@ function runAnalysis(slots) {
   const lsFirst    = getLandUseLayers(first.data,
     [alignFirst.layer, detectBorderLayer(first.data)].filter(Boolean));
   const ringsFirst = lsFirst.flatMap(l => first.data.layers[l] || []);
-  const areaFirst  = polyAreaSum(ringsFirst);
+  const areaFirst  = exactPolyAreaSum(ringsFirst);
 
   // ── 단계별 변경 계산 ─────────────────────────────────────────
   const pairResults = [];
@@ -99,7 +99,7 @@ function runAnalysis(slots) {
     [alignLast.layer, detectBorderLayer(last.data)].filter(Boolean));
   const ringsLast  = lsLast.flatMap(l => last.data.layers[l] || []);
 
-  const areaLast     = polyAreaSum(ringsLast);
+  const areaLast     = exactPolyAreaSum(ringsLast);
   const increaseArea = newAreaOnly(ringsFirst, ringsLast);
   const increasePct  = areaFirst > 0 ? (increaseArea / areaFirst * 100) : 0;
 

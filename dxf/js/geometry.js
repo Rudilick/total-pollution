@@ -92,9 +92,11 @@ function computeTransform(bboxA, bboxB) {
  */
 function applyTransform(ring, t) {
   const out = ring.map(([x, y]) => [x * t.scale + t.tx, y * t.scale + t.ty]);
-  // .map()은 새 배열을 만들어서 ring에 붙어있던 __origPoly(구멍 보존용 원본 폴리곤)가
-  // 사라진다 — 같이 변환해서 다시 붙여준다.
+  // .map()은 새 배열을 만들어서 ring에 붙어있던 부가 프로퍼티가 사라진다 — 같이 옮겨 붙여준다.
+  // __origPoly: 구멍 보존용 원본 폴리곤. __arcAreaDelta: 원호 analytic 면적 보정치(면적이므로
+  // scale의 제곱만큼 같이 스케일된다).
   if (ring.__origPoly) out.__origPoly = ring.__origPoly.map(sub => applyTransform(sub, t));
+  if (ring.__arcAreaDelta) out.__arcAreaDelta = ring.__arcAreaDelta * t.scale * t.scale;
   return out;
 }
 
@@ -118,6 +120,30 @@ function shoelace(ring) {
  */
 function polyAreaSum(rings) {
   return rings.reduce((s, r) => s + shoelace(r), 0);
+}
+
+/**
+ * shoelace + 원호 analytic 면적 보정(ring.__arcAreaDelta, 있으면). parser.js가 붙여준 이
+ * 보정치는 폴리곤 클리핑(xor/union/intersection/difference)을 거치지 않은 "원본 그대로의"
+ * ring에서만 유효하다 — 클리핑 결과물은 완전히 새 배열이라 애초에 이 프로퍼티가 없다.
+ * @param {Array} ring
+ * @returns {number}
+ */
+function exactShoelace(ring) {
+  let s = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  return Math.abs(s / 2 + (ring.__arcAreaDelta || 0));
+}
+
+/**
+ * 링 배열 전체 면적 합산 (analytic 보정 적용)
+ * @param {Array[]} rings
+ * @returns {number}
+ */
+function exactPolyAreaSum(rings) {
+  return rings.reduce((s, r) => s + exactShoelace(r), 0);
 }
 
 /**
@@ -212,7 +238,7 @@ function intersectionArea(ringsA, ringsB) {
  */
 function newAreaOnly(ringsA, ringsB) {
   if (!ringsB.length) return 0;
-  if (!ringsA.length) return polyAreaSum(ringsB);
+  if (!ringsA.length) return exactPolyAreaSum(ringsB); // 클리핑 없이 그대로 반환하는 경로라 analytic 보정 유효
   const aMp = ringsA.map(_ringGeom), bMp = ringsB.map(_ringGeom);
   const a = _runClipping(polygonClipping.union, aMp) || aMp;
   const b = _runClipping(polygonClipping.union, bMp) || bMp;

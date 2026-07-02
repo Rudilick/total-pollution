@@ -5,17 +5,32 @@
 
 const BORDER_NAMES = ['둘레', 'BORDER', 'FRAME', 'OUTLINE', '도면한도리'];
 
+// 원호류 엣지를 폴리곤으로 자를 때 쓰는 분할 수. 좌표 근사(_bulgeArcPoints 등)와 면적
+// 보정(_bulgeSegmentAreaDelta 등)이 항상 같은 n을 써야 잔차 공식이 정확히 맞아떨어진다.
+const ARC_SEGMENTS = 64;
+
+/**
+ * 원호 구간을 n개 직선 세그먼트로 쪼갰을 때, 그 폴리곤과 진짜 원호 사이에 남는 잔차 면적.
+ * 각 서브세그먼트(각도 d=deltaTheta/n)의 원형활꼴(circular segment, r²(d-sin d)/2)을
+ * n개 더한 것과 같다 — Green의 정리로 유도·검증됨(원점/중심 위치와 무관, 부호는 deltaTheta의
+ * 부호를 그대로 따름). deltaTheta가 0이면(호가 아예 없으면) 0을 반환한다.
+ */
+function _arcTessellationResidual(rSquared, deltaTheta, n) {
+  const d = deltaTheta / n;
+  return n * (rSquared / 2) * (d - Math.sin(d));
+}
+
 // ── 불지(bulge) → 호(arc) 보간 ───────────────────────────────────
 // LWPOLYLINE/HATCH 경계의 곡선 구간은 그룹코드 42(bulge)로 표현되는데, 지금까지는
 // 이걸 무시하고 양 끝점을 직선으로 그냥 이어버려서 곡선이 직선으로 잘려 보였다.
 // bulge = tan(포함각/4) 라는 DXF 정의를 그대로 써서 중심·반지름을 구하고, 그 호를
 // 여러 점으로 잘라(segments개) 끼워넣는다.
-function _bulgeArcPoints(p1, p2, bulge, segments) {
-  if (!bulge) return [];
+/** bulge로부터 원호의 중심·반지름·시작각·포함각을 구한다 (점 생성과 면적 보정이 공유) */
+function _bulgeArcGeom(p1, p2, bulge) {
   const theta = Math.atan(bulge) * 4;
   const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
   const c = Math.hypot(dx, dy);
-  if (c < 1e-9) return [];
+  if (c < 1e-9) return null;
   const r = c / (2 * Math.abs(Math.sin(theta / 2)));
   const chordAngle = Math.atan2(dy, dx);
   const midX = (p1[0] + p2[0]) / 2, midY = (p1[1] + p2[1]) / 2;
@@ -25,9 +40,16 @@ function _bulgeArcPoints(p1, p2, bulge, segments) {
   const cx = midX + apothem * Math.cos(perpAngle);
   const cy = midY + apothem * Math.sin(perpAngle);
   const startAngle = Math.atan2(p1[1] - cy, p1[0] - cx);
+  return { cx, cy, r, startAngle, theta };
+}
+function _bulgeArcPoints(p1, p2, bulge, segments) {
+  if (!bulge) return [];
+  const geom = _bulgeArcGeom(p1, p2, bulge);
+  if (!geom) return [];
+  const { cx, cy, r, startAngle, theta } = geom;
   // 같은 물리적 원호를 HATCH 엣지 경계(_arcEdgePoints)에서 또 만날 수 있어서, 분할 개수가
-  // 다르면 두 근사 사이에 머리카락 굵기의 틈/겹침이 생긴다 — 두 함수 다 64로 맞춘다.
-  const n = Math.max(2, segments || 64);
+  // 다르면 두 근사 사이에 머리카락 굵기의 틈/겹침이 생긴다 — 두 함수 다 ARC_SEGMENTS로 맞춘다.
+  const n = Math.max(2, segments || ARC_SEGMENTS);
   const pts = [];
   for (let k = 1; k < n; k++) {
     const t = k / n;
@@ -36,25 +58,45 @@ function _bulgeArcPoints(p1, p2, bulge, segments) {
   }
   return pts;
 }
+/** _bulgeArcPoints가 만드는 n분할 폴리곤과 진짜 원호 사이의 면적 잔차(analytic 보정치) */
+function _bulgeSegmentAreaDelta(p1, p2, bulge, segments) {
+  if (!bulge) return 0;
+  const geom = _bulgeArcGeom(p1, p2, bulge);
+  if (!geom) return 0;
+  const n = Math.max(2, segments || ARC_SEGMENTS);
+  return _arcTessellationResidual(geom.r * geom.r, geom.theta, n);
+}
+/** startDeg/endDeg(도)를 wrap-around까지 처리한 라디안 각으로 정규화 (점 생성·면적보정 공유) */
+function _normalizeArcAngles(startDeg, endDeg) {
+  const startRad = startDeg * Math.PI / 180;
+  let endRad = endDeg * Math.PI / 180;
+  while (endRad < startRad) endRad += Math.PI * 2;
+  return { startRad, endRad };
+}
 /**
  * HATCH 엣지 경계의 "원호(타입2)" 엣지 — 중심/반지름/시작각/끝각(도)으로 호를 점들로 잘라낸다.
  * (LWPOLYLINE의 bulge와는 정의 방식이 달라 별도 함수로 둔다: 여기는 중심점 기준 절대각.)
  */
 function _arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw, segments) {
-  let startRad = startDeg * Math.PI / 180;
-  let endRad = endDeg * Math.PI / 180;
   // ccw(73)=0(시계방향)일 때는 start/end각이 y축이 뒤집힌 좌표계(즉 부호가 반대인 각)로
   // 적혀있다 — 인접한 직선 엣지의 끝점과 좌표를 맞춰보면, y성분에 -1을 곱해야 정확히
   // 일치한다(실측으로 확인됨). 이걸 빼먹으면 짧은 호 대신 전혀 다른 위치/방향의 호가 그려진다.
   const ySign = ccw ? 1 : -1;
-  while (endRad < startRad) endRad += Math.PI * 2;
-  const n = Math.max(2, segments || 64); // _bulgeArcPoints와 분할 개수를 맞춰서 같은 원호의 근사 오차를 줄인다
+  const { startRad, endRad } = _normalizeArcAngles(startDeg, endDeg);
+  const n = Math.max(2, segments || ARC_SEGMENTS); // _bulgeArcPoints와 분할 개수를 맞춰서 같은 원호의 근사 오차를 줄인다
   const pts = [];
   for (let k = 0; k <= n; k++) {
     const t = startRad + (endRad - startRad) * (k / n);
     pts.push([cx + radius * Math.cos(t), cy + ySign * radius * Math.sin(t)]);
   }
   return pts;
+}
+/** _arcEdgePoints가 만드는 n분할 폴리곤과 진짜 원호 사이의 면적 잔차(analytic 보정치) */
+function _arcEdgeAreaDelta(cx, cy, radius, startDeg, endDeg, ccw, segments) {
+  const ySign = ccw ? 1 : -1;
+  const { startRad, endRad } = _normalizeArcAngles(startDeg, endDeg);
+  const n = Math.max(2, segments || ARC_SEGMENTS);
+  return ySign * _arcTessellationResidual(radius * radius, endRad - startRad, n);
 }
 /**
  * HATCH 엣지 경계의 "타원호(타입3)" 엣지 — 중심/장축벡터/단축비율/시작각/끝각(도)으로
@@ -64,11 +106,9 @@ function _arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw, segments) {
 function _ellipticArcEdgePoints(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw, segments) {
   const majorLen = Math.hypot(majDx, majDy);
   const rot = Math.atan2(majDy, majDx);
-  let startRad = startDeg * Math.PI / 180;
-  let endRad = endDeg * Math.PI / 180;
   const ySign = ccw ? 1 : -1; // _arcEdgePoints와 같은 DXF 좌표계 관례
-  while (endRad < startRad) endRad += Math.PI * 2;
-  const n = Math.max(2, segments || 64);
+  const { startRad, endRad } = _normalizeArcAngles(startDeg, endDeg);
+  const n = Math.max(2, segments || ARC_SEGMENTS);
   const pts = [];
   for (let k = 0; k <= n; k++) {
     const t = startRad + (endRad - startRad) * (k / n);
@@ -77,6 +117,18 @@ function _ellipticArcEdgePoints(cx, cy, majDx, majDy, ratio, startDeg, endDeg, c
     pts.push([cx + u * Math.cos(rot) - v * Math.sin(rot), cy + u * Math.sin(rot) + v * Math.cos(rot)]);
   }
   return pts;
+}
+/**
+ * _ellipticArcEdgePoints가 만드는 n분할 폴리곤과 진짜 타원호 사이의 면적 잔차(analytic 보정치).
+ * 타원 매개변수화는 단위원(t)을 (majorLen, majorLen*ratio) 배율의 선형사상으로 늘린 것과
+ * 같아서, 원의 잔차 공식에 그 야코비안(면적 배율 = majorLen²*ratio)만 곱하면 된다.
+ */
+function _ellipticArcEdgeAreaDelta(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw, segments) {
+  const majorLen = Math.hypot(majDx, majDy);
+  const ySign = ccw ? 1 : -1;
+  const { startRad, endRad } = _normalizeArcAngles(startDeg, endDeg);
+  const n = Math.max(2, segments || ARC_SEGMENTS);
+  return ySign * ratio * _arcTessellationResidual(majorLen * majorLen, endRad - startRad, n);
 }
 /**
  * HATCH 엣지 경계의 "스플라인(타입4)" 엣지 — 정확한 NURBS 평가 대신, 곡선이 실제로
@@ -88,15 +140,24 @@ function _splineEdgePoints(fitPts, controlPts) {
   return controlPts || [];
 }
 
-/** vertices[i] → vertices[i+1] 구간의 불지값이 bulges[i]일 때, 곡선 구간에 보간점을 끼워넣는다 */
+/**
+ * vertices[i] → vertices[i+1] 구간의 불지값이 bulges[i]일 때, 곡선 구간에 보간점을 끼워넣는다.
+ * 반환 배열에는 각 불지 구간의 analytic 면적 보정 합계를 __arcAreaDelta로 실어 보낸다
+ * (클리핑을 거치지 않는 순수 면적 계산에서만 유효 — geometry.js의 exactShoelace 참고).
+ */
 function _applyBulges(vertices, bulges) {
   if (!bulges.some(b => b)) return vertices;
   const out = [];
+  let areaDelta = 0;
   for (let i = 0; i < vertices.length; i++) {
     out.push(vertices[i]);
     const next = vertices[i + 1];
-    if (next && bulges[i]) out.push(..._bulgeArcPoints(vertices[i], next, bulges[i]));
+    if (next && bulges[i]) {
+      out.push(..._bulgeArcPoints(vertices[i], next, bulges[i]));
+      areaDelta += _bulgeSegmentAreaDelta(vertices[i], next, bulges[i]);
+    }
   }
+  out.__arcAreaDelta = areaDelta;
   return out;
 }
 
@@ -472,6 +533,7 @@ function _parseHatch(pairs, startIdx) {
         i++;
       }
       const ring = [];
+      let edgeAreaDelta = 0; // 원호/타원호 엣지의 analytic 면적 보정 합계 (line/spline은 기여 없음)
       for (let e = 0; e < edgeCount; e++) {
         if (i >= pairs.length || pairs[i][0] !== '72') break;
         const edgeType = parseInt(pairs[i][1], 10) || 1;
@@ -501,6 +563,7 @@ function _parseHatch(pairs, startIdx) {
             i++;
           }
           ring.push(..._arcEdgePoints(cx, cy, radius, startDeg, endDeg, ccw));
+          edgeAreaDelta += _arcEdgeAreaDelta(cx, cy, radius, startDeg, endDeg, ccw);
         } else if (edgeType === 3) {
           // 타원호: 10/20=중심, 11/21=장축 끝점(중심 기준 상대좌표), 40=단축/장축 비율,
           // 50/51=시작/끝각(도), 73=반시계 여부
@@ -518,6 +581,7 @@ function _parseHatch(pairs, startIdx) {
             i++;
           }
           ring.push(..._ellipticArcEdgePoints(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw));
+          edgeAreaDelta += _ellipticArcEdgeAreaDelta(cx, cy, majDx, majDy, ratio, startDeg, endDeg, ccw);
         } else if (edgeType === 4) {
           // 스플라인: 94(차수)/73(유리)/74(주기)/95(노트개수)/96(제어점개수) 헤더 뒤에
           // 40(노트값)들, 10/20(+유리스플라인이면 42=가중치)로 된 제어점들, 그 뒤에
@@ -567,7 +631,10 @@ function _parseHatch(pairs, startIdx) {
         const [lx, ly] = ring[ring.length - 1];
         if (fx !== lx || fy !== ly) ring.push([fx, fy]);
       }
-      if (ring.length >= 3) rawRings.push(ring);
+      if (ring.length >= 3) {
+        ring.__arcAreaDelta = edgeAreaDelta;
+        rawRings.push(ring);
+      }
     }
 
     // 소스 경계 오브젝트 스킵 (97)
