@@ -102,6 +102,21 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
   // 변경 후 레이어 (증가분은 잘라내고, 기존 부지 안의 변화만 / 중간 농도)
   lsTo.forEach(l => _drawRings(ctx, _clipToFrom(tTo[l]), layerColor(l), 0.28, tfn));
 
+  // N-1차/N차 개별 도면 이미지 (페이지 상단 2분할용) — 비교 도면과 같은 tfn을 그대로
+  // 써서 세 이미지의 축척·위치가 서로 어긋나지 않게 한다. 개별 도면은 증가분을 잘라내지
+  // 않고 각 단계 그대로(제 모습)를 보여준다.
+  const fromCanvas = _newCanvas();
+  const fromCtx = fromCanvas.getContext('2d');
+  _fillBg(fromCtx, fromCanvas.width, fromCanvas.height);
+  lsFrom.forEach(l => _drawRings(fromCtx, tFrom[l], layerColor(l), 0.8, tfn));
+  _drawScaleBar(fromCtx, fromCanvas.width, fromCanvas.height, _EX.LEG_H);
+
+  const toCanvas = _newCanvas();
+  const toCtx = toCanvas.getContext('2d');
+  _fillBg(toCtx, toCanvas.width, toCanvas.height);
+  lsTo.forEach(l => _drawRings(toCtx, tTo[l], layerColor(l), 0.8, tfn));
+  _drawScaleBar(toCtx, toCanvas.width, toCanvas.height, _EX.LEG_H);
+
   // 변경 폴리곤 강조 + 넘버링 (라벨 위치는 먼저 모아서 겹침을 풀고 나중에 그린다)
   const chunks = [];
   const labelPositions = [];
@@ -131,7 +146,11 @@ function _makePairSection(pr, sFrom, sTo, seqNum) {
     title:      `${seqNum}차 변경 도면 비교 — ${sFrom.label} → ${sTo.label}`,
     subtitle:   `변경률: ${pr.changePct.toFixed(3)} %  ·  변경 면적: ${_fmtArea(pr.changeArea)} ㎡` +
       (pr.excludedArea > 0.1 ? `  ·  제척된 면적: ${_fmtArea(pr.excludedArea)} ㎡` : ''),
-    imgDataURL: canvas.toDataURL('image/png'),
+    imgDataURL: canvas.toDataURL('image/png'),       // 비교(변경 구역 강조) 도면 — 하단 통합칸
+    imgFromDataURL: fromCanvas.toDataURL('image/png'), // 변경 전 개별 도면 — 상단 왼쪽
+    imgToDataURL:   toCanvas.toDataURL('image/png'),   // 변경 후 개별 도면 — 상단 오른쪽
+    fromLabel: sFrom.label,
+    toLabel:   sTo.label,
     layerLegend,
     chunks,
     chunkType: 'change',
@@ -495,6 +514,25 @@ function _openPrintWindow(sections, detailChunks) {
 
   sections.forEach((sec, i) => {
     const isLast = i === sections.length - 1;
+    const mapHtml = sec.chunkType === 'change'
+      ? `<div class="pair-grid">
+           <div class="pair-top">
+             <div class="pair-top-cell">
+               <div class="pair-cell-head"><span class="pair-cell-num">1</span><span class="pair-cell-label">${sec.fromLabel}</span></div>
+               <img class="pair-img-half" src="${sec.imgFromDataURL}" alt="${sec.fromLabel}">
+             </div>
+             <div class="pair-top-cell">
+               <div class="pair-cell-head"><span class="pair-cell-num">2</span><span class="pair-cell-label">${sec.toLabel}</span></div>
+               <img class="pair-img-half" src="${sec.imgToDataURL}" alt="${sec.toLabel}">
+             </div>
+           </div>
+           <div class="pair-bottom">
+             <div class="pair-cell-head"><span class="pair-cell-label">도면 비교 (변경 구역 강조)</span></div>
+             <img class="pair-img-full" src="${sec.imgDataURL}" alt="${sec.title} 비교">
+           </div>
+         </div>`
+      : `<img class="map-img" src="${sec.imgDataURL}" alt="${sec.title}">`;
+
     bodyHtml += `
       <div class="rpt-section${i > 0 ? ' page-break' : ''}">
         <div class="sec-head">
@@ -502,7 +540,7 @@ function _openPrintWindow(sections, detailChunks) {
           <span class="sec-title">${sec.title}</span>
         </div>
         <div class="sec-sub">${sec.subtitle}</div>
-        <img class="map-img" src="${sec.imgDataURL}" alt="${sec.title}">
+        ${mapHtml}
         ${_layerLegendHtml(sec.layerLegend)}
         <div class="tbl-title">일람표</div>
         ${_chunkTableHtml(sec.chunks, sec.chunkType)}
@@ -544,6 +582,27 @@ function _openPrintWindow(sections, detailChunks) {
   .map-img{
     width:100%;max-width:100%;
     border:1px solid #ccc;display:block;margin-bottom:8px;
+  }
+  /* ── 변경 차수 페이지: 상단 전후 도면 2분할 + 하단 비교 도면 통합 ── */
+  .pair-grid{ margin-bottom:8px; }
+  .pair-top{ display:flex; gap:10px; margin-bottom:8px; }
+  .pair-top-cell{ flex:1; min-width:0; }
+  .pair-bottom{ }
+  .pair-cell-head{ display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+  .pair-cell-num{
+    width:20px;height:20px;border-radius:50%;
+    background:#555;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;flex-shrink:0;
+  }
+  .pair-cell-label{ font-size:12px;font-weight:700;color:#333; }
+  .pair-img-half{
+    width:100%;max-height:78mm;object-fit:contain;
+    border:1px solid #ccc;display:block;background:#f8f8f6;
+  }
+  .pair-img-full{
+    width:100%;max-height:92mm;object-fit:contain;
+    border:1px solid #ccc;display:block;background:#f8f8f6;
   }
   /* ── 도면 범례 ── */
   .layer-legend{

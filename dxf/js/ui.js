@@ -592,10 +592,8 @@ function _renderPairs(pairResults) {
 
     const meta = document.createElement('div');
     meta.className = 'pair-meta';
-    const denomLabel = r.denomSource === 'db_site_area' ? '사업면적 DB' : '최초 도면 실측';
     meta.textContent =
       `전 도면 면적: ${_fmtArea(r.totalAreaA)} ㎡  |  후 도면 면적: ${_fmtArea(r.totalAreaB)} ㎡` +
-      `  |  기준 면적(${denomLabel}): ${_fmtArea(r.denomArea)} ㎡` +
       (r.excludedArea > 0.1 ? `  |  제척된 면적: ${_fmtArea(r.excludedArea)} ㎡` : '');
     detail.appendChild(meta);
 

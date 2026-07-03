@@ -31,7 +31,7 @@ router.get('/projects', optionalRegionAuth, async (req, res, next) => {
              SELECT p.serial_no, p.project_name, p.operator_name, p.location, p.first_eia_year,
                     p.agency_name, p.assessment_type,
                     COUNT(d.id)::int AS stage_count,
-                    TRUE AS has_drawings,
+                    (COUNT(d.id) > 0) AS has_drawings,
                     LPAD(regexp_replace(COALESCE(p.serial_no, ''), '[^0-9]', '', 'g'), 25, '0') AS sort_key
                FROM projects p
                LEFT JOIN drawings d ON d.serial_no = p.serial_no

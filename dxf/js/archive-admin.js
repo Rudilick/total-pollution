@@ -568,12 +568,12 @@ async function _submitBrandNewProject() {
 
     if (!res.ok) throw new Error(data.error || '등록 실패');
 
-    statusEl.innerHTML =
+    // 폼을 비우는 대신, 방금 등록한 내용을 그대로 다시 불러와 썸네일/범례가 즉시 보이게
+    // 하고(새로고침 없이도), 왼쪽 검색 목록의 "도면 등록" 마커도 바로 갱신한다.
+    await lookupProject(data.project.serial_no);
+    await _fetchLookupPage(_lookupCurrentQuery, _lookupCurrentPage, false);
+    document.getElementById('new-project-status').innerHTML =
       `<p class="status-ok">등록 완료: ${data.project.serial_no} (${data.drawings.length}단계)</p>`;
-    _ADMIN_FORM_FIELD_IDS.forEach(id => { document.getElementById(id).value = ''; });
-    _previewSlotId = null;
-    clearPreview();
-    initAdminSlots();
   } catch (e) {
     statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
   }
@@ -764,6 +764,7 @@ async function _saveNewStagesToExistingProject() {
       if (!res.ok) throw new Error(data.error || '저장 실패');
     }
     await lookupProject(_loadedProjectSerial); // 새로 저장된 단계까지 반영해 다시 불러오기
+    await _fetchLookupPage(_lookupCurrentQuery, _lookupCurrentPage, false); // 왼쪽 목록의 "도면 등록" 마커도 즉시 갱신
     document.getElementById('new-project-status').innerHTML = '<p class="status-ok">도면 저장 완료</p>';
   } catch (e) {
     statusEl.innerHTML = `<p class="status-err">${e.message}</p>`;
