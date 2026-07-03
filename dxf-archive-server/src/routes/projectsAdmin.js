@@ -24,6 +24,32 @@ function _buildDrawingFileName(serialNo, stageIndex, originalFileName) {
   return `${serialNo}_${stageIndex}_${_todayKstYYYYMMDD()}${ext}`;
 }
 
+// 그 사업코드로 DB(eia_list)에 현재 등록된 사업면적 — 본협의/재협의/변경협의 중 특정 회차를
+// 우선하지 않고, projects.js의 GET 조회와 동일하게 MAX(site_area)를 그대로 쓴다(연속성을
+// 추적하지 않는 시스템이라 더 정교한 선택 로직은 불필요하다는 판단).
+async function _lookupDbSiteArea(client, serialNo) {
+  const r = await client.query('SELECT MAX(site_area) AS site_area FROM eia_list WHERE serial_no = $1', [serialNo]);
+  const v = r.rows[0]?.site_area;
+  return v == null ? null : Number(v);
+}
+
+// 도면 업로드 시 CAD 실측 면적과 DB 사업면적을 비교해 감사 로그 한 행을 남긴다.
+// 프런트가 확인/인정 모달을 통과시킨 뒤에만 이 값들을 보내오지만, 등록 자체를 막는 검증은
+// 서버에서도 하지 않는다 — 이 로그는 오직 "그때 이 수치로 인정했었다"는 기록용이다.
+async function _logAreaAck(client, { serialNo, stageIndex, cadArea, dbSiteArea, region, req }) {
+  const diffArea = dbSiteArea != null ? cadArea - dbSiteArea : null;
+  const diffPct = dbSiteArea ? (diffArea / dbSiteArea) * 100 : null;
+  await client.query(
+    `INSERT INTO area_ack_log
+       (serial_no, stage_index, cad_area, db_site_area, diff_area, diff_pct,
+        acked_province, acked_city, ip_address, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [serialNo, stageIndex, cadArea, dbSiteArea, diffArea, diffPct,
+      region?.province || null, region?.city || null,
+      req.ip || req.headers['x-forwarded-for'] || null, req.get('User-Agent') || null]
+  );
+}
+
 // POST /api/projects
 // body: { serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
 //         assessment_type, color_legend, drawings: [{ stage_label, file_name, dxf_content }, ...] }
@@ -33,7 +59,7 @@ function _buildDrawingFileName(serialNo, stageIndex, originalFileName) {
 router.post('/projects', requireRegionAuth, async (req, res, next) => {
   const {
     serial_no, project_name, operator_name, location, first_eia_year, notes, agency_name,
-    assessment_type, color_legend, drawings,
+    assessment_type, color_legend, drawings, cad_area,
   } = req.body || {};
   const { province, city } = req.region;
 
@@ -91,6 +117,14 @@ router.post('/projects', requireRegionAuth, async (req, res, next) => {
       insertedDrawings.push(dResult.rows[0]);
     }
 
+    if (cad_area != null) {
+      const dbSiteArea = await _lookupDbSiteArea(client, serial_no);
+      await _logAreaAck(client, {
+        serialNo: serial_no, stageIndex: 0, cadArea: Number(cad_area), dbSiteArea,
+        region: req.region, req,
+      });
+    }
+
     await client.query('COMMIT');
     res.status(201).json({ project: projResult.rows[0], drawings: insertedDrawings });
   } catch (e) {
@@ -122,7 +156,7 @@ async function _assertOwnRegion(client, serial_no, region, res) {
 // 들고 있다가 보냄 — 새 단계에서 새 색상이 감지되면 그 행까지 포함된 상태로 옴).
 router.post('/projects/:serial_no/stages', requireRegionAuth, async (req, res, next) => {
   const { serial_no } = req.params;
-  const { stage_label, file_name, dxf_content, color_legend } = req.body || {};
+  const { stage_label, file_name, dxf_content, color_legend, cad_area } = req.body || {};
 
   if (!file_name || !dxf_content) {
     return res.status(400).json({ error: 'file_name, dxf_content는 필수입니다.' });
@@ -159,6 +193,14 @@ router.post('/projects/:serial_no/stages', requireRegionAuth, async (req, res, n
       );
     } else {
       await client.query('UPDATE projects SET updated_at = now() WHERE serial_no = $1', [serial_no]);
+    }
+
+    if (cad_area != null) {
+      const dbSiteArea = await _lookupDbSiteArea(client, serial_no);
+      await _logAreaAck(client, {
+        serialNo: serial_no, stageIndex: nextIndex, cadArea: Number(cad_area), dbSiteArea,
+        region: req.region, req,
+      });
     }
 
     await client.query('COMMIT');

@@ -107,6 +107,10 @@ function _newSlot(label) {
 // (같은 색이면 같은 용도일 거라는 가정 — 도면마다 같은 색을 두 번 입력하지 않아도 됨)
 let globalLegend = [];
 
+// 아카이브에서 프로젝트를 불러왔을 때 DB에 등록된 사업면적(eia_list.site_area) — 있으면
+// 변경률/증가율의 분모로 쓰인다(analyzer.js runAnalysis). 단독 세션(DB 미등록)에서는 null.
+let currentDbSiteArea = null;
+
 function _initSlotFromParsed(slot, rawParsed) {
   slot.rawData = rawParsed;
   _refreshGlobalLegend();
@@ -141,6 +145,7 @@ function _hasAmbiguousOverlaps() {
 
 function initSlots() {
   slots = [_newSlot('최초 도면'), _newSlot('변경 도면')];
+  currentDbSiteArea = null;
   renderSlotsWrap();
 }
 
@@ -571,7 +576,7 @@ function _renderPairs(pairResults) {
         .sort((a, b) => b.area - a.area)
         .forEach(c => {
           const tr = document.createElement('tr');
-          const pctVal = r.areaFirst > 0 ? (c.area / r.areaFirst * 100) : 0;
+          const pctVal = r.denomArea > 0 ? (c.area / r.denomArea * 100) : 0;
           tr.innerHTML =
             `<td><span class="layer-dot" style="background:${layerColor(c.from)}"></span>${c.from}</td>` +
             `<td><span class="layer-dot" style="background:${layerColor(c.to)}"></span>${c.to}</td>` +
@@ -587,9 +592,10 @@ function _renderPairs(pairResults) {
 
     const meta = document.createElement('div');
     meta.className = 'pair-meta';
+    const denomLabel = r.denomSource === 'db_site_area' ? '사업면적 DB' : '최초 도면 실측';
     meta.textContent =
       `전 도면 면적: ${_fmtArea(r.totalAreaA)} ㎡  |  후 도면 면적: ${_fmtArea(r.totalAreaB)} ㎡` +
-      `  |  기준 면적(최초 도면): ${_fmtArea(r.areaFirst)} ㎡` +
+      `  |  기준 면적(${denomLabel}): ${_fmtArea(r.denomArea)} ㎡` +
       (r.excludedArea > 0.1 ? `  |  제척된 면적: ${_fmtArea(r.excludedArea)} ㎡` : '');
     detail.appendChild(meta);
 
@@ -632,6 +638,12 @@ function _renderTotal(result) {
       val: `${_fmtArea(result.areaFirst)} → ${_fmtArea(result.areaLast)}`,
       cls: '',
       sub: `${result.labelFirst} → ${result.labelLast}  (단위: ㎡)`,
+    },
+    {
+      label: '변경률/증가율 기준 면적',
+      val: `${_fmtArea(result.denomArea)} ㎡`,
+      cls: '',
+      sub: result.denomSource === 'db_site_area' ? 'DB 등록 사업면적(고정값)' : '최초 도면 실측 면적 (DB 미등록)',
     },
   ];
 

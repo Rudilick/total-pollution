@@ -21,7 +21,7 @@ function runAll() {
   }
 
   try {
-    lastResult = runAnalysis(slots);
+    lastResult = runAnalysis(slots, currentDbSiteArea);
     renderResults(lastResult);
   } catch (e) {
     showError(e.message || String(e));

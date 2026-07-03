@@ -155,6 +155,7 @@ async function loadArchiveProject(serialNo) {
     // 도면 아카이브 관리자에서 저장해둔 색상별 용도명(project.color_legend)이 있으면
     // 먼저 복원해서, 새로 감지된 색만 빈 라벨로 추가되고 기존 라벨은 유지되게 한다.
     globalLegend = Array.isArray(project.color_legend) ? project.color_legend : [];
+    currentDbSiteArea = project.site_area ? Number(project.site_area) : null;
     const newSlots = drawings.map(d => {
       const slot = _newSlot(d.stage_label);
       slot.dxfText = d.dxf_content;

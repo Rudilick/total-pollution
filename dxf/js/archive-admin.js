@@ -434,30 +434,60 @@ async function _lookupAgencyForNewSerial() {
   }
 }
 
-// ── 최초도면 면적 검증 ─────────────────────────────────────────
+// ── CAD 실측 면적 계산 ─────────────────────────────────────────
+// analyzer.js가 쓰는 것과 같은 exactPolyAreaSum(해치/호 근사에 대한 analytic 보정 포함)을
+// 써야 관리자에게 보여주는 수치가 실제 분석 결과와 어긋나지 않는다.
 function _dxfTotalArea(rawData) {
   if (!rawData || !rawData.colors) return 0;
   let total = 0;
   for (const rings of Object.values(rawData.colors)) {
-    for (const ring of rings) total += shoelace(ring);
+    total += exactPolyAreaSum(rings);
   }
   return total;
 }
 
-function _areaMatchesSiteArea(dxfArea, siteArea) {
-  if (!siteArea || siteArea <= 0) return true; // 평가목록에 면적 없으면 검증 생략
-  // 사업면적 자릿수의 10의 -1승 단위로 반올림 후 비교
-  const order = Math.floor(Math.log10(siteArea));
-  const unit  = Math.pow(10, order - 1);
-  const roundedDxf  = Math.round(dxfArea  / unit) * unit;
-  const roundedSite = Math.round(siteArea / unit) * unit;
-  return roundedDxf === roundedSite;
+// ── 면적 확인/인정 모달 ────────────────────────────────────────
+// CAD 실측 면적과 DB 사업면적(eia_list.site_area)이 다를 수 있음을 고지하고,
+// 관리자가 "확인했습니다"를 눌러야 업로드가 진행된다. 절대 등록/저장 자체를 막지 않는다 —
+// 변경률/증가율의 분모는 어차피 DB 사업면적을 쓰므로, 이 모달은 검증 게이트가 아니라
+// "관리자가 그 차이를 인지했다"는 사실을 남기기 위한 고지+인정 절차다.
+function _showAreaAckModal(cadArea, dbSiteArea) {
+  return new Promise(resolve => {
+    const hasDb = dbSiteArea != null && dbSiteArea > 0;
+    const diff = hasDb ? cadArea - dbSiteArea : null;
+    const diffPct = hasDb && dbSiteArea > 0 ? (diff / dbSiteArea * 100) : null;
+    const fmt = n => n.toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+    const overlay = document.createElement('div');
+    overlay.className = 'region-fix-overlay';
+    overlay.innerHTML =
+      `<div class="region-fix-box" style="max-width:420px">
+         <div class="section-title" style="margin-bottom:10px">면적 확인</div>
+         <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">
+           도면에서 실측한 면적과 평가목록(DB) 사업면적이 다를 수 있습니다.
+           이후 변경률/증가율은 <b>DB 사업면적</b>을 기준으로 계산됩니다.
+         </p>
+         <table style="width:100%;font-size:13px;margin-bottom:14px;border-collapse:collapse">
+           <tr><td style="padding:4px 0">도면 실측 면적</td><td style="text-align:right">${fmt(cadArea)} ㎡</td></tr>
+           <tr><td style="padding:4px 0">DB 사업면적</td><td style="text-align:right">${hasDb ? fmt(dbSiteArea) + ' ㎡' : '없음 (등록 후 실측값 사용)'}</td></tr>
+           ${hasDb ? `<tr><td style="padding:4px 0">차이</td><td style="text-align:right">${fmt(diff)} ㎡ (${diffPct.toFixed(2)}%)</td></tr>` : ''}
+         </table>
+         <div class="region-fix-actions">
+           <button class="run-btn" id="_aam-yes">확인했습니다, 진행</button>
+           <button class="run-btn" style="background:var(--gray-100);color:var(--gray-700);border:1px solid var(--border)" id="_aam-no">취소</button>
+         </div>
+       </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (val) => { document.body.removeChild(overlay); resolve(val); };
+    overlay.querySelector('#_aam-yes').onclick = () => cleanup(true);
+    overlay.querySelector('#_aam-no').onclick  = () => cleanup(false);
+  });
 }
 
 // ── 신규 등록 / 기존 프로젝트에 도면 저장 (통합) ─────────────
 // _loadedProjectSerial이 있으면(왼쪽에서 기존 프로젝트를 불러온 상태) "도면 저장"
 // 모드, 없으면 "프로젝트 등록"(신규) 모드로 동작한다.
 let _loadedProjectSerial = null;
+let _loadedProjectSiteArea = null; // 기존 프로젝트를 불러왔을 때의 DB 사업면적(신규 단계 업로드 확인/인정 모달용)
 // 검색 카드 재클릭 시 초기화로 토글하기 위해, 현재 폼에 불러와진 카드의 일련번호를 추적
 // (도면 미등록 항목도 포함 — _loadedProjectSerial은 그 경우 null로 남기 때문에 별도로 둠).
 let _currentlyLoadedCardSerial = null;
@@ -489,18 +519,16 @@ async function _submitBrandNewProject() {
     return;
   }
 
-  // 최초도면(stage 0) 면적 검증 — 평가목록의 사업면적과 일치해야 등록 허용
-  if (_currentSerialSiteArea) {
-    const firstSlot = adminSlots[0];
-    if (firstSlot && firstSlot.rawData) {
-      const dxfArea = _dxfTotalArea(firstSlot.rawData);
-      if (!_areaMatchesSiteArea(dxfArea, _currentSerialSiteArea)) {
-        statusEl.innerHTML =
-          `<p class="status-err">최초도면 총면적(${dxfArea.toLocaleString('ko-KR', {maximumFractionDigits:1})}㎡)이 ` +
-          `평가목록 사업면적(${_currentSerialSiteArea.toLocaleString('ko-KR', {maximumFractionDigits:1})}㎡)과 ` +
-          `일치하지 않아 등록이 거부됩니다.</p>`;
-        return;
-      }
+  // 최초도면(stage 0) 면적 확인/인정 — 실측값과 DB 사업면적이 달라도 등록은 막지 않되,
+  // 관리자가 그 차이를 인지하고 진행했다는 사실을 남긴다.
+  let cadArea = null;
+  const firstSlot = adminSlots[0];
+  if (firstSlot && firstSlot.rawData) {
+    cadArea = _dxfTotalArea(firstSlot.rawData);
+    const confirmed = await _showAreaAckModal(cadArea, _currentSerialSiteArea);
+    if (!confirmed) {
+      statusEl.innerHTML = '<p class="status-err">등록 취소: 면적 확인이 필요합니다.</p>';
+      return;
     }
   }
 
@@ -519,6 +547,7 @@ async function _submitBrandNewProject() {
     assessment_type: assessment_type || null,
     color_legend: adminLegend,
     drawings,
+    cad_area: cadArea,
   };
 
   statusEl.innerHTML = '<p class="archive-empty">등록 중...</p>';
@@ -593,6 +622,7 @@ async function lookupProject(serialNoArg) {
 // 기존에 저장된 도면들을 전부 불러와 슬롯에 표시 + 새 단계용 빈 슬롯 1개 추가.
 function _loadProjectIntoForm(serialNo, project, drawings) {
   _loadedProjectSerial = serialNo;
+  _loadedProjectSiteArea = project.site_area ? Number(project.site_area) : null;
 
   document.getElementById('new-serial').value             = project.serial_no;
   document.getElementById('new-name').value                = project.project_name || '';
@@ -637,6 +667,7 @@ function _loadProjectIntoForm(serialNo, project, drawings) {
 // 처리되게 한다(최초 도면 1건과 함께 projects 행이 그제서야 생성됨).
 function _loadEiaListEntryIntoForm(p) {
   _loadedProjectSerial = null;
+  _loadedProjectSiteArea = null;
   adminLegend = []; // 완전히 새 사업이라 이전 범례가 없음
 
   document.getElementById('new-serial').value             = p.serial_no;
@@ -663,6 +694,7 @@ function _loadEiaListEntryIntoForm(p) {
 
 function _resetToNewProjectMode() {
   _loadedProjectSerial = null;
+  _loadedProjectSiteArea = null;
   _currentSerialSiteArea = null;
   document.getElementById('year-picker-panel')?.classList.remove('open');
   _ADMIN_FORM_FIELD_IDS.forEach(id => {
@@ -703,6 +735,17 @@ async function _saveNewStagesToExistingProject() {
     }
     return;
   }
+  // 새로 추가되는 각 단계마다 면적 확인/인정 — 저장을 막지는 않되 인지 사실을 남긴다.
+  for (const slot of readySlots) {
+    const cadArea = slot.rawData ? _dxfTotalArea(slot.rawData) : 0;
+    const confirmed = await _showAreaAckModal(cadArea, _loadedProjectSiteArea);
+    if (!confirmed) {
+      statusEl.innerHTML = '<p class="status-err">저장 취소: 면적 확인이 필요합니다.</p>';
+      return;
+    }
+    slot._cadArea = cadArea;
+  }
+
   statusEl.innerHTML = '<p class="archive-empty">저장 중...</p>';
 
   try {
@@ -714,6 +757,7 @@ async function _saveNewStagesToExistingProject() {
           file_name: slot.file.name,
           dxf_content: slot.dxfText,
           color_legend: adminLegend,
+          cad_area: slot._cadArea,
         }),
       });
       const data = await res.json();
