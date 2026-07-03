@@ -631,19 +631,7 @@ function _renderTotal(result) {
       label: '사업부지 증가율',
       val: _fmt(result.increasePct) + '%',
       cls: result.increasePct > 0 ? 'up' : '',
-      sub: `증가 면적 ${_fmtArea(result.increaseArea)} ㎡`,
-    },
-    {
-      label: '최초 → 최종 도면 면적',
-      val: `${_fmtArea(result.areaFirst)} → ${_fmtArea(result.areaLast)}`,
-      cls: '',
-      sub: `${result.labelFirst} → ${result.labelLast}  (단위: ㎡)`,
-    },
-    {
-      label: '변경률/증가율 기준 면적',
-      val: `${_fmtArea(result.denomArea)} ㎡`,
-      cls: '',
-      sub: result.denomSource === 'db_site_area' ? 'DB 등록 사업면적(고정값)' : '최초 도면 실측 면적 (DB 미등록)',
+      sub: `증가 면적 ${_fmtArea(result.increaseArea)} ㎡  |  사업부지면적: ${_fmtArea(result.denomArea)} ㎡`,
     },
   ];
 
