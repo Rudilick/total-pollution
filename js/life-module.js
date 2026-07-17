@@ -295,11 +295,13 @@ function createLifeModule(opts) {
         <div class="useRow" style="font-size:12px;">
           <div class="useSearchWrap">
             <input type="text" id="${inputId}" class="useSearchInput" autocomplete="off" value="${displayVal}"
-              placeholder="용도 검색 (예: 음식점, 단독주택)"
+              placeholder="용도 검색 (예: 음식점, 단독주택)" style="padding-right:26px;"
               oninput="window.__lifeOnUseSearchInput('${rootId}',${bIdx},${fIdx},${uIdx},this.value)"
               onfocus="window.__lifeOnUseSearchFocus('${rootId}',${bIdx},${fIdx},${uIdx})"
               onblur="setTimeout(()=>window.__lifeOnUseSearchBlur('${rootId}',${bIdx},${fIdx},${uIdx}),120)"
               onkeydown="window.__lifeOnUseSearchKeydown('${rootId}',${bIdx},${fIdx},${uIdx},event)" />
+            <button type="button" class="useRowClearBtn" title="이 용도 삭제"
+              data-act="removeUseRow" data-b="${bIdx}" data-f="${fIdx}" data-u="${uIdx}">×</button>
           </div>
           ${conditionHtml}
           ${showInput?`<div class="sumBox" id="lifeValue_${rootId}_${bIdx}_${fIdx}_${uIdx}" contenteditable="true"
@@ -312,7 +314,6 @@ function createLifeModule(opts) {
             <div class="unitCell" style="font-size:12px;">${ul}</div>`
           :`<div class="unitCell" style="grid-column:span 2;color:#9ca3af;font-size:11px;">용도 선택 후 입력</div>`}
           ${nsHtml}
-          <button type="button" class="miniBtnDanger" style="font-size:11px;" data-act="removeUseRow" data-b="${bIdx}" data-f="${fIdx}" data-u="${uIdx}">삭제</button>
           <div class="calcHint" style="font-size:11px;" id="calc_${rootId}_${bIdx}_${fIdx}_${uIdx}"></div>
         </div>
         ${factorComment?`<div style="font-size:11px;color:#9ca3af;padding:1px 4px 3px 4px;">※ ${factorComment}</div>`:""}
