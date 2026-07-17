@@ -232,6 +232,7 @@ function _showDetailedResults(result){
   const el=document.getElementById("calc-result-detail"); if(!el||!result) return;
   const f4=n=>typeof n==="number"?n.toFixed(4):"-";
   const f2=n=>typeof n==="number"?n.toFixed(2):"-";
+  const f3=n=>typeof n==="number"?n.toFixed(3):"-";
   const th="padding:5px 8px;background:#f1f5f9;border:1px solid #e2e8f0;text-align:center;font-weight:900;font-size:12px;";
   const td="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;font-size:12px;";
   const tdl="padding:5px 8px;border:1px solid #e2e8f0;text-align:left;font-size:12px;";
@@ -328,12 +329,12 @@ function _showDetailedResults(result){
     <div style="font-weight:900;font-size:13px;margin:16px 0 6px;">최종 배출부하량 증감 (단순 합산 기준)</div>
     <table style="${tbl}">
       <tr><th style="${th}">구분</th><th style="${th}">BOD (kg/일)</th><th style="${th}">T-P (kg/일)</th></tr>
-      <tr><td style="${tdl}">생활계 사업전 배출</td><td style="${td}">${f4(lb.배출부하량?.BOD)}</td><td style="${td}">${f4(lb.배출부하량?.TP)}</td></tr>
-      <tr><td style="${tdl}">생활계 사업후 배출</td><td style="${td}">${f4(ls.배출부하량?.BOD)}</td><td style="${td}">${f4(ls.배출부하량?.TP)}</td></tr>
-      <tr><td style="${tdl}">토지계 사업전 배출</td><td style="${td}">${f4(tb?.BOD)}</td><td style="${td}">${f4(tb?.TP)}</td></tr>
-      <tr><td style="${tdl}">토지계 사업후 배출</td><td style="${td}">${f4(ta?.BOD)}</td><td style="${td}">${f4(ta?.TP)}</td></tr>
-      <tr style="background:#fef9c3;"><td style="padding:6px 8px;border:1px solid #fde047;font-weight:900;">점오염 증가량</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f4(d.점오염?.BOD)}</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f4(d.점오염?.TP)}</td></tr>
-      <tr><td style="${tdl}">비점오염 증가량</td><td style="${td}">${f4(d.비점오염?.BOD)}</td><td style="${td}">${f4(d.비점오염?.TP)}</td></tr>
+      <tr><td style="${tdl}">생활계 사업전 배출</td><td style="${td}">${f2(lb.배출부하량?.BOD)}</td><td style="${td}">${f3(lb.배출부하량?.TP)}</td></tr>
+      <tr><td style="${tdl}">생활계 사업후 배출</td><td style="${td}">${f2(ls.배출부하량?.BOD)}</td><td style="${td}">${f3(ls.배출부하량?.TP)}</td></tr>
+      <tr><td style="${tdl}">토지계 사업전 배출</td><td style="${td}">${f2(tb?.BOD)}</td><td style="${td}">${f3(tb?.TP)}</td></tr>
+      <tr><td style="${tdl}">토지계 사업후 배출</td><td style="${td}">${f2(ta?.BOD)}</td><td style="${td}">${f3(ta?.TP)}</td></tr>
+      <tr style="background:#fef9c3;"><td style="padding:6px 8px;border:1px solid #fde047;font-weight:900;">점오염 증가량</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f2(d.점오염?.BOD)}</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f3(d.점오염?.TP)}</td></tr>
+      <tr style="background:#fef9c3;"><td style="padding:6px 8px;border:1px solid #fde047;font-weight:900;">비점오염 증가량</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f2(d.비점오염?.BOD)}</td><td style="padding:6px 8px;border:1px solid #fde047;text-align:center;font-weight:900;font-size:15px;color:#92400e;">${f3(d.비점오염?.TP)}</td></tr>
     </table>`;
 
   el.innerHTML = infoHtml + basinHtml

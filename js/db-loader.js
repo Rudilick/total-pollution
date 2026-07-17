@@ -73,7 +73,7 @@ function applyExcelBuffer(buf, sourceLabel) {
     const buildingNote=vFlag?minor:"";
     if (["-","–","—"].includes(minor.replace(/\s/g,""))) minor="";
     if (!major||!mid) continue;
-    lifeRows.push([major,mid,minor,unit]);
+    lifeRows.push([major,mid,minor,unit,vFlag]);
     LIFE_FACTOR_MAP[`${major}|${mid}|${minor}`]={sewage,bod,tn,tp,unit,buildingUse,buildingNote,comment};
   }
   LIFE_USE_DB = _buildLifeDB(lifeRows);
@@ -211,6 +211,7 @@ function _buildLifeDB(rows){
   for(const it of(rows||[])){
     const major=String(it[0]??"").trim(), mid=String(it[1]??"").trim();
     let minor=String(it[2]??"").trim(); const unit=String(it[3]??"").trim();
+    const vFlag=!!it[4];
     if(["-","–","—"].includes(minor.replace(/\s/g,""))) minor="";
     if(!major||!mid) continue;
     const uinfo=inferUnit(unit);
@@ -219,10 +220,31 @@ function _buildLifeDB(rows){
     const node=db[major][mid];
     if(minor){
       if(node.terminal){node.terminal=false;node.unitType="";node.unitText="";node.minors=[];}
-      if(!node.minors.some(m=>m.name===minor)) node.minors.push({name:minor,unitType:uinfo.unitType,unitText:uinfo.unitText});
+      if(!node.minors.some(m=>m.name===minor)) node.minors.push({name:minor,unitType:uinfo.unitType,unitText:uinfo.unitText,vFlag});
     } else { if(node.terminal){node.unitType=uinfo.unitType;node.unitText=uinfo.unitText;} }
   }
+  // 소분류가 실제 용도가 아니라 "조건"(예: 일반음식점 > 중식/한식 등, 병원 > 급식시설 있음/없음)인
+  // 경우를 판별한다: 한 중분류의 소분류가 전부 V표시(엑셀 L열)면 조건형으로 보고, 중분류 자체를
+  // 검색에서 바로 선택 가능한 말단으로 승격시키고, 소분류 목록은 별도 "조건" 드롭박스용으로 옮긴다.
+  for(const major of Object.keys(db)){
+    for(const mid of Object.keys(db[major])){
+      const node=db[major][mid];
+      if(node.terminal||!node.minors.length) continue;
+      if(node.minors.every(m=>m.vFlag)){
+        node.conditions=node.minors.map(({name,unitType,unitText})=>({name,unitType,unitText}));
+        node.terminal=true;
+        node.unitType=node.conditions[0]?.unitType||"";
+        node.unitText=node.conditions[0]?.unitText||"";
+        node.minors=[];
+      }
+    }
+  }
   return db;
+}
+// major/mid가 조건형(위 참고)이면 조건 이름 배열을, 아니면 null을 반환한다.
+function getLifeUseConditions(major,mid){
+  const node=(LIFE_USE_DB||{})[major]?.[mid];
+  return (node&&node.conditions&&node.conditions.length) ? node.conditions.map(c=>c.name) : null;
 }
 // ── 건축물 용도 자동완성: 평탄화 인덱스 + 자식 조회 ───────────
 // 트리의 모든 노드(대분류/중분류/소분류)를 한 줄짜리 항목으로 펴서, 검색창에 뭘 치든
@@ -280,6 +302,7 @@ function searchLifeUse(query,limit){
 }
 window.getLifeUseChildren=getLifeUseChildren;
 window.searchLifeUse=searchLifeUse;
+window.getLifeUseConditions=getLifeUseConditions;
 
 async function loadLifeExcelFile(file){ applyExcelBuffer(await file.arrayBuffer(),`(수동: ${file.name})`); }
 function resetLifeUseDB(){ loadExcelDB(DB_EXCEL_URL); }

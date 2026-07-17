@@ -51,6 +51,11 @@ function _hideUsePortalDropdown() {
 window.addEventListener('scroll', _hideUsePortalDropdown, true);
 window.addEventListener('resize', _hideUsePortalDropdown);
 
+function _newUseRow(){
+  return { major:"", mid:"", minor:"", inputValue:"", terms:[], termColors:[], pending:"",
+    unitType:"", unitText:"", isNonSewage:false, excludeReason:"" };
+}
+
 function createLifeModule(opts) {
   const { rootId, listClassName, householdInputId } = opts;
 
@@ -70,7 +75,7 @@ function createLifeModule(opts) {
       method1: "공공하수처리시설", method2: "", method3: "", method4: "",
       floors: [{
         floorNo: 1, commonArea: "",
-        uses: [{ major:"", mid:"", minor:"", inputValue:"", unitType:"", unitText:"", isNonSewage:false, excludeReason:"" }]
+        uses: [_newUseRow()]
       }]
     }]
   };
@@ -265,6 +270,13 @@ function createLifeModule(opts) {
     let res = u.unitType ? {unitType:u.unitType,unitText:u.unitText} : {unitType:"",unitText:""};
     const ul = res.unitText||(res.unitType==="area"?"㎡":res.unitType==="person"?"인":"");
     const showInput = !!res.unitType;
+    const conditions = (u.major&&u.mid&&typeof getLifeUseConditions==="function") ? getLifeUseConditions(u.major,u.mid) : null;
+    const conditionHtml = conditions ? `
+      <select class="miniSelect" style="font-size:12px;"
+        onchange="window.__lifeOnConditionChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)">
+        <option value="" ${u.minor?"":"selected"} disabled hidden>조건 선택</option>
+        ${conditions.map(c=>`<option value="${c}" ${u.minor===c?"selected":""}>${c}</option>`).join("")}
+      </select>` : "";
     const nsHtml = `
       <div class="nsWrap" style="font-size:12px;">
         <label class="nsTag" style="font-size:11px;">
@@ -286,10 +298,17 @@ function createLifeModule(opts) {
               placeholder="용도 검색 (예: 음식점, 단독주택)"
               oninput="window.__lifeOnUseSearchInput('${rootId}',${bIdx},${fIdx},${uIdx},this.value)"
               onfocus="window.__lifeOnUseSearchFocus('${rootId}',${bIdx},${fIdx},${uIdx})"
-              onblur="setTimeout(()=>window.__lifeOnUseSearchBlur('${rootId}',${bIdx},${fIdx},${uIdx}),120)" />
+              onblur="setTimeout(()=>window.__lifeOnUseSearchBlur('${rootId}',${bIdx},${fIdx},${uIdx}),120)"
+              onkeydown="window.__lifeOnUseSearchKeydown('${rootId}',${bIdx},${fIdx},${uIdx},event)" />
           </div>
-          ${showInput?`<input type="text" inputmode="decimal" value="${u.inputValue??""}" placeholder="면적/인원"
-            style="font-size:12px;" oninput="window.__lifeOnValueChange('${rootId}',${bIdx},${fIdx},${uIdx},this.value)" />
+          ${conditionHtml}
+          ${showInput?`<div class="sumBox" id="lifeValue_${rootId}_${bIdx}_${fIdx}_${uIdx}" contenteditable="true"
+              style="font-size:12px;padding:6px 8px;"
+              oninput="window.__lifeOnValueInput('${rootId}',${bIdx},${fIdx},${uIdx},this)"
+              onkeydown="window.__lifeOnValueKeydown('${rootId}',${bIdx},${fIdx},${uIdx},event,this)"
+              >${buildSumBoxInnerHtml(u.terms||[],u.termColors||[],u.pending||"")}</div>
+            <div class="sumTotalBox" id="lifeTotal_${rootId}_${bIdx}_${fIdx}_${uIdx}"
+              style="font-size:11px;padding:6px 4px;${(u.terms&&u.terms.length)?"":"visibility:hidden;"}">${(u.terms&&u.terms.length)?fmtNum(sumTermsTotal(u.terms,u.pending)):""}</div>
             <div class="unitCell" style="font-size:12px;">${ul}</div>`
           :`<div class="unitCell" style="grid-column:span 2;color:#9ca3af;font-size:11px;">용도 선택 후 입력</div>`}
           ${nsHtml}
@@ -348,6 +367,17 @@ function createLifeModule(opts) {
     }
     _openUseDropdown(bIdx,fIdx,uIdx,items);
   }
+  function onUseSearchKeydown(bIdx,fIdx,uIdx,e){
+    if(e.key!=="Enter") return;
+    e.preventDefault();
+    const key=`${rootId}_${bIdx}_${fIdx}_${uIdx}`;
+    if(_activeUseDropdownKey!==key) return;
+    const first=document.getElementById("lifeUsePortalDropdown")?.querySelector(".item");
+    if(!first) return;
+    const path=JSON.parse(decodeURIComponent(first.dataset.path));
+    const isLeaf=first.dataset.leaf==="1";
+    onUsePick(bIdx,fIdx,uIdx,path,isLeaf);
+  }
   function onUsePick(bIdx,fIdx,uIdx,path,isLeaf){
     const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
     if(!isLeaf){
@@ -386,6 +416,9 @@ function createLifeModule(opts) {
       const el=document.getElementById(`calc_${rootId}_${bIdx}_${fIdx}_${uIdx}`); if(!el) return;
       const c=map[uIdx], ul=u.unitText||(u.unitType==="area"?"㎡":u.unitType==="person"?"인":"");
       if(!u.unitType){el.textContent="";return;}
+      if(!u.minor&&u.major&&u.mid&&typeof getLifeUseConditions==="function"&&getLifeUseConditions(u.major,u.mid)){
+        el.textContent="⚠ 조건을 선택하세요"; return;
+      }
       if(u.isNonSewage){el.textContent=`비오수 제외 | 입력: ${fmtNum(c.base)} ${ul}`.trim();return;}
       if(u.unitType==="area"){el.textContent=`전용: ${fmtNum(c.base)} ㎡ | 공용배분: ${fmtNum(c.alloc)} ㎡ | 최종: ${fmtNum(c.final)} ㎡`;return;}
       if(u.unitType==="person"){el.textContent=`인원: ${fmtNum(c.base)} ${ul||"인"}`;return;}
@@ -430,20 +463,58 @@ function createLifeModule(opts) {
   }
 
   function onCommonAreaChange(bIdx,fIdx,val){state.buildings[bIdx].floors[fIdx].commonArea=val;updateFloorCalcs(bIdx,fIdx);}
-  function onValueChange(bIdx,fIdx,uIdx,val){state.buildings[bIdx].floors[fIdx].uses[uIdx].inputValue=val;updateFloorCalcs(bIdx,fIdx);_refreshProof();}
+  function _updateLifeTotalDisplay(bIdx,fIdx,uIdx){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    const totalEl=document.getElementById(`lifeTotal_${rootId}_${bIdx}_${fIdx}_${uIdx}`);
+    if(!totalEl) return;
+    if(u.terms&&u.terms.length>0){
+      totalEl.style.visibility="visible";
+      totalEl.textContent=fmtNum(sumTermsTotal(u.terms,u.pending));
+    } else {
+      totalEl.style.visibility="hidden";
+      totalEl.textContent="";
+    }
+  }
+  function onValueInput(bIdx,fIdx,uIdx,el){
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    const derived=deriveSumFromDom(el);
+    u.terms=derived.terms; u.termColors=derived.colors; u.pending=derived.pending;
+    u.inputValue=String(sumTermsTotal(u.terms,u.pending));
+    _updateLifeTotalDisplay(bIdx,fIdx,uIdx);
+    updateFloorCalcs(bIdx,fIdx);
+    _refreshProof();
+  }
+  function onValueKeydown(bIdx,fIdx,uIdx,e,el){
+    if(e.key!=="+") return;
+    e.preventDefault();
+    const derived=deriveSumFromDom(el);
+    const pendingNum=parseNum(derived.pending);
+    if(!derived.pending||!pendingNum) return; // 숫자 없이 +만 누르면 무시
+    const newTerms=[...derived.terms, derived.pending];
+    const newColors=[...derived.colors, randomSumColor()];
+    el.innerHTML=buildSumBoxInnerHtml(newTerms, newColors, "");
+    const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];
+    u.terms=newTerms; u.termColors=newColors; u.pending="";
+    u.inputValue=String(sumTermsTotal(u.terms,u.pending));
+    placeCaretAtEnd(el);
+    _updateLifeTotalDisplay(bIdx,fIdx,uIdx);
+    updateFloorCalcs(bIdx,fIdx);
+    _refreshProof();
+  }
   function onNonSewageChange(bIdx,fIdx,uIdx,checked){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.isNonSewage=checked;if(!checked)u.excludeReason="";render();_refreshProof();}
+  function onConditionChange(bIdx,fIdx,uIdx,value){const u=state.buildings[bIdx].floors[fIdx].uses[uIdx];u.minor=value;render();_refreshProof();}
   function onExcludeReasonChange(bIdx,fIdx,uIdx,reason){state.buildings[bIdx].floors[fIdx].uses[uIdx].excludeReason=reason;}
   function _refreshProof(){if(typeof refreshBeforeProofVisibility==="function")refreshBeforeProofVisibility();}
 
   function addBuilding(){
     const nextNo=state.buildings.length?Math.max(...state.buildings.map(b=>b.buildingNo))+1:1;
-    state.buildings.push({buildingNo:nextNo,method1:"공공하수처리시설",method2:"",method3:"",method4:"",floors:[{floorNo:1,commonArea:"",uses:[{major:"",mid:"",minor:"",inputValue:"",unitType:"",unitText:"",isNonSewage:false,excludeReason:""}]}]});
+    state.buildings.push({buildingNo:nextNo,method1:"공공하수처리시설",method2:"",method3:"",method4:"",floors:[{floorNo:1,commonArea:"",uses:[_newUseRow()]}]});
     render();_refreshProof();
   }
   function removeBuilding(bIdx){state.buildings.splice(bIdx,1);if(!state.buildings.length)addBuilding();else render();_refreshProof();}
-  function addFloor(bIdx){const b=state.buildings[bIdx];const nextNo=b.floors.length?Math.max(...b.floors.map(f=>f.floorNo))+1:1;b.floors.push({floorNo:nextNo,commonArea:"",uses:[{major:"",mid:"",minor:"",inputValue:"",unitType:"",unitText:"",isNonSewage:false,excludeReason:""}]});render();_refreshProof();}
+  function addFloor(bIdx){const b=state.buildings[bIdx];const nextNo=b.floors.length?Math.max(...b.floors.map(f=>f.floorNo))+1:1;b.floors.push({floorNo:nextNo,commonArea:"",uses:[_newUseRow()]});render();_refreshProof();}
   function removeFloor(bIdx,fIdx){state.buildings[bIdx].floors.splice(fIdx,1);if(!state.buildings[bIdx].floors.length)addFloor(bIdx);else render();_refreshProof();}
-  function addUseRow(bIdx,fIdx){state.buildings[bIdx].floors[fIdx].uses.push({major:"",mid:"",minor:"",inputValue:"",unitType:"",unitText:"",isNonSewage:false,excludeReason:""});render();_refreshProof();}
+  function addUseRow(bIdx,fIdx){state.buildings[bIdx].floors[fIdx].uses.push(_newUseRow());render();_refreshProof();}
   function removeUseRow(bIdx,fIdx,uIdx){const uses=state.buildings[bIdx].floors[fIdx].uses;uses.splice(uIdx,1);if(!uses.length)addUseRow(bIdx,fIdx);else render();_refreshProof();}
 
   function bindHouseholdInput() {
@@ -460,7 +531,7 @@ function createLifeModule(opts) {
 
   return{state,render,addBuilding,addHousehold,removeHousehold,onHHCountChange,
     onCommonAreaChange,onMethod1Change,onMethod2Change,onMethod3Change,onMethod4Change,
-    onUseSearchInput,onUseSearchFocus,onUseSearchBlur,onUsePick,onValueChange,onNonSewageChange,onExcludeReasonChange,
+    onUseSearchInput,onUseSearchFocus,onUseSearchBlur,onUseSearchKeydown,onUsePick,onValueInput,onValueKeydown,onNonSewageChange,onExcludeReasonChange,onConditionChange,
     bindHouseholdInput,hasAnyData};
 }
 
@@ -468,10 +539,13 @@ window.__lifeModules={};
 window.__lifeOnUseSearchInput      = (id,b,f,u,v) => window.__lifeModules[id]?.onUseSearchInput(b,f,u,v);
 window.__lifeOnUseSearchFocus      = (id,b,f,u)   => window.__lifeModules[id]?.onUseSearchFocus(b,f,u);
 window.__lifeOnUseSearchBlur       = (id,b,f,u)   => window.__lifeModules[id]?.onUseSearchBlur(b,f,u);
-window.__lifeOnValueChange         = (id,b,f,u,v) => window.__lifeModules[id]?.onValueChange(b,f,u,v);
+window.__lifeOnUseSearchKeydown    = (id,b,f,u,e) => window.__lifeModules[id]?.onUseSearchKeydown(b,f,u,e);
+window.__lifeOnValueInput          = (id,b,f,u,el)  => window.__lifeModules[id]?.onValueInput(b,f,u,el);
+window.__lifeOnValueKeydown        = (id,b,f,u,e,el)=> window.__lifeModules[id]?.onValueKeydown(b,f,u,e,el);
 window.__lifeOnCommonAreaChange    = (id,b,f,v)   => window.__lifeModules[id]?.onCommonAreaChange(b,f,v);
 window.__lifeOnNonSewageChange     = (id,b,f,u,c) => window.__lifeModules[id]?.onNonSewageChange(b,f,u,c);
 window.__lifeOnExcludeReasonChange = (id,b,f,u,r) => window.__lifeModules[id]?.onExcludeReasonChange(b,f,u,r);
+window.__lifeOnConditionChange     = (id,b,f,u,v) => window.__lifeModules[id]?.onConditionChange(b,f,u,v);
 window.__lifeOnMethod1Change = (rootId,prefix,val) => window.__lifeModules[rootId]?.onMethod1Change(prefix,val);
 window.__lifeOnMethod2Change = (rootId,prefix,val) => window.__lifeModules[rootId]?.onMethod2Change(prefix,val);
 window.__lifeOnMethod3Change = (rootId,prefix,val) => window.__lifeModules[rootId]?.onMethod3Change(prefix,val);
